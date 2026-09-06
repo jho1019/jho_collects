@@ -32,7 +32,8 @@ sale. Refunds and corrections attach to whichever side they adjust.
 | "that jordan sale was $75 not $70" | correction | `update` the existing row |
 
 If genuinely ambiguous between two intents, ask. If merely missing a detail,
-proceed and flag — see Step 4.
+proceed and flag — see Step 4. **Exception: purchases and expenses check their
+required fields up front — see Step 3.**
 
 ## Step 2 — Resolve the card
 
@@ -62,9 +63,28 @@ below.
 
 ### Purchases and expenses — always preview and confirm
 
-Never write a purchase or expense row straight through. First run the CLI
-command with `--dry-run` to parse it, then show the user exactly what will be
-written, as a table:
+**Required fields must be in the prompt.** This is the deliberate exception to
+the "insert anyway with `needs_review`" rule in Step 1: for a purchase or
+expense, a missing *required* field blocks entry.
+
+| intent | required in the prompt | defaulted, not required |
+|---|---|---|
+| purchase | amount paid, quantity | `occurred_on` = today, `platform` = `card_show` |
+| expense | amount, category | `occurred_on` = today, `platform` = `na` |
+
+Take quantity as 1 only when a single card is unmistakably meant ("picked up a
+Wemby rookie for $40"); "bought some cards for $10" is missing quantity.
+Expense categories: `supplies`, `postage_shipping`, `subscriptions`, `fees`,
+`mileage`, `equipment`, `other`.
+
+- **All required fields present** → run the CLI with `--dry-run`, show the
+  parsed row, and offer the three actions below.
+- **A required field is missing** → do not dry-run and do not write. Name the
+  missing field(s), ask the user to supply them or restate the transaction,
+  then re-check the answer and continue.
+
+Once the required fields are in hand, run the CLI command with `--dry-run` to
+parse it, then show the user exactly what will be written, as a table:
 
 | field | value |
 |---|---|
@@ -77,7 +97,9 @@ written, as a table:
 | needs_review | false |
 
 Include any cost field that is non-zero (`shipping_cost`, `other_cost`); omit
-the zero ones. Then ask with `AskUserQuestion`, offering these actions:
+the zero ones. The `--dry-run` output ends with `net cash position: <now> ->
+<if written>` — quote that pair as-is; do not compute a projected position
+yourself. Then ask with `AskUserQuestion`, offering these actions:
 
 1. **Confirm & write** — re-run the exact same command without `--dry-run`,
    then report per Step 5.
@@ -155,8 +177,13 @@ as a nickname for that card.
 
 **"bought 15 cards for $10"** — purchase row, platform `card_show`, qty 15,
 `item_amount` 10. No card rows: this is a bulk lot and per-card entry is
-exactly what the design avoids. Run `--dry-run`, show the parsed row as a
-table, and ask (Confirm & write / Add more fields / Re-enter) before writing.
+exactly what the design avoids. Both required fields (amount, quantity) are
+present, so run `--dry-run`, show the parsed row as a table, and ask
+(Confirm & write / Add more fields / Re-enter) before writing.
+
+**"bought some cards at the show"** — a purchase missing amount and quantity.
+Don't dry-run and don't write. Reply that you need the amount paid and how
+many cards, and wait for the answer.
 
 **"sold a jordan for $700"** — matched card cost $40. The amount is plausible
 but off by an order of magnitude versus cost. Confirm before writing.
