@@ -1,0 +1,6 @@
+# Python deps. Install:  python -m pip install -r requirements.txt
+#
+# pg8000 is a pure-Python Postgres driver — no C build step, works on Windows
+# without extra tooling. Used by scripts/check_connection.py and the Phase 5
+# backup job. The eBay parser (importers/parse_ebay.py) uses only the stdlib.
+pg8000>=1.30
