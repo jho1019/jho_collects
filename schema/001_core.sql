@@ -97,7 +97,9 @@ create policy own_inventory on inventory_counts
 
 -- Ledger with a running cash position. The window function replaces the
 -- spreadsheet's O(n^2) SUMIFS trick.
-create view ledger_running as
+-- security_invoker: the view enforces the querying user's RLS, not the
+-- creator's. Without it this view returns every user's rows.
+create view ledger_running with (security_invoker = on) as
 select
   t.*,
   sum(t.net_cash) over (
@@ -108,7 +110,7 @@ select
 from transactions t;
 
 -- Daily cumulative position for the chart line. 180 days back through today.
-create view daily_position as
+create view daily_position with (security_invoker = on) as
 select
   d.day,
   coalesce((
@@ -118,7 +120,7 @@ select
 from generate_series(current_date - 179, current_date, interval '1 day') as d(day);
 
 -- Rolling windows for the dashboard cards.
-create view dashboard_windows as
+create view dashboard_windows with (security_invoker = on) as
 select
   w.label,
   w.days,
@@ -137,7 +139,7 @@ left join transactions t
 group by w.label, w.days;
 
 -- Schedule C building blocks, one row per tax year.
-create view tax_summary as
+create view tax_summary with (security_invoker = on) as
 with years as (
   select distinct extract(year from occurred_on)::int as tax_year
   from transactions where user_id = auth.uid()

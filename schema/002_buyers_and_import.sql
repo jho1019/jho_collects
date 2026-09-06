@@ -72,7 +72,8 @@ create index on transactions (user_id, order_ref);
 -- --------------------------------------------------------------- views
 
 -- The buyer list to filter and sort in the app.
-create view buyer_summary as
+-- security_invoker: enforce the querying user's RLS, not the view creator's.
+create view buyer_summary with (security_invoker = on) as
 select
   b.id,
   b.platform,
@@ -98,7 +99,7 @@ group by b.id, b.platform, b.platform_username, b.display_name,
          b.last_city, b.last_state, b.first_seen_on, b.last_seen_on;
 
 -- Rows whose fees were never filled in. Should be empty before you file.
-create view import_health as
+create view import_health with (security_invoker = on) as
 select
   extract(year from occurred_on)::int as tax_year,
   count(*)                            as rows_missing_fees,
