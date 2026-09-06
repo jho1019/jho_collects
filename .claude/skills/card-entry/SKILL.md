@@ -13,6 +13,12 @@ rows in `transactions`, distinguished by `type`.
 
 ## Step 1 — Classify the intent
 
+**First, is this a purchase or a sale?** That split decides everything
+downstream — the CLI subcommand, whether card resolution (Step 2) runs, and
+whether the confirmation flow in Step 3 applies. Money going *out* to acquire
+cards or supplies is a purchase or expense; money coming *in* from a buyer is a
+sale. Refunds and corrections attach to whichever side they adjust.
+
 | They said | Intent | Writes to |
 |---|---|---|
 | "sold my psa 10 jordan for $70" | sale of a named card | `sell_card()` → `transactions` + `cards` + `card_aliases` |
@@ -51,18 +57,48 @@ disambiguation should make the next one unnecessary.
 ## Step 3 — Confirm, but only when it's worth a turn
 
 Confirmation costs a round trip. The user is often standing in a convention
-hall on a phone.
+hall on a phone — so outside purchases and expenses, keep it to the cases
+below.
 
-**Confirm before writing when:**
+### Purchases and expenses — always preview and confirm
+
+Never write a purchase or expense row straight through. First run the CLI
+command with `--dry-run` to parse it, then show the user exactly what will be
+written, as a table:
+
+| field | value |
+|---|---|
+| type | purchase |
+| platform | card_show |
+| qty | 15 |
+| item_amount | 10.00 |
+| occurred_on | 2026-09-06 |
+| description | 15-card bulk lot, card show |
+| needs_review | false |
+
+Include any cost field that is non-zero (`shipping_cost`, `other_cost`); omit
+the zero ones. Then ask with `AskUserQuestion`, offering these actions:
+
+1. **Confirm & write** — re-run the exact same command without `--dry-run`,
+   then report per Step 5.
+2. **Add more fields** — propose the optional fields that would sharpen the row
+   and are currently defaulted or blank: `occurred_on` (if it fell back to
+   today), `description`, `platform` (if it defaulted to `card_show`),
+   `shipping_cost` (postage paid to *receive* the cards), a `needs_review`
+   note. Collect the user's values, re-preview the updated row, ask again.
+3. **Re-enter** — the parse is wrong. The free-text box on the question is
+   where the user retypes the transaction; parse that from scratch and preview
+   again.
+
+### Confirm before writing when (sales and card objects)
 - The card was chosen from several fuzzy matches
 - The action closes a card (`sell_card`) and the match came from fuzzy, not alias
 - An amount looks wrong by an order of magnitude versus that card's
   acquisition cost
 - It's a correction to an existing row
 
-**Write immediately, no confirmation, when:**
-- A cash-only entry with all fields present ("bought 15 cards for $10")
-- An alias hit — the match is unambiguous by construction
+### Write immediately, no confirmation, when
+- An alias hit on a sale — the match is unambiguous by construction
 - Adding opening stock
 
 State what you wrote afterwards either way. That is the safety net for
@@ -119,7 +155,8 @@ as a nickname for that card.
 
 **"bought 15 cards for $10"** — purchase row, platform `card_show`, qty 15,
 `item_amount` 10. No card rows: this is a bulk lot and per-card entry is
-exactly what the design avoids. Write immediately.
+exactly what the design avoids. Run `--dry-run`, show the parsed row as a
+table, and ask (Confirm & write / Add more fields / Re-enter) before writing.
 
 **"sold a jordan for $700"** — matched card cost $40. The amount is plausible
 but off by an order of magnitude versus cost. Confirm before writing.
