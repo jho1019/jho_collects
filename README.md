@@ -27,6 +27,9 @@ scripts/               check_connection.py — Phase 0 connectivity check
 1. `cp .env.local.example .env.local` and fill it in — see **docs/PHASES.md, Phase 0**.
 2. `python -m pip install -r requirements.txt`
 3. `python scripts/check_connection.py` — both checks must pass before Phase 1.
+   `REST` validates the publishable and secret keys; `SQL` runs `select now()`
+   over the pooled connection. On a machine with TLS-inspecting antivirus, set
+   `DB_SSL_ROOT_CERT` or `DB_SSL_INSECURE=1` in `.env.local` (see its comments).
 
-`.env.local` is gitignored. The `service_role` key and `DATABASE_URL` never
-reach the browser.
+`.env.local` is gitignored. The secret key and `DATABASE_URL` never reach the
+browser.
