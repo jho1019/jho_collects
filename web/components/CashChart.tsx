@@ -34,8 +34,8 @@ export default function CashChart({ data }: { data: CashPoint[] }) {
             tickFormatter={(v: number) => usd(v)}
           />
           <Tooltip
-            formatter={(v: number) => [usd(v), "cumulative net cash"]}
-            labelFormatter={(d: string) => d}
+            formatter={(v: unknown) => [usd(Number(v)), "cumulative net cash"]}
+            labelFormatter={(d: unknown) => String(d)}
           />
           <ReferenceLine y={0} stroke="#a1a1aa" />
           <Line
