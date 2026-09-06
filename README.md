@@ -19,7 +19,10 @@ docs/
 schema/                *.sql migrations, applied in order (Phase 1, 3.5)
 importers/             parse_ebay.py — transaction report parser (tested)
 .claude/skills/card-entry/   natural-language entry routing skill (auto-loaded)
-scripts/               check_connection.py — Phase 0 connectivity check
+scripts/
+  check_connection.py  Phase 0 connectivity check
+  backup.py            dated CSV dump of every table -> ./backups (gitignored)
+  entry.py             manual ledger entry: purchase / sale / expense / refund / review
 ```
 
 ## Setup

@@ -70,6 +70,22 @@ un-confirmed writes, and it's cheaper than a question.
 
 ## Step 4 — Write
 
+**Write path.** Plain cash rows (purchase, sale of an unidentified card,
+refund, expense) go through the CLI, which mirrors the CHECK constraints and
+returns readable errors:
+
+```
+python scripts/entry.py purchase --amount 10 --qty 15 [--date today] [--description "..."]
+python scripts/entry.py sale     --amount 45 --platform collx [--description "..."]
+python scripts/entry.py expense  --amount 30 --category supplies
+python scripts/entry.py review        # list rows flagged needs_review
+```
+
+Add `--dry-run` to see the parsed row without writing. Resolve relative dates
+("last Saturday") to `YYYY-MM-DD` yourself; the CLI takes `today`, `yesterday`,
+`N days ago`, `YYYY-MM-DD`, `M/D`. Card-object intents (`sell_card`,
+`add_opening_stock`, `name_card`) are RPC calls, not the CLI.
+
 - Missing optional fields → write anyway with `needs_review = true`. Never
   interrogate for a field that can be cleaned up later in batch.
 - Use `sell_card()` for card sales. It writes the transaction, closes the card
