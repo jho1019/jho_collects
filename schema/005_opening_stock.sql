@@ -27,8 +27,11 @@ alter table cards add constraint opening_stock_has_no_transaction
 
 -- ------------------------------------------------------- inventory view
 -- Replaces the version in 003. Splits tracked stock by origin so the year-end
--- count can be reconciled without double-counting.
-create or replace view tracked_inventory as
+-- count can be reconciled without double-counting. The column list changes,
+-- which CREATE OR REPLACE VIEW cannot do — drop the 003 version first.
+drop view if exists tracked_inventory;
+
+create view tracked_inventory with (security_invoker = on) as
 select
   count(*)                                                     as cards_on_hand,
   count(*) filter (where is_opening_stock)                     as opening_stock_cards,
@@ -57,7 +60,9 @@ create or replace function add_opening_stock(
   p_grade   text    default null,
   p_notes   text    default null
 ) returns bigint
-language plpgsql as $$
+language plpgsql
+set search_path = public, pg_temp
+as $$
 declare
   v_id bigint;
 begin

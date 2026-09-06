@@ -74,7 +74,9 @@ returns table (
   parallel text, grader text, grade text, status card_status,
   acquisition_cost numeric, acquired_on date, score real
 )
-language sql stable as $$
+language sql stable
+set search_path = public, pg_temp
+as $$
   select c.id, c.sku, c.title, c.year, c.set_name, c.parallel,
          c.grader, c.grade, c.status, c.acquisition_cost, c.acquired_on,
          similarity(c.search_text, q) as score
@@ -101,7 +103,9 @@ create or replace function sell_card(
   p_shipping_cost    numeric default 0,
   p_notes            text    default null
 ) returns bigint
-language plpgsql as $$
+language plpgsql
+set search_path = public, pg_temp
+as $$
 declare
   v_card  cards%rowtype;
   v_txn_id bigint;
@@ -138,7 +142,7 @@ $$;
 -- --------------------------------------------------------- inventory
 -- Cost basis of tracked unsold stock. A floor for the year-end count, not a
 -- replacement: bulk-lot cards carry no acquisition_cost and are invisible here.
-create view tracked_inventory as
+create view tracked_inventory with (security_invoker = on) as
 select
   count(*)                                            as cards_on_hand,
   count(*) filter (where acquisition_cost is null)    as cards_without_cost,

@@ -152,6 +152,36 @@ def insert_transactions(conn, owner, rows, buyer_ids):
     return inserted, len(rows) - inserted
 
 
+def link_cards_by_sku(conn, owner, rows):
+    """
+    eBay 'Custom label' == cards.sku. Close any held/listed tracked card whose
+    sku matches an imported eBay sale, linking it to that transaction. Idempotent
+    (status guard) and independent of whether the row was inserted this run, so
+    a card created after its sale was imported still gets linked on a re-run.
+    """
+    linked = 0
+    for r in rows:
+        label = r.get("custom_label")
+        src = r.get("source_ref")
+        if not label or not src or r.get("type") != "sale":
+            continue
+        res = conn.run(
+            """
+            update cards c set
+              status = 'sold',
+              sale_transaction_id = t.id,
+              sold_on = t.occurred_on
+            from transactions t
+            where c.user_id = :o and c.sku = :sku and c.status <> 'sold'
+              and t.user_id = :o and t.platform = 'ebay' and t.source_ref = :src
+            returning c.id
+            """,
+            o=owner, sku=label, src=src,
+        )
+        linked += len(res)
+    return linked
+
+
 def apply_orphan_labels(conn, owner, orphans):
     applied, already, unresolved = [], [], []
     for order_ref, meta in orphans.items():
@@ -227,6 +257,7 @@ def main():
         buyers = aggregate_buyers(rows)
         buyer_ids = upsert_buyers(conn, owner, buyers)
         inserted, already = insert_transactions(conn, owner, rows, buyer_ids)
+        cards_linked = link_cards_by_sku(conn, owner, rows)
         applied, label_already, unresolved = apply_orphan_labels(conn, owner, orphans)
         conn.run("rollback" if args.dry_run else "commit")
     except Exception as e:  # noqa: BLE001
@@ -239,6 +270,7 @@ def main():
     print(f"{tag}buyers upserted:        {len(buyer_ids)}")
     print(f"{tag}transactions inserted:  {inserted}")
     print(f"{tag}already present:        {already}")
+    print(f"{tag}cards closed by SKU:    {cards_linked}")
     if orphans:
         print(f"{tag}orphan labels applied:  {len(applied)} {applied or ''}")
         if label_already:

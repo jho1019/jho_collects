@@ -37,14 +37,21 @@ create index card_aliases_card on card_aliases (card_id);
 --
 -- Claude: match_type = 'alias' means DO NOT ask which card. It is unambiguous
 -- by construction.
-create or replace function find_cards(q text)
+--
+-- The result gains columns (matched_alias, match_type), which CREATE OR
+-- REPLACE FUNCTION cannot do — drop the 003 version first.
+drop function if exists find_cards(text);
+
+create function find_cards(q text)
 returns table (
   id bigint, sku text, title text, year text, set_name text,
   parallel text, grader text, grade text, status card_status,
   acquisition_cost numeric, acquired_on date,
   matched_alias text, match_type text, score real
 )
-language sql stable as $$
+language sql stable
+set search_path = public, pg_temp
+as $$
   with exact as (
     select c.id, c.sku, c.title, c.year, c.set_name, c.parallel,
            c.grader, c.grade, c.status, c.acquisition_cost, c.acquired_on,
@@ -87,7 +94,9 @@ $$;
 -- ------------------------------------------------------------ naming
 create or replace function name_card(p_card_id bigint, p_alias text)
 returns bigint
-language plpgsql as $$
+language plpgsql
+set search_path = public, pg_temp
+as $$
 declare
   v_id bigint;
   v_owner bigint;
@@ -128,7 +137,9 @@ create or replace function sell_card(
   p_shipping_cost    numeric default 0,
   p_notes            text    default null
 ) returns bigint
-language plpgsql as $$
+language plpgsql
+set search_path = public, pg_temp
+as $$
 declare
   v_card   cards%rowtype;
   v_txn_id bigint;
