@@ -32,6 +32,11 @@ Keep the CSV outside the repo (it carries buyer PII). `.gitignore` blocks
   marker so a re-run never double-adds. If no matching transaction exists
   (e.g. the order predates the ledger), it is reported as UNRESOLVED and
   skipped.
+- **SKU → card close** — eBay's `Custom label` column is `cards.sku`. For each
+  imported eBay sale, a held/listed tracked card with a matching sku is marked
+  `sold` and linked to that transaction. Runs on every import regardless of
+  whether the row was inserted, so a card created *after* its sale was
+  imported still links on the next run. `--` labels don't link (fine).
 
 Fees are taken only from the report — nothing here estimates them.
 `fees_estimated` stays `false`; `import_health` should have no rows.

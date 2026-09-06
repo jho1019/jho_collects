@@ -141,6 +141,9 @@ def parse(path):
                 "source_ref": clean(r["Transaction ID"]) or None,
                 "order_ref": order_no,
                 "item_number": clean(r["Item ID"]) or None,
+                # eBay 'Custom label' == cards.sku. The loader uses it to close
+                # a tracked card automatically. '--' becomes None (unlinked).
+                "custom_label": clean(r.get("Custom label", "")) or None,
                 "buyer_username": clean(r["Buyer username"]) or None,
                 "buyer_name": clean(r["Buyer name"]) or None,
                 "ship_to_city": clean(r["Ship to city"]) or None,

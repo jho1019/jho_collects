@@ -18,7 +18,7 @@ docs/
   reference/           real-world findings (eBay report quirks, known-good figures)
 schema/                *.sql migrations, applied in order (Phase 1, 3.5)
 importers/             parse_ebay.py — transaction report parser (tested)
-skills/card-entry/     natural-language entry routing skill
+.claude/skills/card-entry/   natural-language entry routing skill (auto-loaded)
 scripts/               check_connection.py — Phase 0 connectivity check
 ```
 
