@@ -87,9 +87,13 @@ def parse(path):
             labels[on] += abs(money(r["Net amount"]))
             desc = clean(r.get("Description", ""))
             tm, sm = TRACKING_RE.search(desc), SERVICE_RE.search(desc)
+            # Real reports vary: some label rows carry
+            # "Tracking no. ESUS... eBay Standard Envelope", others just the
+            # bare service name. Use the regex group when present, else the
+            # whole Description as the service.
             label_meta[on] = {
                 "tracking_number": tm.group(1) if tm else None,
-                "shipping_service": sm.group(1) if sm else None,
+                "shipping_service": (sm.group(1) if sm else desc) or None,
             }
         elif typ in ("order", "refund"):
             orders.append(r)
@@ -149,8 +153,17 @@ def parse(path):
                 **meta,
             })
 
+    # Labels whose order has no line item in THIS file belong to a prior
+    # month's order. The loader must attach these to the existing transaction
+    # by order_ref, not drop them. See docs/reference/ebay-report-notes.md.
+    orphan_labels = {
+        on: {"amount": round(amt, 2), **label_meta.get(on, {})}
+        for on, amt in labels.items()
+        if on not in by_order
+    }
+
     out.sort(key=lambda x: (x["occurred_on"], x["source_ref"] or ""))
-    return out, dict(skipped)
+    return out, dict(skipped), orphan_labels
 
 
 def net_cash(r):
@@ -165,10 +178,11 @@ def main():
     p.add_argument("--json", help="write rows to this file")
     a = p.parse_args()
 
-    rows, skipped = parse(a.path)
+    rows, skipped, orphans = parse(a.path)
 
     print(f"{len(rows)} ledger rows"
-          + (f"   (ignored: {skipped})" if skipped else ""))
+          + (f"   (ignored: {skipped})" if skipped else "")
+          + (f"   (orphan labels: {list(orphans)})" if orphans else ""))
     print(f"{'date':11} {'buyer':22} {'item':38} {'sub':>7} {'fees':>7} {'label':>7} {'net':>8}")
     for r in rows:
         print(f"{r['occurred_on']:11} {(r['buyer_username'] or '-')[:22]:22} "
