@@ -17,7 +17,15 @@ Repo, Supabase project, credentials.
 - Create the single owner account via Supabase Auth. Record its user UUID —
   everything is scoped to it by RLS.
 
-- Configure the **Supabase MCP connector** for Claude Code.
+- Configure the **Supabase MCP connector** for Claude Code. It authenticates
+  with a Supabase personal access token (`sbp_...`) passed as
+  `SUPABASE_ACCESS_TOKEN`, stored in the Claude Code MCP config, not in this
+  repo.
+  - **Token: `claude-code-mcp`, expires 2026-12-31.** Supabase forces an
+    expiry on personal access tokens. When the MCP connector starts failing
+    to authenticate around end of 2026, generate a new token at
+    <https://supabase.com/dashboard/account/tokens> and update the connector
+    config — the old token cannot be viewed again, only replaced.
 - **Verify the MCP write path works from the phone before building on it.**
   The primary use case is entering a purchase from a card show. If the
   connector turns out to be desktop-only, fall back to a small CLI script in
@@ -229,6 +237,9 @@ not:
   in exports so a restore preserves row identity and dedupe still works.
 - December reminder to run the inventory count. Without it COGS is guesswork
   and `tax_summary` returns `ending_inventory_missing = true`.
+- **Renew the Supabase MCP access token before it expires (2026-12-31).**
+  See Phase 0. When it lapses, Claude Code loses its write path to the
+  database until a fresh token is generated and the connector reconfigured.
 
 **Exit check:** a backup file lands off-platform on schedule, and restoring it
 into an empty database reproduces the same `tax_summary` output.
