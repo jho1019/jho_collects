@@ -6,7 +6,7 @@ description: Record sports card purchases, sales, expenses and nicknames in the 
 # Card ledger entry
 
 Turn what the user said into the right database writes. Read
-`DECISIONS.md` before changing any table.
+`docs/DECISIONS.md` before changing any table.
 
 There is no `purchases` table. Purchases, sales, refunds and expenses are all
 rows in `transactions`, distinguished by `type`.
