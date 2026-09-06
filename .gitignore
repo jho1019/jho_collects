@@ -25,6 +25,11 @@ backups/
 tmp/
 scratch/
 
+# eBay report drop zone (buyer PII) — keep only the placeholders
+imports/*
+!imports/.gitkeep
+!imports/README.md
+
 # --- os / editor ---
 .DS_Store
 Thumbs.db
