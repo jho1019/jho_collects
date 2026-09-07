@@ -32,39 +32,72 @@ sale. Refunds and corrections attach to whichever side they adjust.
 | "that jordan sale was $75 not $70" | correction | `update` the existing row |
 
 If genuinely ambiguous between two intents, ask. If merely missing a detail,
-proceed and flag — see Step 4.
+proceed and flag — see Step 4. **Exception: every purchase, sale and expense
+checks its required fields up front and previews before writing — see Step 3.**
 
 ## Step 2 — Resolve the card
 
 Only for intents that reference a specific card. Call `find_cards(<phrase>)`.
 
 1. **`match_type = 'alias'`** — exactly one card, guaranteed by a unique index.
-   Do **not** ask which. Proceed.
-2. **One fuzzy match** — proceed, but name what you matched in your reply so a
-   wrong match is caught on the spot.
-3. **Several fuzzy matches** — list them and ask. Quote only the fields that
-   actually differ between them (year, set, parallel, grade, acquisition cost,
-   acquired date). Listing identical fields is noise. Never pick the top score
-   silently.
-4. **No match** — do not block. Record the cash as a plain `transactions` row
-   with `needs_review = true` and say the card wasn't found. A sale at a card
-   show is real whether or not it was catalogued.
+   Do **not** ask which. Go to the Step 3 preview — an alias hit still previews
+   now, it just skips the "which card?" question.
+2. **One fuzzy match** — go to the Step 3 preview, and name what you matched in
+   the preview so a wrong match is caught on the spot.
+3. **Several fuzzy matches** — list them and ask which *before* previewing.
+   Quote only the fields that actually differ between them (year, set,
+   parallel, grade, acquisition cost, acquired date). Listing identical fields
+   is noise. Never pick the top score silently.
+4. **No match** — do not block. Fall through to a plain CLI `sale` row with
+   `needs_review = true` (the Step 3 preview still applies) and say the card
+   wasn't found. A sale at a card show is real whether or not it was
+   catalogued.
 
 After resolving via case 3, **offer to save the phrase they used** as a
 nickname (`name_card`). This is how the vocabulary grows — every
 disambiguation should make the next one unnecessary.
 
-## Step 3 — Confirm, but only when it's worth a turn
+## Step 3 — Preview and confirm every cash entry
 
-Confirmation costs a round trip. The user is often standing in a convention
-hall on a phone — so outside purchases and expenses, keep it to the cases
-below.
+A purchase, sale or expense is never written straight through: check its
+required fields, show exactly what will be written, and let the user confirm,
+extend, or retry.
 
-### Purchases and expenses — always preview and confirm
+### Required fields must be in the prompt
 
-Never write a purchase or expense row straight through. First run the CLI
-command with `--dry-run` to parse it, then show the user exactly what will be
-written, as a table:
+The deliberate exception to the "insert anyway with `needs_review`" rule in
+Step 1 — for a purchase, sale or expense, a missing *required* field blocks
+entry.
+
+| intent | required in the prompt | defaulted, not required |
+|---|---|---|
+| purchase | amount paid, quantity | `occurred_on` = today, `platform` = `card_show` |
+| sale | amount, platform | `occurred_on` = today, quantity = 1 |
+| expense | amount, category | `occurred_on` = today, `platform` = `na` |
+
+- **Quantity** (purchase) is 1 only when a single card is unmistakably meant
+  ("picked up a Wemby rookie for $40"); "bought some cards for $10" is missing
+  it.
+- **Platform** (sale) is `ebay`, `collx`, `card_show`, `local`, `lcs`,
+  `online` or `other`. It drives fees, so a sale with no stated venue is
+  missing it — ask, don't default.
+- **Category** (expense) is `supplies`, `postage_shipping`, `subscriptions`,
+  `fees`, `mileage`, `equipment` or `other`. A named item resolves it
+  ("toploaders" → `supplies`, "eBay Store plan" → `subscriptions`); a vague
+  spend ("$30 on business stuff") does not — ask.
+
+**A required field is missing** → do not preview and do not write. Name the
+missing field(s), ask the user to supply them or restate the transaction, then
+re-check and continue.
+
+**All required fields present** → build the preview, then offer the three
+actions.
+
+### Build the preview
+
+**Cash rows through the CLI** — purchase, expense, and a sale of an
+unidentified or unmatched card. Run the CLI command with `--dry-run` and show
+the parsed row as a table:
 
 | field | value |
 |---|---|
@@ -76,33 +109,56 @@ written, as a table:
 | description | 15-card bulk lot, card show |
 | needs_review | false |
 
-Include any cost field that is non-zero (`shipping_cost`, `other_cost`); omit
-the zero ones. Then ask with `AskUserQuestion`, offering these actions:
+Include any cost field that is non-zero (`shipping_cost`, `other_cost`,
+`shipping_charged`, `sales_tax_collected`, `platform_fees`); omit the zero
+ones. The `--dry-run` output ends with `net cash position: <now> -> <if
+written>` — quote that pair as-is; never compute a projected position yourself.
 
-1. **Confirm & write** — re-run the exact same command without `--dry-run`,
-   then report per Step 5.
+**A named card through `sell_card()`** — there is no `--dry-run` for the RPC,
+so assemble the preview from the `find_cards` result:
+
+| field | value |
+|---|---|
+| card | 2022-23 Panini Mosaic #92 Stephen Curry Reactive Blue (raw) |
+| match | alias "reactive blue curry" — or: fuzzy, score 0.71 |
+| sale price | 45.00 |
+| platform | ebay |
+| on confirm | closes card #128, retires nicknames "reactive blue curry", "the curry" |
+
+For an eBay sale, note that the final value fee is not set here — it arrives
+with the transaction-report import. Never invent it.
+
+### Offer three actions
+
+Ask with `AskUserQuestion`:
+
+1. **Confirm & write** — for a CLI row, re-run the exact command without
+   `--dry-run`. For a named card, call `sell_card(card_id, amount, platform)`.
+   Then report per Step 5.
 2. **Add more fields** — propose the optional fields that would sharpen the row
-   and are currently defaulted or blank: `occurred_on` (if it fell back to
-   today), `description`, `platform` (if it defaulted to `card_show`),
-   `shipping_cost` (postage paid to *receive* the cards), a `needs_review`
-   note. Collect the user's values, re-preview the updated row, ask again.
+   and are currently defaulted or blank: `occurred_on`, `description`,
+   `platform` (purchase, if it defaulted), `shipping_cost` (postage/label you
+   paid), `shipping_charged` / `sales_tax_collected` (sale — what the buyer was
+   charged), a `needs_review` note. Collect values, re-preview, ask again.
 3. **Re-enter** — the parse is wrong. The free-text box on the question is
-   where the user retypes the transaction; parse that from scratch and preview
+   where the user retypes the transaction; parse from scratch and preview
    again.
 
-### Confirm before writing when (sales and card objects)
-- The card was chosen from several fuzzy matches
-- The action closes a card (`sell_card`) and the match came from fuzzy, not alias
-- An amount looks wrong by an order of magnitude versus that card's
-  acquisition cost
-- It's a correction to an existing row
+### Still stop and ask, regardless
 
-### Write immediately, no confirmation, when
-- An alias hit on a sale — the match is unambiguous by construction
-- Adding opening stock
+- Several fuzzy card matches — list them and ask which *before* previewing
+  (Step 2, case 3).
+- A sale amount off by an order of magnitude from the card's acquisition cost
+  — call it out in the preview and wait for an explicit yes.
+- A correction to an existing row — confirm the before/after values first.
 
-State what you wrote afterwards either way. That is the safety net for
-un-confirmed writes, and it's cheaper than a question.
+### Write immediately, no preview
+
+- Adding opening stock (`add_opening_stock`) — no transaction, no cash moved.
+- Naming a card (`name_card`).
+
+State what you wrote afterwards either way. That is the safety net for the
+write, and cheaper than another question.
 
 ## Step 4 — Write
 
@@ -122,8 +178,10 @@ Add `--dry-run` to see the parsed row without writing. Resolve relative dates
 `N days ago`, `YYYY-MM-DD`, `M/D`. Card-object intents (`sell_card`,
 `add_opening_stock`, `name_card`) are RPC calls, not the CLI.
 
-- Missing optional fields → write anyway with `needs_review = true`. Never
-  interrogate for a field that can be cleaned up later in batch.
+- Missing *optional* fields → write with `needs_review = true`, or surface them
+  through "Add more fields" in the Step 3 preview. Never interrogate for one
+  that can be cleaned up later in batch. *Required* fields are the exception —
+  Step 3 blocks on those.
 - Use `sell_card()` for card sales. It writes the transaction, closes the card
   and retires its nicknames atomically. Never do those as separate calls.
 - Purchases carry no `shipping_charged` or `sales_tax_collected` — a CHECK
@@ -144,19 +202,39 @@ moved. Mention `needs_review` only when you set it.
 
 ## Worked examples
 
-**"sold my psa 10 michael jordan for $70"** — one alias match on "psa 10
-michael jordan". `sell_card(card_id, 70, 'card_show')`. No confirmation
-needed; report what was written.
-
-**"sold the jordan for $70"** — two fuzzy matches, a 1986 Fleer PSA 10 bought
-for $220 and a 1988 Fleer PSA 9 bought for $40. Show both with year, set,
-grade and cost. Ask. After they pick, write, then offer to save "the jordan"
-as a nickname for that card.
-
-**"bought 15 cards for $10"** — purchase row, platform `card_show`, qty 15,
+**"bought 15 cards for $10"** — purchase, platform `card_show`, qty 15,
 `item_amount` 10. No card rows: this is a bulk lot and per-card entry is
-exactly what the design avoids. Run `--dry-run`, show the parsed row as a
-table, and ask (Confirm & write / Add more fields / Re-enter) before writing.
+exactly what the design avoids. Both required fields (amount, quantity) are
+present → `--dry-run`, show the table, ask (Confirm & write / Add more fields /
+Re-enter) before writing.
 
-**"sold a jordan for $700"** — matched card cost $40. The amount is plausible
-but off by an order of magnitude versus cost. Confirm before writing.
+**"bought some cards at the show"** — a purchase missing amount and quantity.
+Don't dry-run and don't write. Ask for the amount paid and how many cards, and
+wait.
+
+**"sold my psa 10 michael jordan for $70"** — one alias match on "psa 10
+michael jordan", so no "which card?" question. But `platform` is required and
+wasn't given — stop and ask where it sold. Told "ebay": preview the card, $70,
+`ebay`, and that confirming closes the card and retires "psa 10 michael
+jordan"; on **Confirm & write**, `sell_card(card_id, 70, 'ebay')`.
+
+**"sold the jordan for $70 on collx"** — amount and platform present. Two fuzzy
+matches: a 1986 Fleer PSA 10 acquired for $220 and a 1988 Fleer PSA 9 acquired
+for $40. Show both with year, set, grade and cost; ask which. After they pick,
+preview (card, $70, `collx`), then the three actions; on confirm
+`sell_card(...)`. Then offer to save "the jordan" as a nickname.
+
+**"sold a card for $15 on ebay"** — a sale with no card named. Amount and
+platform present, so don't block. `sale --amount 15 --platform ebay
+--dry-run`, show the table, offer the three actions.
+
+**"sold a jordan for $700"** — matched card acquired for $40. Amount is
+plausible but off by an order of magnitude — call it out in the preview and
+wait for an explicit yes, not merely a click of one of the three actions.
+
+**"bought $30 of toploaders"** — expense. Amount $30; "toploaders" resolves the
+category to `supplies`. Both required fields satisfied →
+`expense --amount 30 --category supplies --dry-run`, preview, three actions.
+
+**"spent $30 on business stuff"** — expense missing a usable category. Don't
+preview; ask what the $30 was for.

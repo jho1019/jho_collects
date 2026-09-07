@@ -166,15 +166,15 @@ def insert_row(conn, owner, row, dry_run):
     q = (f"insert into transactions (user_id, {', '.join(cols)}) "
          f"values (:owner, {', '.join(':' + c for c in cols)}) "
          f"returning id, net_cash")
+    pos_q = ("select coalesce(sum(net_cash), 0) from transactions "
+             "where user_id = :o")
     if dry_run:
         conn.run("begin")
-    res = conn.run(q, owner=owner, **row)
-    new_id, net_cash = res[0]
-    position = conn.run(
-        "select coalesce(sum(net_cash), 0) from transactions where user_id = :o",
-        o=owner)[0][0]
+    before = conn.run(pos_q, o=owner)[0][0]
+    new_id, net_cash = conn.run(q, owner=owner, **row)[0]
+    after = conn.run(pos_q, o=owner)[0][0]
     conn.run("rollback" if dry_run else "commit")
-    return new_id, net_cash, position
+    return new_id, net_cash, before, after
 
 
 def cmd_review(conn, owner, limit):
@@ -278,15 +278,18 @@ def main():
         if a.command == "review":
             cmd_review(conn, owner, a.limit)
         else:
-            new_id, net_cash, position = insert_row(conn, owner, row, a.dry_run)
+            new_id, net_cash, before, after = insert_row(conn, owner, row, a.dry_run)
             tag = "[dry run] would record" if a.dry_run else "recorded"
             print(f"{tag} #{new_id}: {row['type']} x{row['qty']} "
                   f"{row['item_amount']} at {row['platform']} on {row['occurred_on']}"
                   f" -- this row net_cash {net_cash}")
             if row["needs_review"]:
                 print(f"  needs_review = true ({row['notes']})")
-            print(f"  net cash position: {position}"
-                  + (" (unchanged -- rolled back)" if a.dry_run else ""))
+            if a.dry_run:
+                print(f"  net cash position: {before} now -> {after} if written "
+                      f"(nothing written -- rolled back)")
+            else:
+                print(f"  net cash position: {after}")
     except Exception as e:  # noqa: BLE001
         conn.run("rollback")
         sys.exit(f"write failed, rolled back: {e}")
