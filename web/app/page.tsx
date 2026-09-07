@@ -5,6 +5,10 @@ import CashChart, { type CashPoint } from "@/components/CashChart";
 import PositionCards from "@/components/PositionCards";
 import MarginByBand, { type Band } from "@/components/MarginByBand";
 import BuyerList, { type Buyer } from "@/components/BuyerList";
+import CardInventory, {
+  type Card,
+  type TrackedInventory,
+} from "@/components/CardInventory";
 import { isoDay, usd } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -110,6 +114,8 @@ export default async function Dashboard() {
     { data: health },
     { data: sales },
     { data: buyers },
+    { data: cards },
+    { data: trackedRows },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -140,6 +146,18 @@ export default async function Dashboard() {
       .from("buyer_summary")
       .select(
         "platform_username, display_name, last_city, last_state, order_count, distinct_orders, lifetime_gross, lifetime_net, avg_item_price, last_order_on, is_repeat_buyer",
+      ),
+    supabase
+      .from("cards")
+      .select(
+        "id, title, player, year, set_name, parallel, grader, grade, status, sku, acquisition_cost, acquired_on, sold_on, is_opening_stock",
+      )
+      .order("acquired_on", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("tracked_inventory")
+      .select(
+        "cards_on_hand, opening_stock_cards, acquired_since_start, cards_without_cost, known_cost_basis, opening_cost_basis, acquired_cost_basis",
       ),
   ]);
 
@@ -288,6 +306,11 @@ export default async function Dashboard() {
           <MarginByBand bands={bands} />
         </div>
       </section>
+
+      <CardInventory
+        cards={(cards ?? []) as Card[]}
+        summary={((trackedRows ?? [])[0] ?? null) as TrackedInventory}
+      />
 
       <BuyerList buyers={(buyers ?? []) as Buyer[]} />
     </main>
