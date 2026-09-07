@@ -116,6 +116,7 @@ export default async function Dashboard() {
     { data: buyers },
     { data: cards },
     { data: trackedRows },
+    { data: taxRows },
   ] = await Promise.all([
     supabase
       .from("transactions")
@@ -159,6 +160,9 @@ export default async function Dashboard() {
       .select(
         "cards_on_hand, opening_stock_cards, acquired_since_start, cards_without_cost, known_cost_basis, opening_cost_basis, acquired_cost_basis",
       ),
+    supabase
+      .from("tax_summary")
+      .select("tax_year, ending_inventory_missing"),
   ]);
 
   const series = buildSeries((txns ?? []) as TxnRow[]);
@@ -168,6 +172,18 @@ export default async function Dashboard() {
       t + Number(r.rows_missing_fees),
     0,
   );
+
+  // December reminder: from Nov 15 through Feb, nag if the current tax year's
+  // ending inventory count is still missing. Without it COGS is guesswork.
+  const now = new Date();
+  const month = now.getMonth(); // 0 = Jan
+  const inCountSeason = month >= 10 || month <= 1; // Nov, Dec, Jan, Feb
+  const countYear = month <= 1 ? now.getFullYear() - 1 : now.getFullYear();
+  const countMissing =
+    inCountSeason &&
+    ((taxRows ?? []) as { tax_year: number; ending_inventory_missing: boolean }[]).some(
+      (r) => r.tax_year === countYear && r.ending_inventory_missing,
+    );
 
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-6">
@@ -185,6 +201,15 @@ export default async function Dashboard() {
           </button>
         </form>
       </header>
+
+      {countMissing && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          Year-end inventory count for {countYear} is not recorded. Count the
+          unsold cards, estimate what you <em>paid</em> for them, and add an{" "}
+          <code>inventory_counts</code> row for tax year {countYear}. Until then
+          COGS and net profit for {countYear} are incomplete.
+        </p>
+      )}
 
       {missingFees > 0 && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
