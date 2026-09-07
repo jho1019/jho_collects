@@ -34,11 +34,20 @@ changes.
 ## Built so far
 
 - Auth (login / sign-out, route protection)
-- Cumulative net-cash chart from `daily_position` + recent-ledger table
+- Position cards: net cash / est. inventory value (manual, per-browser) /
+  adjusted position
+- Cumulative net-cash chart with a 30d / 90d / 1y / All window control. The
+  series is built server-side from `transactions.net_cash`, one cumulative
+  point per day from the first transaction through today (the fixed-180-day
+  `daily_position` view is no longer used by the app).
+- Recent-ledger table (`ledger_running`)
+- Rolling windows (`dashboard_windows`, 7 / 30 / 90 / 180 / 365 day)
+- Margin by price band (computed from sale rows)
+- Card inventory (`cards` by status) with a `tracked_inventory` summary
+- Buyer list (`buyer_summary`, filter + sort, repeat-buyer flag)
+- `import_health` warning banner
 
-## Still to build (Phase 4)
+## Before deploying
 
-Position cards (net cash / est. inventory value / adjusted), rolling windows
-(`dashboard_windows`), buyer list (`buyer_summary`), card inventory
-(`cards` filtered by status), margin by price band, and the `import_health`
-warning banner.
+`package.json` pins `engines.node >= 22` (`@supabase/supabase-js` drops Node 20
+support). Install Node 22 locally and set it in the Vercel project.
