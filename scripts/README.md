@@ -15,11 +15,15 @@ Install deps once: `python -m pip install -r ../requirements.txt`.
 
 ```powershell
 # daily 02:00, ../backups, keep 30 days
-pwsh scripts/schedule_backup.ps1
+powershell -ExecutionPolicy Bypass -File scripts\schedule_backup.ps1
 
 # or write into a cloud-synced folder so the copy leaves this machine
-pwsh scripts/schedule_backup.ps1 -OutDir "$env:OneDrive\jho_collects_backups" -KeepDays 60
+powershell -ExecutionPolicy Bypass -File scripts\schedule_backup.ps1 `
+  -OutDir "$env:OneDrive\jho_collects_backups" -KeepDays 60
 ```
+
+Runs under Windows PowerShell 5.1 (the built-in `powershell`) or PowerShell 7
+(`pwsh`).
 
 `../backups/` is gitignored (tax data + buyer PII). The task runs as the
 current user while logged on — no stored password — which a personal machine
