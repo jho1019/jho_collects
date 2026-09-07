@@ -45,7 +45,12 @@ changes.
 - Margin by price band (computed from sale rows)
 - Card inventory (`cards` by status) with a `tracked_inventory` summary
 - Buyer list (`buyer_summary`, filter + sort, repeat-buyer flag)
-- `import_health` warning banner
+- `import_health` warning banner + a December year-end-count reminder
+- `/data` — CSV import / export per table (`transactions`, `buyers`,
+  `cards`, `inventory_counts`). Export is every row + `id`; import previews
+  (new vs already-present, dropped columns) before you commit, matching on
+  `id` (or `tax_year`). Insert-new-only by default; "also update existing"
+  is an explicit opt-in.
 
 ## Before deploying
 

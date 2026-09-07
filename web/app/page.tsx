@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/login/actions";
@@ -192,14 +193,22 @@ export default async function Dashboard() {
           <h1 className="text-xl font-semibold text-zinc-900">Card ledger</h1>
           <p className="text-sm text-zinc-500">{user.email}</p>
         </div>
-        <form action={logout}>
-          <button
-            type="submit"
+        <div className="flex items-center gap-3">
+          <Link
+            href="/data"
             className="rounded border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
           >
-            Sign out
-          </button>
-        </form>
+            Import / export
+          </Link>
+          <form action={logout}>
+            <button
+              type="submit"
+              className="rounded border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
       </header>
 
       {countMissing && (
