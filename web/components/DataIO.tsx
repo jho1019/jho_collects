@@ -10,7 +10,7 @@ import {
 } from "@/app/data/actions";
 import { TABLE_NAMES, type TableName } from "@/lib/tables";
 
-export default function DataIO() {
+export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   const [table, setTable] = useState<TableName>("transactions");
   const [fileName, setFileName] = useState("");
   const [csv, setCsv] = useState("");
@@ -50,15 +50,8 @@ export default function DataIO() {
     setBusy(false);
   }
 
-  return (
-    <main className="mx-auto max-w-4xl space-y-8 p-6">
-      <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-zinc-900">Data import / export</h1>
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800">
-          ← dashboard
-        </Link>
-      </header>
-
+  const body = (
+    <div className="space-y-6">
       <section className="space-y-2">
         <label className="text-sm font-medium text-zinc-700">Table</label>
         <select
@@ -214,6 +207,22 @@ export default function DataIO() {
           </p>
         )}
       </section>
+    </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <main className="mx-auto max-w-4xl space-y-8 p-6">
+      <header className="flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-zinc-900">
+          Data import / export
+        </h1>
+        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800">
+          ← dashboard
+        </Link>
+      </header>
+      {body}
     </main>
   );
 }

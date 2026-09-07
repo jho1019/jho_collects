@@ -46,11 +46,18 @@ changes.
 - Card inventory (`cards` by status) with a `tracked_inventory` summary
 - Buyer list (`buyer_summary`, filter + sort, repeat-buyer flag)
 - `import_health` warning banner + a December year-end-count reminder
-- `/data` — CSV import / export per table (`transactions`, `buyers`,
-  `cards`, `inventory_counts`). Export is every row + `id`; import previews
-  (new vs already-present, dropped columns) before you commit, matching on
-  `id` (or `tax_year`). Insert-new-only by default; "also update existing"
-  is an explicit opt-in.
+- `/data` — two tabs:
+  - **Table CSV** — import / export per table (`transactions`, `buyers`,
+    `cards`, `inventory_counts`). Export is every row + `id`; import previews
+    (new vs already-present, dropped columns) before you commit, matching on
+    `id` (or `tax_year`). Insert-new-only by default; "also update existing"
+    is an explicit opt-in.
+  - **eBay report** — upload the raw Seller Hub transaction report. Preview
+    shows eBay's own totals for cross-check, new vs already-imported (by
+    transaction id), ignored rows and orphan labels; commit runs the Phase 2
+    loader logic (buyer upsert, `source_ref` dedupe, orphan-label attach,
+    SKU → card close). `importers/parse_ebay.py` + `load_ebay.py` stay the
+    tested reference; `web/lib/ebay/parse.ts` is a matched port.
 
 ## Before deploying
 
