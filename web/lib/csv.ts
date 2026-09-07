@@ -2,7 +2,9 @@
 // ("" escape) and newlines. Enough for backup.py output and a spreadsheet
 // round-trip; not a general-purpose parser.
 
-export function parseCsv(text: string): { header: string[]; rows: string[][] } {
+// All rows, first line NOT treated as a header. Handles quoted fields with
+// embedded commas / quotes ("" escape) / newlines, and strips a leading BOM.
+export function parseCsvRows(text: string): string[][] {
   const src = text.replace(/^﻿/, "");
   const rows: string[][] = [];
   let field = "";
@@ -41,7 +43,11 @@ export function parseCsv(text: string): { header: string[]; rows: string[][] } {
     row.push(field);
     if (row.length > 1 || row[0] !== "") rows.push(row);
   }
+  return rows;
+}
 
+export function parseCsv(text: string): { header: string[]; rows: string[][] } {
+  const rows = parseCsvRows(text);
   const header = rows.shift() ?? [];
   return { header, rows };
 }

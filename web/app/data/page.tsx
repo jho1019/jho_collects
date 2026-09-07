@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import DataIO from "@/components/DataIO";
+import DataTabs from "@/components/DataTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -11,5 +11,5 @@ export default async function DataPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  return <DataIO />;
+  return <DataTabs />;
 }
