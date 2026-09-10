@@ -243,3 +243,268 @@ not:
 
 **Exit check:** a backup file lands off-platform on schedule, and restoring it
 into an empty database reproduces the same `tax_summary` output.
+
+---
+
+## Phase 6 — Deals
+
+Multi-leg, in-person transactions: trades, and cash deals that are
+economically one event but currently land as unrelated rows.
+
+### The problem this solves
+
+A card show deal is one event with one counterparty and several legs. The
+schema has no concept of that event, so two things are impossible today.
+
+A card cannot leave inventory without being sold. `card_status` is
+`held | listed | sold`, and `sold` requires a `sale_transaction_id`. Book a
+traded-away card as sold and you invent receipts that never happened. Leave it
+`held` and it sits in ending inventory forever, understating COGS. There is no
+third option.
+
+Trade consideration paid in cards has nowhere to go. A trade of two cards plus
+$95 cash for one card can record the $95 as a purchase, and nothing else about
+the deal is representable.
+
+### One transaction row per cash movement
+
+Not one per deal, and not one per card. A deal with money moving both
+directions is two rows sharing a `deal_id`.
+
+Never net a deal down to a single row. Receipts and purchases land on
+different Schedule C lines and carry opposite `net_cash` signs; collapsing
+them destroys both figures to save a row. `deal_summary` reports the per-deal
+net as a query result, which is where that number belongs.
+
+A deal is one counterparty. Several legs with the same vendor are one deal; a
+different vendor is a different deal.
+
+### Basis carries over; market value does not
+
+The received card's cost basis is the cash paid plus the **cost basis** of the
+cards given up — not their comp value. Cards given up at a $100 comp that cost
+$30 carry $30. The received card's basis is $125, not $195.
+
+Recording $195 overstates ending inventory, which understates COGS and
+overstates profit. This is the same double-count that the `is_opening_stock`
+comment on `cards` warns about, arriving by a different route.
+
+Comp and sticker values are still worth capturing, but they belong to the
+dashboard's estimated inventory value, not to cost. They go in the new
+`est_value` columns and never touch `acquisition_cost`.
+
+Open question for a preparer: barter is technically a disposition at fair
+market value. Basis-carryover with no cash event is the treatment that fits a
+cash-in/cash-out ledger with periodic inventory, but confirm it before filing.
+If the answer is that gross receipts must include the fair market value of
+goods received, the fix is a nullable `non_cash_consideration` column on
+`transactions`, excluded from `net_cash` and included in `tax_summary` — not a
+new `txn_type`. Ask before building this phase; the column is cheap now and a
+migration later.
+
+### Schema
+
+Apply `schema/006_deals.sql`.
+
+```sql
+create table deals (
+  id              bigint generated always as identity primary key,
+  user_id         uuid not null default auth.uid(),
+  occurred_on     date not null default current_date,
+  counterparty_id bigint references buyers(id),
+  event_name      text,
+  notes           text,
+  needs_review    boolean not null default false,
+  created_at      timestamptz not null default now()
+);
+
+alter table transactions add column deal_id bigint references deals(id);
+
+alter table cards add column acquired_deal_id  bigint references deals(id);
+alter table cards add column disposed_deal_id  bigint references deals(id);
+alter table cards add column est_value         numeric;
+alter table cards add column est_value_source  text;
+alter table cards add column est_valued_on     date;
+```
+
+Then, in its own statement — Postgres will not let a new enum value be used in
+the transaction that adds it:
+
+```sql
+alter type card_status add value 'traded';
+```
+
+RLS policies on `deals` matching the existing three tables. Every new column is
+nullable.
+
+No CHECK constraints on `deals`. A deal opened at a table before anything has
+been agreed must be allowed to sit empty.
+
+### `txn_type` gains nothing
+
+Do not add a `trade` value to `txn_type`. Cash moves in two directions and
+`purchase` and `sale` cover both; a trade's cash leg is an ordinary purchase or
+sale. The part of a trade that is not a cash movement does not belong in
+`transactions` at all — it is card rows linked by `disposed_deal_id` and
+`acquired_deal_id`.
+
+Concretely: `net_cash` is generated from a `CASE` on `type`. A `trade` value
+would need arithmetic. Zero leaves the cash with nowhere to live; anything else
+re-encodes direction that `purchase`/`sale` already carry. Postgres has no
+`ALTER TYPE ... DROP VALUE`, and `txn_type` is load-bearing for `tax_summary`,
+so this is a one-way door.
+
+### Rename `sold_on` to `exited_on`
+
+`cards` has zero rows, so this is free today and expensive later. Two nullable
+date columns where exactly one is ever set is a defect waiting to happen: one
+exit date, with `status` recording how it exited. Update `sell_card()` and any
+view referencing `sold_on`.
+
+Do not store what the legs already say. No `kind`, `venue`, or `cash_delta`
+column — kind is derivable from which legs attach, venue lives on
+`transactions.platform`, and cash is a sum. A stored kind goes stale the moment
+another leg is attached.
+
+### View
+
+`deal_summary` — one row per deal: `occurred_on`, `event_name`, counterparty
+display name, summed `net_cash`, count of cards in, count of cards out, and a
+derived kind (`trade` when both directions have cards, else `sale` /
+`purchase` / `cash_only`). Left joins throughout; an empty deal returns a row
+with zeroes.
+
+This view is also the day-totals and per-show P&L query.
+
+Show-level costs stay unattached for now. Admission and table fees have no
+counterparty, so they belong to the show rather than to any deal — record them
+as `expense` transactions with a null `deal_id`. Per-show P&L is therefore
+incomplete by design until a show-level grouping exists. Do not invent one in
+this phase.
+
+### Functions
+
+`open_deal()` — creates a deal from nothing. Every argument optional.
+
+`attach_transaction(deal_id, transaction_id)` — sets `deal_id` on an existing
+row.
+
+`record_trade(...)` — atomic, and the reason this phase exists:
+
+1. Sum `acquisition_cost` across the outgoing cards.
+2. Write **one** transaction for the cash leg only — `purchase` if cash was
+   paid out, `sale` if cash was received. Never a negative purchase.
+3. Set outgoing cards to `status = 'traded'`, `disposed_deal_id`, `exited_on`.
+   Leave `sale_transaction_id` null. This is what keeps `net_cash` honest.
+4. Insert incoming cards with `acquired_deal_id` set and
+   `acquisition_cost = cash paid + carried basis`, allocated pro-rata by
+   `est_value` when several arrive, evenly when values are unknown.
+5. If any outgoing card has a null `acquisition_cost`, write the row anyway
+   with what is known and set `needs_review` on the deal. The gap must be
+   visible, not silent — same principle as `cards_without_cost`.
+
+### Skill branch
+
+Extend `.claude/skills/card-entry/SKILL.md` with a deals branch.
+
+Trigger: any utterance describing both giving and getting, or two legs with one
+counterparty. "Traded X for Y" is the obvious case. "Bought some dollar bin
+stuff and sold him the Daniels" is the same event and currently files as two
+unrelated rows.
+
+Required — do not write without these:
+
+1. **Cash direction.** `purchase` versus `sale`. Cannot be inferred: "gave him
+   $95" and "he gave me $95" differ only in `type`. Never default it.
+   Ambiguous phrasing ("we settled up $95") earns a round trip.
+2. **Cash amount**, if there is a cash leg. Unrecoverable later. If missing,
+   write the deal and the card legs, skip the transaction row, flag the deal —
+   do not insert a placeholder amount.
+3. **Identity of each outgoing card, resolved to exactly one row.**
+   Irreversible: the wrong card marked `traded` leaves inventory and corrupts
+   the basis carried forward. Existing resolution ladder, confirm before
+   disposal.
+4. **A title string for each incoming card.** Free text. "ohtani bowman rookie
+   pitching psa 9" suffices; every structured field can be backfilled, but an
+   uncaptured card is unreconstructable.
+
+Never ask for: date (default today; parse only if stated), counterparty, event
+name, comp or sticker value, grade, set, parallel, or per-card allocation.
+
+Confirmation policy splits by direction. Disposals are irreversible and get a
+confirmation. Acquisitions are additive and trivially correctable — write them
+straight through. A typical trade should cost one round trip, not three,
+because this is happening standing at someone's table.
+
+Unresolvable outgoing cards are the common case, not the edge case. `cards` is
+empty, so nearly every card named at a table will fail to resolve. The fallback
+must be the first thing that works: create the row from the title alone,
+`acquisition_cost` null, `is_opening_stock = true`, immediately disposed to the
+deal, deal flagged. Records the inventory movement honestly and leaves the
+basis gap visible.
+
+### Exit check
+
+Fixture is the Anaheim show, 9 September 2026.
+
+The three outgoing cards are seeded as opening stock with costs so the
+arithmetic is deterministic. **These costs are invented for the fixture — they
+are not real acquisition figures.** Jayden Daniels RPA `COST_DANIELS = 12.00`,
+Josh Allen Winning Ticket PSA 9 `COST_ALLEN = 18.00`, Puka Nacua Rated Rookie
+Pink PSA 9 `COST_NACUA = 12.00`.
+
+Deal 1 — dollar-bin vendor, one counterparty, two legs. Sold the Daniels for
+$146 cash. Bought 6 dollar-bin cards for $10.
+
+Deal 2 — entrance vendor. Gave the Allen and the Nacua plus $95 cash, received
+a Shohei Ohtani Bowman Rookie Pitching PSA 9.
+
+Assert:
+
+- Three transaction rows exist, not two and not five: `sale` 146.00 and
+  `purchase` 10.00 both carrying Deal 1's `deal_id`, and `purchase` 95.00
+  carrying Deal 2's. Deal 2 writes no transaction for the cards that moved.
+- `deal_summary` returns two rows. Deal 1 nets +136.00, Deal 2 nets −95.00,
+  and the two sum to **+41.00**. A total of +141.00 means a traded card was
+  booked as sold.
+- Three cards have `exited_on` set: the Daniels `sold` with a
+  `sale_transaction_id`; the Allen and the Nacua `traded` with none.
+- The Ohtani exists with
+  `acquisition_cost = 95.00 + COST_ALLEN + COST_NACUA = 125.00`. Not 195.00.
+- The Ohtani's `est_value` is 205.00 and appears in no cost or COGS figure.
+- `deal_summary.cards_in` is 1 for Deal 2 and **0** for Deal 1 — bulk lots
+  create no card rows under the Phase 3.5 rule. The day's informal count of
+  seven cards in is deliberately not what the system reports.
+- Re-running the fixture is either rejected or idempotent. It must not
+  duplicate the cash legs.
+- A second trade, with an outgoing card whose `acquisition_cost` is null,
+  completes and sets `needs_review` on the deal. This is the path real entries
+  will take.
+
+Then: from a phone session, "traded the allen and the nacua plus 95 for an
+ohtani bowman rookie psa 9" produces the deal, three card rows in the right
+states, and one transaction — with exactly one confirmation prompt.
+
+### Decisions to record in DECISIONS.md
+
+- One transaction row per cash movement. Deals group rows; they never replace
+  them.
+- A deal is one counterparty.
+- Trade basis carries over at cost, never at market value. Comps live in
+  `est_value`.
+- Cash received in a trade is a `sale`, not a negative purchase.
+- No `trade` value on `txn_type`. Non-cash consideration, if it is ever
+  needed, becomes a column excluded from `net_cash`.
+- `deals` stores no derivable fields; `deal_summary` computes them.
+- Show-level expenses stay unattached to any deal until a show grouping
+  exists.
+- `buyers` now holds counterparties who are also sellers. The name is a known
+  misnomer, kept for now — renaming to `counterparties` costs 5 rows if it
+  ever becomes worth doing.
+
+### Not in this phase
+
+Opening stock seeding beyond the fixture rows, the 2025 `inventory_counts`
+row, Jan–Jul 2026 revenue backfill, a show-level grouping, per-show margin
+reporting in the dashboard, and any `deals` UI. Deals are entered through the
+skill; the dashboard reads `deal_summary` in a later phase.
