@@ -170,9 +170,10 @@ def link_cards_by_sku(conn, owner, rows):
             update cards c set
               status = 'sold',
               sale_transaction_id = t.id,
-              sold_on = t.occurred_on
+              exited_on = t.occurred_on
             from transactions t
-            where c.user_id = :o and c.sku = :sku and c.status <> 'sold'
+            where c.user_id = :o and c.sku = :sku
+              and c.status not in ('sold', 'traded')
               and t.user_id = :o and t.platform = 'ebay' and t.source_ref = :src
             returning c.id
             """,

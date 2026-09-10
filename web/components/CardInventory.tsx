@@ -12,11 +12,11 @@ export type Card = {
   parallel: string | null;
   grader: string | null;
   grade: string | null;
-  status: "held" | "listed" | "sold";
+  status: "held" | "listed" | "sold" | "traded";
   sku: string | null;
   acquisition_cost: string | number | null;
   acquired_on: string | null;
-  sold_on: string | null;
+  exited_on: string | null;
   is_opening_stock: boolean;
 };
 
@@ -30,7 +30,7 @@ export type TrackedInventory = {
   acquired_cost_basis: string | number;
 } | null;
 
-const STATUSES = ["all", "held", "listed", "sold"] as const;
+const STATUSES = ["all", "held", "listed", "sold", "traded"] as const;
 type Filter = (typeof STATUSES)[number];
 
 function grade(c: Card) {
@@ -123,7 +123,7 @@ export default function CardInventory({
               <th className="px-3 py-2 font-medium">Status</th>
               <th className="px-3 py-2 text-right font-medium">Cost</th>
               <th className="px-3 py-2 text-right font-medium">Acquired</th>
-              <th className="px-3 py-2 text-right font-medium">Sold</th>
+              <th className="px-3 py-2 text-right font-medium">Exited</th>
             </tr>
           </thead>
           <tbody>
@@ -144,9 +144,11 @@ export default function CardInventory({
                     className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
                       c.status === "sold"
                         ? "bg-zinc-100 text-zinc-500"
-                        : c.status === "listed"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-green-50 text-green-700"
+                        : c.status === "traded"
+                          ? "bg-sky-50 text-sky-700"
+                          : c.status === "listed"
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-green-50 text-green-700"
                     }`}
                   >
                     {c.status}
@@ -159,7 +161,7 @@ export default function CardInventory({
                   {c.acquired_on ?? "—"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
-                  {c.sold_on ?? "—"}
+                  {c.exited_on ?? "—"}
                 </td>
               </tr>
             ))}

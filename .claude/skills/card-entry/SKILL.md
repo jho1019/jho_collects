@@ -1,6 +1,6 @@
 ---
 name: card-entry
-description: Record sports card purchases, sales, expenses and nicknames in the Supabase ledger from natural language. Use whenever the user describes buying, selling, or spending money on cards ("sold my psa 10 jordan for $70", "bought 15 cards for $10 at the show", "picked up a Wemby rookie", "call that one the jordan"), or asks about their collection, cash position, or what they're holding. Also use for corrections to previously entered rows.
+description: Record sports card purchases, sales, trades, expenses and nicknames in the Supabase ledger from natural language. Use whenever the user describes buying, selling, trading, or spending money on cards ("sold my psa 10 jordan for $70", "bought 15 cards for $10 at the show", "traded the allen and the nacua plus 95 for an ohtani", "swapped him two rookies for a slab", "bought some dollar bin stuff and sold him the daniels", "picked up a Wemby rookie", "call that one the jordan"), or asks about their collection, cash position, deals at a show, or what they're holding. Also use for corrections to previously entered rows.
 ---
 
 # Card ledger entry
@@ -26,6 +26,8 @@ sale. Refunds and corrections attach to whichever side they adjust.
 | "bought 15 cards for $10 at the show" | bulk purchase | `transactions` only — **no card rows** |
 | "picked up a Wemby rookie for $40" | purchase worth tracking | `transactions` + `cards` |
 | "I already own a 1986 Fleer Jordan PSA 8" | opening stock | `add_opening_stock()` — **no transaction** |
+| "traded the allen and the nacua plus $95 for an ohtani" | deal — cards both ways | `record_trade()` → `deals` + `transactions` + `cards` |
+| "bought dollar bin stuff and sold him the daniels" | deal — two legs, one vendor | `open_deal()` + `sell_card(…, p_deal_id)` + `record_trade()` |
 | "call that one the jordan" | naming | `name_card()` |
 | "bought $30 of toploaders" | expense | `transactions`, type `expense` |
 | "how much am I up?" / "what am I holding?" | query | read-only |
@@ -56,6 +58,97 @@ Only for intents that reference a specific card. Call `find_cards(<phrase>)`.
 After resolving via case 3, **offer to save the phrase they used** as a
 nickname (`name_card`). This is how the vocabulary grows — every
 disambiguation should make the next one unnecessary.
+
+## Step 2.5 — Deals (trades and multi-leg show events)
+
+Skip this unless the utterance is a deal. If it is, this section replaces
+Step 3 — the confirmation rules here are the ones that apply.
+
+**Trigger:** any utterance describing both *giving* and *getting*, or two legs
+with one counterparty. "Traded X for Y" is the obvious case. "Bought some
+dollar bin stuff and sold him the Daniels" is the same event — one vendor, two
+legs — and must not file as two unrelated rows.
+
+A deal is **one counterparty**. Several legs with the same vendor are one deal;
+a different vendor is a different deal.
+
+### One transaction row per cash movement
+
+Not one per deal, and not one per card. `record_trade()` writes **one**
+transaction for the cash leg only — `purchase` if cash went out, `sale` if it
+came in. Never a negative purchase. The cards that moved are not a transaction
+at all: they are card rows linked by `disposed_deal_id` and `acquired_deal_id`.
+
+Never net a deal down to a single row. Receipts and purchases land on different
+Schedule C lines and carry opposite `net_cash` signs. `deal_summary` reports
+the per-deal net as a query result, which is where that number belongs.
+
+### Basis carries over at cost, never at market
+
+The received card's basis is the cash paid plus the **cost basis** of the cards
+given up — not their comp value. Cards given up at a $100 comp that cost $30
+carry $30. Comps go in `est_value` and never touch `acquisition_cost`.
+`record_trade()` does this arithmetic — do not pre-compute it and pass a total.
+
+### Required — do not write without these
+
+1. **Cash direction.** `purchase` versus `sale`. Cannot be inferred: "gave him
+   $95" and "he gave me $95" differ only in this. **Never default it.**
+   Ambiguous phrasing ("we settled up $95") earns a round trip.
+2. **Cash amount**, if there is a cash leg. Unrecoverable later. If missing,
+   write the deal and the card legs, skip the transaction row, and let the deal
+   carry `needs_review` — do not insert a placeholder amount.
+3. **Identity of each outgoing card, resolved to exactly one row** via the
+   Step 2 ladder. Irreversible: the wrong card marked `traded` leaves inventory
+   and corrupts the basis carried forward.
+4. **A title string for each incoming card.** Free text — "ohtani bowman rookie
+   pitching psa 9" is enough. Every structured field can be backfilled later;
+   an uncaptured card cannot be reconstructed.
+
+**Never ask for:** date (default today; parse only if stated), counterparty,
+event name, comp or sticker value, grade, set, parallel, or per-card
+allocation.
+
+### Confirmation splits by direction
+
+- **Disposals get exactly one confirmation.** List the outgoing cards by the
+  fields that identify them and wait for a yes. This is the irreversible half.
+- **Acquisitions write straight through.** They are additive and trivially
+  corrected.
+
+A typical trade should cost **one** round trip, not three. This is happening
+standing at someone's table.
+
+### Unresolvable outgoing cards are the common case
+
+`cards` is nearly empty, so most cards named at a table will not resolve. The
+fallback must be the first thing that works: create the row from the title
+alone with `add_opening_stock(title, null)`, then pass that id straight to
+`record_trade()` as outgoing. That records the inventory movement honestly and
+leaves the basis gap visible — the deal comes back flagged, and the received
+card's `acquisition_cost` stays null rather than claiming a cost of zero.
+
+### Calling it
+
+```sql
+select record_trade(
+  p_out_card_ids   => array[<card ids>],   -- become status 'traded'
+  p_in_titles      => array['<title>'],
+  p_in_est_values  => array[<comp>],       -- optional; never a cost
+  p_cash_amount    => 95.00,
+  p_cash_direction => 'paid',              -- or 'received'. NEVER guessed.
+  p_occurred_on    => date '2026-09-09',
+  p_event_name     => '<show or vendor>'
+);
+```
+
+For a sale that is part of a deal, pass the deal through
+`sell_card(..., p_deal_id => <id>)` so the cash row and the card both attach.
+`open_deal()` starts an empty deal; `attach_transaction(deal_id, txn_id)`
+retro-fits grouping onto a row that already exists.
+
+Read a deal back with `deal_summary` — one row per deal, with the net and a
+derived kind. Never store that net.
 
 ## Step 3 — Preview and confirm every cash entry
 

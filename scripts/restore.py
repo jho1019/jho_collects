@@ -36,6 +36,8 @@ SSL_KEYS = ("DB_SSL_INSECURE", "DB_SSL_ROOT_CERT")
 PLAN = [
     ("buyers", ["id"], True),
     ("inventory_counts", ["user_id", "tax_year"], False),
+    # deals references buyers; transactions and cards both reference deals.
+    ("deals", ["id"], True),
     ("transactions", ["id"], True),
     ("cards", ["id"], True),
     ("card_aliases", ["id"], True),
