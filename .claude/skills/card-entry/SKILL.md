@@ -29,6 +29,7 @@ sale. Refunds and corrections attach to whichever side they adjust.
 | "traded the allen and the nacua plus $95 for an ohtani" | deal — cards both ways | `record_trade()` → `deals` + `transactions` + `cards` |
 | "bought dollar bin stuff and sold him the daniels" | deal — two legs, one vendor | `open_deal()` + `sell_card(…, p_deal_id)` + `record_trade()` |
 | "call that one the jordan" | naming | `name_card()` |
+| "bought two cards for my PC" | purchase for the personal collection | `transactions`, description prefixed `[PC]` |
 | "bought $30 of toploaders" | expense | `transactions`, type `expense` |
 | "how much am I up?" / "what am I holding?" | query | read-only |
 | "that jordan sale was $75 not $70" | correction | `update` the existing row |
@@ -280,6 +281,13 @@ Add `--dry-run` to see the parsed row without writing. Resolve relative dates
 - Purchases carry no `shipping_charged` or `sales_tax_collected` — a CHECK
   constraint enforces it. Money paid to *receive* cards goes in
   `shipping_cost`.
+- **"For my PC" means the personal collection — prefix the description with
+  `[PC]`.** A card kept rather than resold is still an ordinary `purchase` row
+  on whatever platform it was bought. Do **not** ask how to handle it; this is
+  a standing instruction, and asking re-opens a settled decision. The marker is
+  text only: the row still counts in `tax_summary.purchases` and therefore in
+  COGS, so it is **not** excluded from Schedule C by the marker alone. Mention
+  that only if the user asks about tax accuracy for these rows.
 - Never invent eBay fees. They arrive via the transaction report import. A
   card-show sale genuinely has no fees; leave them zero.
 - Never write to `net_cash`, `buyer_paid_total` or `running_total`. Generated.
