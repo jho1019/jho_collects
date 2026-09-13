@@ -141,3 +141,77 @@ that already happened and has no ongoing identity to name.
 
 Projects pause after 7 days without API activity, and the free tier retains
 **zero backups**. Phase 5's nightly job addresses both with one cron.
+
+## Deals group cash rows; they never replace them
+
+One transaction row per **cash movement** — not one per deal, and not one per
+card. A deal with money moving both directions is two rows sharing a `deal_id`.
+
+Netting a deal down to a single row destroys two figures to save one. Receipts
+and purchases land on different Schedule C lines and carry opposite `net_cash`
+signs. `deal_summary` computes the per-deal net as a query result, which is the
+only place that number belongs — it is never stored, because a stored total
+goes stale the moment another leg is attached.
+
+A deal is **one counterparty**. Several legs with the same vendor are one deal;
+a different vendor is a different deal.
+
+## Trade basis carries over at cost, never at market value
+
+The received card's basis is the cash paid plus the **cost basis** of the cards
+given up. Cards given up at a $100 comp that cost $30 carry $30, so a trade of
+those two plus $95 cash produces a basis of $125, not $195.
+
+Recording market value overstates ending inventory, which understates COGS and
+overstates profit — the same double-count the `is_opening_stock` flag guards
+against, arriving by a different route. Comp and sticker values are still worth
+capturing, but they live in `cards.est_value` and feed only the dashboard's
+estimated inventory value.
+
+**Open question for a preparer:** barter is technically a disposition at fair
+market value. Basis-carryover with no cash event is the treatment that fits a
+cash-in/cash-out ledger with periodic inventory, but confirm it before filing.
+`transactions.non_cash_consideration` exists, nullable and unused, so that
+ruling costs a backfill rather than a migration against tax records.
+
+## A card can leave inventory without being sold
+
+`card_status` gained `traded`. Previously `sold` was the only exit and it
+requires a `sale_transaction_id`, so a traded-away card had to either invent a
+receipt that never happened or sit in ending inventory forever.
+
+A traded card carries `exited_on` and `disposed_deal_id` with
+`sale_transaction_id` left null. That is exactly what keeps `net_cash` honest.
+`find_cards` and `tracked_inventory` both exclude traded cards — otherwise a
+card given away stays sellable and keeps counting as stock on hand.
+
+## No `trade` value on `txn_type`
+
+Cash moves in two directions and `purchase`/`sale` already cover both; a
+trade's cash leg is an ordinary purchase or sale. The part of a trade that is
+not a cash movement does not belong in `transactions` at all.
+
+Concretely: `net_cash` is generated from a `CASE` on `type`. A `trade` value
+would need arithmetic — zero leaves the cash with nowhere to live, and anything
+else re-encodes direction that `purchase`/`sale` already carry. Postgres has no
+`ALTER TYPE ... DROP VALUE` and `txn_type` is load-bearing for `tax_summary`,
+so this would be a one-way door.
+
+## `sold_on` became `exited_on`
+
+Two nullable date columns where exactly one is ever set is a defect waiting to
+happen. One exit date, with `status` recording how it exited. Done while
+`cards` had zero rows, which made it free.
+
+## Show-level expenses stay unattached to any deal
+
+Admission and table fees have no counterparty, so they belong to the show
+rather than to any one deal. They are `expense` rows with a null `deal_id`.
+Per-show P&L is therefore incomplete by design until a show-level grouping
+exists; inventing one inside `deals` would corrupt what a deal means.
+
+## `buyers` now holds counterparties who also sell
+
+A deal's counterparty is a vendor you bought from as often as someone you sold
+to. The table name is a known misnomer, kept for now — renaming to
+`counterparties` costs 5 rows if it ever becomes worth doing.

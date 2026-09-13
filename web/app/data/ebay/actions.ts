@@ -272,10 +272,12 @@ export async function commitEbay(fd: FormData): Promise<EbayCommit> {
         .update({
           status: "sold",
           sale_transaction_id: t.id,
-          sold_on: t.occurred_on,
+          exited_on: t.occurred_on,
         })
         .eq("sku", r.custom_label)
-        .neq("status", "sold")
+        // A traded card has already left inventory. Closing it as sold here
+        // would invent a receipt for cards that were swapped, not sold.
+        .not("status", "in", "(sold,traded)")
         .select("id");
       cardsClosed += closed?.length ?? 0;
     }

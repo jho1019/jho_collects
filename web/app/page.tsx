@@ -152,7 +152,7 @@ export default async function Dashboard() {
     supabase
       .from("cards")
       .select(
-        "id, title, player, year, set_name, parallel, grader, grade, status, sku, acquisition_cost, acquired_on, sold_on, is_opening_stock",
+        "id, title, player, year, set_name, parallel, grader, grade, status, sku, acquisition_cost, acquired_on, exited_on, is_opening_stock",
       )
       .order("acquired_on", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false }),
