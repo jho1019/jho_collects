@@ -7,7 +7,7 @@ import {
   commitImport,
   type Preview,
   type CommitResult,
-} from "@/app/data/actions";
+} from "@/app/(app)/data/actions";
 import { TABLE_NAMES, type TableName } from "@/lib/tables";
 
 export default function DataIO({ embedded = false }: { embedded?: boolean }) {

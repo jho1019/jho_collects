@@ -81,12 +81,12 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-zinc-700">
-          Buyers{" "}
-          <span className="text-zinc-400">({rows.length})</span>
+        <h2 className="text-sm font-medium text-ink-muted">
+          People{" "}
+          <span className="text-ink-muted">({rows.length})</span>
         </h2>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-xs text-zinc-600">
+          <label className="flex items-center gap-1 text-xs text-ink-muted">
             <input
               type="checkbox"
               checked={repeatOnly}
@@ -98,14 +98,14 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter username / name / state"
-            className="w-56 rounded border border-zinc-300 px-2 py-1 text-xs"
+            className="w-56 rounded border border-brand-soft/40 px-2 py-1 text-xs text-ink"
           />
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
         <table className="w-full text-sm">
-          <thead className="border-b border-zinc-200 text-xs uppercase text-zinc-500">
+          <thead className="border-b border-brand-soft/25 text-xs uppercase text-ink-muted">
             <tr>
               {header("platform_username", "Buyer")}
               {header("last_state", "State")}
@@ -120,42 +120,42 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
             {rows.map((b) => (
               <tr
                 key={b.platform_username}
-                className="border-b border-zinc-100 last:border-0"
+                className="border-b border-brand-soft/15 last:border-0"
               >
                 <td className="px-3 py-2">
-                  <span className="text-zinc-800">{b.platform_username}</span>
+                  <span className="text-ink">{b.platform_username}</span>
                   {b.is_repeat_buyer && (
-                    <span className="ml-2 rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+                    <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
                       repeat
                     </span>
                   )}
                   {b.display_name && (
-                    <div className="text-xs text-zinc-400">{b.display_name}</div>
+                    <div className="text-xs text-ink-muted">{b.display_name}</div>
                   )}
                 </td>
-                <td className="px-3 py-2 text-zinc-600">
+                <td className="px-3 py-2 text-ink-muted">
                   {b.last_state ?? "—"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
+                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                   {b.distinct_orders}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-800">
+                <td className="px-3 py-2 text-right tabular-nums text-ink">
                   {usd(b.lifetime_gross)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-800">
+                <td className="px-3 py-2 text-right tabular-nums text-ink">
                   {usd(b.lifetime_net)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-800">
+                <td className="px-3 py-2 text-right tabular-nums text-ink">
                   {usd(b.avg_item_price)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                   {b.last_order_on ?? "—"}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-zinc-400">
+                <td colSpan={7} className="px-3 py-6 text-center text-ink-muted">
                   {buyers.length === 0 ? "No buyers yet." : "No matches."}
                 </td>
               </tr>

@@ -1,13 +1,42 @@
 @import "tailwindcss";
 
-:root {
-  --background: #fafafa;
-  --foreground: #18181b;
+/*
+ * Tokens live here, not in a tailwind.config.js — Tailwind v4 is CSS-first
+ * and has no config file. Each --color-* below generates matching utilities
+ * (bg-page, text-ink, border-brand-soft, ...) automatically.
+ *
+ * Contrast, measured against --color-page:
+ *
+ *   --color-ink          13.7   body text
+ *   --color-ink-muted      6.7   labels, secondary text
+ *   --color-brand           4.9   text, buttons, links, positive figures
+ *   --color-accent-ink      5.3   negative figures, as TEXT
+ *   --color-accent          2.8   fills only — never text
+ *   --color-brand-soft      2.3   borders/dividers/inactive icons only — never text
+ *
+ * --color-accent and --color-brand-soft fail AA for text. They are shapes,
+ * not words. A dollar figure (or any other text) rendered in either is a bug.
+ *
+ * There is no green in this palette. Positive figures use --color-brand,
+ * negative use --color-accent-ink — blue against rose stays distinguishable
+ * under deuteranopia, where red against green does not. Because blue alone
+ * doesn't *read* as positive, every figure carries an explicit sign or arrow;
+ * colour is emphasis here, never the only carrier of meaning.
+ */
+@theme {
+  --color-page:        #f5f0ee;
+  --color-surface:     #ffffff;
+  --color-brand:       #3b67b7;
+  --color-brand-soft:  #8ba1ca;
+  --color-accent:      #d7728d;
+  --color-accent-ink:  #a83e5c;
+  --color-ink:         #1c2436;
+  --color-ink-muted:   #4a5568;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-page);
+  color: var(--color-ink);
   font-family:
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;

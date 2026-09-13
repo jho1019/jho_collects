@@ -34,10 +34,10 @@ export default function MarginByBand({ bands }: { bands: Band[] }) {
     <div className="h-72 w-full">
       <ResponsiveContainer>
         <BarChart data={data} margin={{ top: 16, right: 16, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-          <XAxis dataKey="band" tick={{ fontSize: 11 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-brand-soft)" opacity={0.25} />
+          <XAxis dataKey="band" tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }} />
           <YAxis
-            tick={{ fontSize: 11 }}
+            tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }}
             width={44}
             tickFormatter={(v: number) => `${v}%`}
             domain={[0, 100]}
@@ -53,13 +53,17 @@ export default function MarginByBand({ bands }: { bands: Band[] }) {
           />
           <Bar dataKey="margin" radius={[3, 3, 0, 0]}>
             {data.map((d, i) => (
-              <Cell key={i} fill={d.margin < 25 ? "#dc2626" : "#2563eb"} />
+              <Cell
+                key={i}
+                fill={d.margin < 25 ? "var(--color-accent)" : "var(--color-brand)"}
+              />
             ))}
             <LabelList
               dataKey="count"
               position="top"
               formatter={(v: unknown) => `n=${String(v)}`}
-              className="fill-zinc-400 text-[10px]"
+              fill="var(--color-ink-muted)"
+              className="text-[10px]"
             />
           </Bar>
         </BarChart>

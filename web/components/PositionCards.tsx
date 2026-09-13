@@ -40,14 +40,19 @@ export default function PositionCards({ netCash }: { netCash: number }) {
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-      <Card label="Net cash" value={usd(netCash)} sub="cash in − cash out" />
+      <Card
+        label="Net cash"
+        value={usd(netCash)}
+        sub="cash in − cash out"
+        negative={netCash < 0}
+      />
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-3">
-        <div className="text-xs uppercase text-zinc-500">
+      <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
+        <div className="text-xs uppercase text-ink-muted">
           Est. inventory value
         </div>
         <div className="mt-1 flex items-center gap-1">
-          <span className="text-zinc-400">$</span>
+          <span className="text-ink-muted">$</span>
           <input
             inputMode="decimal"
             value={draft}
@@ -55,16 +60,17 @@ export default function PositionCards({ netCash }: { netCash: number }) {
             onBlur={save}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             placeholder="0.00"
-            className="w-full rounded border border-zinc-200 px-2 py-1 text-lg font-semibold tabular-nums outline-none focus:border-zinc-400"
+            className="w-full rounded border border-brand-soft/40 px-2 py-1 text-lg font-semibold tabular-nums text-ink outline-none focus:border-brand"
           />
         </div>
-        <div className="mt-1 text-xs text-zinc-400">manual, this browser</div>
+        <div className="mt-1 text-xs text-ink-muted">manual, this browser</div>
       </div>
 
       <Card
         label="Adjusted position"
         value={adjusted === null ? "—" : usd(adjusted)}
         sub={adjusted === null ? "enter an estimate" : "net cash + inventory"}
+        negative={adjusted !== null && adjusted < 0}
       />
     </div>
   );
@@ -74,18 +80,24 @@ function Card({
   label,
   value,
   sub,
+  negative,
 }: {
   label: string;
   value: string;
   sub: string;
+  negative: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white p-3">
-      <div className="text-xs uppercase text-zinc-500">{label}</div>
-      <div className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">
+    <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
+      <div className="text-xs uppercase text-ink-muted">{label}</div>
+      <div
+        className={`mt-1 text-lg font-semibold tabular-nums ${
+          negative ? "text-accent-ink" : "text-brand"
+        }`}
+      >
         {value}
       </div>
-      <div className="mt-1 text-xs text-zinc-400">{sub}</div>
+      <div className="mt-1 text-xs text-ink-muted">{sub}</div>
     </div>
   );
 }
