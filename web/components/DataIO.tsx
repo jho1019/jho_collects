@@ -53,7 +53,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   const body = (
     <div className="space-y-6">
       <section className="space-y-2">
-        <label className="text-sm font-medium text-zinc-700">Table</label>
+        <label className="text-sm font-medium text-surface">Table</label>
         <select
           value={table}
           onChange={(e) => {
@@ -215,10 +215,10 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-zinc-900">
+        <h1 className="text-xl font-semibold text-surface">
           Data import / export
         </h1>
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-800">
+        <Link href="/" className="text-sm text-surface/70 hover:text-surface">
           ← dashboard
         </Link>
       </header>

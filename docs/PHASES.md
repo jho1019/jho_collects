@@ -673,3 +673,98 @@ Dark mode — the palette is light-only and a half-built dark theme is worse
 than none. A Taxes screen, a Review screen, sell-through and aging on
 `/insights`, a deals entry UI (deals are still entered through the skill),
 per-show grouping, and any change to `/data` beyond making it reachable.
+
+## Phase 8 — Reading the ledger
+
+Three changes to the Home screen: see what happened on a day you point at,
+page through the ledger instead of truncating it, and stop putting an email
+address in the masthead.
+
+Depends on Phase 7. The ledger and chart live in `app/(app)/page.tsx` and the
+token system already exists.
+
+### Day detail on the chart
+
+**What was asked, and why it can't be exactly that.** An expandable section
+inside a hover tooltip does not work. A recharts tooltip tracks the cursor
+and unmounts when the pointer leaves the plot area, so there is nothing to
+move the pointer *onto* — the expander disappears on the way to it. Keyboard
+users never reach it at all.
+
+Two mechanisms instead, which together do what was actually wanted.
+
+Hover shows a richer tooltip: the cumulative figure, the day's movement, the
+entry count, and up to three entries (type, description, net cash). A fourth
+entry renders "+N more". No interaction, no expansion.
+
+Clicking pins that day below the chart: full entry list, each row the same
+shape as a ledger row. The pinned day stays until another point is clicked
+or the panel is dismissed. A `ReferenceLine` marks the pinned day on the
+chart itself so it's obvious which day the panel describes.
+
+The panel lives below the chart, not inside the tooltip — that's the part
+worth getting right. It's ordinary DOM: scrollable, selectable, and reachable
+with a keyboard, unlike anything nested inside a tooltip that recharts owns.
+
+Empty days are real. The series fills every calendar day from the first
+transaction through today, so most points have no entries. Those show the
+cumulative figure and "No activity" — never an empty expander or a
+zero-row table.
+
+`buildEntriesByDay` groups the same `transactions` rows `buildSeries` already
+groups by day, into full entry lists instead of a sum. One query, no second
+round trip. `CashChart` takes a new prop, `entriesByDay`, keyed by ISO day so
+a Server Component can serialise it as a plain object.
+
+### Ledger pagination
+
+`components/RecentLedger.tsx` is extracted from the inline table that used to
+live in `page.tsx` — it was the only section still written inline, and it was
+about to grow controls.
+
+Pagination is server-side through the URL (`?rows=10&page=2`), not client-side
+slicing. The Server Component reads the search params and calls `.range()`
+with `{ count: "exact" }`. Client-side slicing — fetch everything, paginate in
+React — is the obvious shortcut and the wrong call: the eBay importer adds a
+quarter of rows at a time, and a ledger that eventually holds thousands of
+rows should not ship every one to the browser to display ten. Server-side
+also makes a page linkable and survives a refresh.
+
+A dropdown reads "Show 5 / 10 / 50 transactions", defaulting to 10. Changing
+it resets to page one — staying on page 7 while switching from 5 to 50 rows
+would land the user somewhere arbitrary. Previous/next controls disable at
+the ends, and the current range is stated ("11–20 of 47").
+
+The sort is `occurred_on desc, id desc` on every page, no exceptions. Without
+`id` as a tiebreaker, same-day rows can reorder between requests and a row
+appears on two pages or none. `running_total` needs no recomputation — the
+view computes it across the whole ledger, so each row carries the correct
+figure regardless of which page it lands on.
+
+The heading changed from "Recent ledger" to "Ledger". Once it pages, "recent"
+is no longer what it is.
+
+### Masthead
+
+The header used to read "Card ledger" with the signed-in user's email
+beneath it. Both are gone, replaced by a single "jho_collects" — the email
+line is removed rather than relocated, since the sign-out button already
+indicates a signed-in session. `metadata.title` in the root layout carries
+the same name so the browser tab matches.
+
+### Decisions recorded in DECISIONS.md
+
+- Day detail is hover-for-summary, click-to-pin. Tooltips are not interactive
+  surfaces.
+- Ledger pagination is server-side via URL search params, not client-side
+  slicing.
+- Ledger ordering is `occurred_on desc, id desc` everywhere. The tiebreaker is
+  not optional.
+- `running_total` comes from the view and is never recomputed from a page.
+
+### Not in this phase
+
+Filtering or searching the ledger, sorting by column, editing a row from the
+ledger, date-range selection on the chart beyond the existing window control,
+a deals-aware tooltip that groups a show's legs together, and CSV export of
+the current page.

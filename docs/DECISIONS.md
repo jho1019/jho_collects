@@ -271,3 +271,36 @@ A dedicated review page would be a second place deals live, competing with
 deals) plus an inline marker on the affected row does the same job — surface
 the gap where the data already lives — without a screen whose only content is
 "go look at rows that live somewhere else."
+
+## Day detail is hover-for-summary, click-to-pin
+
+A recharts tooltip unmounts the instant the pointer leaves the plot area, so
+anything interactive inside it — an expander, a scrollable list — has nowhere
+for the pointer (or a keyboard user) to go on the way to it. Tooltips are not
+interactive surfaces; two mechanisms replace the one that was asked for.
+Hovering gets a richer but still non-interactive tooltip. Clicking pins the
+day's full entry list in an ordinary panel below the chart, which can be
+scrolled, selected, and reached with a keyboard — because it's just DOM, not
+a tooltip.
+
+## Ledger pagination is server-side via URL search params
+
+`?rows=10&page=2`, read by the Server Component and turned into `.range()`.
+Client-side slicing — fetch everything, paginate in React — is the obvious
+shortcut and the wrong call: the eBay importer adds a quarter of rows at a
+time, and a ledger that eventually holds thousands of rows should not ship
+every one to the browser to display ten. Paging through the URL also makes a
+page linkable and survives a refresh.
+
+## Ledger ordering is `occurred_on desc, id desc` everywhere
+
+The tiebreaker is not optional. Without `id` as a second sort key, same-day
+rows can reorder between two `.range()` calls and a row lands on two pages or
+none — a paginated query has no other way to guarantee a stable cut.
+
+## `running_total` comes from the view and is never recomputed from a page
+
+`ledger_running` computes it as a window function across the *whole* ledger,
+so every row carries the correct cumulative figure regardless of which page
+it lands on. Recomputing it from only the visible page would be wrong the
+moment there's a page before it.

@@ -41,7 +41,7 @@ export default function EbayImport() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-surface/70">
         The raw Seller Hub <strong>Transaction report</strong> CSV. Payout /
         charge / transfer rows are ignored; sale &amp; refund rows dedupe on
         eBay&apos;s transaction id, so re-importing an overlapping range is safe.
@@ -51,10 +51,10 @@ export default function EbayImport() {
         type="file"
         accept=".csv,text/csv"
         onChange={onFile}
-        className="block text-sm text-zinc-600 file:mr-3 file:rounded file:border file:border-zinc-300 file:bg-zinc-50 file:px-3 file:py-1.5 file:text-sm"
+        className="block text-sm text-surface/80 file:mr-3 file:rounded file:border file:border-zinc-300 file:bg-zinc-50 file:px-3 file:py-1.5 file:text-sm file:text-zinc-700"
       />
 
-      {busy && <p className="text-sm text-zinc-500">working…</p>}
+      {busy && <p className="text-sm text-surface/70">working…</p>}
 
       {preview && !preview.ok && (
         <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -64,16 +64,16 @@ export default function EbayImport() {
 
       {preview && preview.ok && (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-surface">
             <span>
               <strong>{preview.rowCount}</strong> rows in {fileName}
             </span>
-            <span className="text-green-700">{preview.newCount} new</span>
-            <span className="text-zinc-500">
+            <span className="font-medium text-surface">{preview.newCount} new</span>
+            <span className="text-surface/70">
               {preview.dupCount} already imported
             </span>
             {Object.keys(preview.ignored).length > 0 && (
-              <span className="text-zinc-400">
+              <span className="text-surface/60">
                 ignored{" "}
                 {Object.entries(preview.ignored)
                   .map(([k, v]) => `${v} ${k}`)
