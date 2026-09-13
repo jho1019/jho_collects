@@ -1,8 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/login/actions";
-import CashChart, { type CashPoint } from "@/components/CashChart";
+import CashChart, {
+  type CashPoint,
+  type EntriesByDay,
+} from "@/components/CashChart";
 import PositionCards from "@/components/PositionCards";
+import RecentLedger from "@/components/RecentLedger";
 import { isoDay, usd } from "@/lib/format";
 
 // This route owns position cards, the cash chart, and ledger history —
@@ -11,13 +15,12 @@ import { isoDay, usd } from "@/lib/format";
 // buyer_summary. See docs/PHASE_7_UI.md.
 export const dynamic = "force-dynamic";
 
-type TxnRow = { occurred_on: string; net_cash: string | number };
-type LedgerRow = {
+type TxnRow = {
+  id: number;
   occurred_on: string;
-  description: string;
   type: string;
+  description: string;
   net_cash: string | number;
-  running_total: string | number;
 };
 type WindowRow = {
   label: string;
@@ -53,30 +56,47 @@ function buildSeries(rows: TxnRow[]): CashPoint[] {
   return out;
 }
 
-export default async function Dashboard() {
+// Same rows buildSeries already groups by day, grouped again into full entry
+// lists for the chart's hover tooltip and click-to-pin panel. One query, no
+// second round trip.
+function buildEntriesByDay(rows: TxnRow[]): EntriesByDay {
+  const out: EntriesByDay = {};
+  for (const r of rows) {
+    const d = isoDay(r.occurred_on);
+    (out[d] ??= []).push({
+      id: r.id,
+      type: r.type,
+      description: r.description,
+      net_cash: r.net_cash,
+    });
+  }
+  return out;
+}
+
+export default async function Dashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ rows?: string; page?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  const ledgerParams = await searchParams;
+
   const [
     { data: txns, error: tErr },
-    { data: ledger, error: lErr },
     { data: windows },
     { data: health },
     { data: taxRows },
   ] = await Promise.all([
     supabase
       .from("transactions")
-      .select("occurred_on, net_cash")
-      .order("occurred_on", { ascending: true }),
-    supabase
-      .from("ledger_running")
-      .select("occurred_on, description, type, net_cash, running_total")
-      .order("occurred_on", { ascending: false })
-      .order("id", { ascending: false })
-      .limit(15),
+      .select("id, occurred_on, type, description, net_cash")
+      .order("occurred_on", { ascending: true })
+      .order("id", { ascending: true }),
     supabase
       .from("dashboard_windows")
       .select(
@@ -92,6 +112,7 @@ export default async function Dashboard() {
   ]);
 
   const series = buildSeries((txns ?? []) as TxnRow[]);
+  const entriesByDay = buildEntriesByDay((txns ?? []) as TxnRow[]);
   const missingFees = (health ?? []).reduce(
     (t: number, r: { rows_missing_fees: number }) =>
       t + Number(r.rows_missing_fees),
@@ -113,10 +134,7 @@ export default async function Dashboard() {
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-6">
       <header className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-surface">Card ledger</h1>
-          <p className="text-sm text-surface/70">{user.email}</p>
-        </div>
+        <h1 className="text-xl font-semibold text-surface">jho_collects</h1>
         <form action={logout}>
           <button
             type="submit"
@@ -144,58 +162,17 @@ export default async function Dashboard() {
         </p>
       )}
 
-      {(tErr || lErr) && (
+      {tErr && (
         <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {tErr?.message ?? lErr?.message}
+          {tErr.message}
         </p>
       )}
 
       <PositionCards netCash={series.at(-1)?.net ?? 0} />
 
-      <CashChart series={series} />
+      <CashChart series={series} entriesByDay={entriesByDay} />
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-surface">Recent ledger</h2>
-        <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
-          <table className="w-full text-sm">
-            <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
-              <tr>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Description</th>
-                <th className="px-3 py-2 text-right font-medium">Net cash</th>
-                <th className="px-3 py-2 text-right font-medium">Running</th>
-              </tr>
-            </thead>
-            <tbody>
-              {((ledger ?? []) as LedgerRow[]).map((r, i) => (
-                <tr key={i} className="border-b border-brand-soft/15 last:border-0">
-                  <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink-muted">
-                    {isoDay(r.occurred_on)}
-                  </td>
-                  <td className="px-3 py-2 text-ink-muted">{r.type}</td>
-                  <td className="max-w-xs truncate px-3 py-2 text-ink">
-                    {r.description}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">
-                    {usd(r.net_cash)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">
-                    {usd(r.running_total)}
-                  </td>
-                </tr>
-              ))}
-              {((ledger ?? []) as LedgerRow[]).length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-3 py-6 text-center text-ink-muted">
-                    No transactions yet.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <RecentLedger searchParams={ledgerParams} />
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-surface">Rolling windows</h2>
