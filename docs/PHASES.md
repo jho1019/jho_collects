@@ -508,3 +508,168 @@ Opening stock seeding beyond the fixture rows, the 2025 `inventory_counts`
 row, Jan–Jul 2026 revenue backfill, a show-level grouping, per-show margin
 reporting in the dashboard, and any `deals` UI. Deals are entered through the
 skill; the dashboard reads `deal_summary` in a later phase.
+
+## Phase 7 — Theme and navigation
+
+Splits the single-page dashboard into routes, gives it a colour system, and
+puts a left nav in front of it.
+
+### Ship 011 first, separately
+
+`record_trade()` double-counted cash received in a trade. It wrote a `sale`
+transaction for the cash *and* subtracted the same amount from the received
+card's carried basis — the same dollars charged against you twice.
+
+The fix is `schema/011_record_trade_cash_in.sql`: delete the basis reduction,
+keep the sale.
+
+```sql
+-- before
+v_total_basis := v_carried
+  + case when v_dir = 'paid' then v_cash else 0 end
+  - case when v_dir = 'received' then v_cash else 0 end;
+
+-- after
+v_total_basis := v_carried
+  + case when v_dir = 'paid' then v_cash else 0 end;
+```
+
+Booking the sale and carrying basis whole is the treatment that holds the
+phase's central rule intact: one transaction row per cash movement. The
+alternative — reducing basis and writing nothing — makes a cash-in trade
+produce no transaction at all, which contradicts it.
+
+With the subtraction gone, the `v_total_basis < 0` clamp becomes unreachable.
+Left in place; it costs nothing and documents the intent. Deal 3 is the only
+affected row and its received card's cost is null, so there is nothing to
+backfill.
+
+### What existed before this phase
+
+`app/` had exactly three routes: `page.tsx`, `data/`, `login/`. Everything —
+position cards, cash chart, ledger history, margin by band, card inventory,
+buyer list — rendered on `/`. Any one of those sections cost a fetch of all
+of them. `globals.css` held two variables and nothing else; there was no
+token system to edit, only one to write.
+
+### Colour system
+
+Tailwind v4 is CSS-first — no `tailwind.config.js`. Tokens go in `@theme` in
+`app/globals.css` and generate utilities (`bg-page`, `text-ink`)
+automatically.
+
+```css
+@theme {
+  --color-page:        #f5f0ee;  /* page background */
+  --color-surface:     #ffffff;  /* cards, tables, nav */
+  --color-brand:       #3b67b7;  /* primary, links, positive figures */
+  --color-brand-soft:  #8ba1ca;  /* borders, dividers, inactive icons */
+  --color-accent:      #d7728d;  /* fills, badges, chart bars */
+  --color-accent-ink:  #a83e5c;  /* negative figures as TEXT */
+  --color-ink:         #1c2436;  /* body text */
+  --color-ink-muted:   #4a5568;  /* secondary text, labels */
+}
+```
+
+Measured contrast against `--color-page`:
+
+| token | ratio | use |
+|---|---|---|
+| `--color-ink` | 13.7 | body text |
+| `--color-ink-muted` | 6.7 | labels, secondary |
+| `--color-brand` | 4.9 | text, buttons, links |
+| `--color-accent-ink` | 5.3 | negative figures |
+| `--color-accent` | 2.8 | **fills only, never text** |
+| `--color-brand-soft` | 2.3 | **borders only, never text** |
+
+`#d7728d` and `#8ba1ca` both fail AA for text. They are shapes, not words. A
+dollar figure rendered in `--color-accent` is a bug.
+
+Two greys were sampled, `#f5f0ee` and `#f4eff0`. They differ by one RGB unit
+and cannot carry a page-versus-card hierarchy. Only the first is a token;
+card surfaces use white, which gives real separation.
+
+### Positive and negative
+
+The palette has no green. Positive figures use `--color-brand`, negative use
+`--color-accent-ink`.
+
+This is deliberate, not a workaround: blue against rose stays distinguishable
+under deuteranopia, where red against green does not. The cost is that blue
+does not *read* as positive on its own, so every figure carries an explicit
+sign or arrow. Colour is emphasis here, never the only carrier of meaning.
+
+### Chart colours
+
+`recharts` takes colour props, not classes. SVG `fill` and `stroke` accept
+`var(--color-brand)`, so the chart reads the same tokens as everything else.
+
+The palette is not forked into a TypeScript constants file for the chart's
+sake. Two copies drift, and the second copy is the one nobody updates.
+
+### Routes
+
+Six destinations. Five are new sections; the sixth (`/data`) already existed
+and was reachable only by typing the URL.
+
+| route | content | source |
+|---|---|---|
+| `/` | position cards, cash chart, ledger history | `PositionCards`, `CashChart`, `ledger_running`, `dashboard_windows` |
+| `/deals` | per-deal and per-show view | `deal_summary` — net new, no component existed |
+| `/inventory` | cards by status, tracked summary | `CardInventory`, `tracked_inventory` |
+| `/insights` | margin by price band | `MarginByBand` |
+| `/people` | buyer and vendor list | `BuyerList`, `buyer_summary` |
+| `/data` | table CSV, eBay report | existing, unchanged |
+
+Each route queries only its own views.
+
+`/people`, not `/buyers`. That table now holds show vendors bought *from* as
+well as buyers. The column comment on `deals.counterparty_id` already calls
+the name a known misnomer; the nav label is where that stops propagating into
+new surfaces.
+
+### Nav
+
+A left sidebar on `--color-surface`, fixed, with the five sections in the
+order above. `/data` sits at the bottom, visually separated — it is a
+utility, not a section.
+
+The active item is marked with `--color-brand`: a left border and filled
+background, plus a weight change — never colour alone. Inactive icons use
+`--color-brand-soft`.
+
+The sidebar lives in `app/(app)/layout.tsx`, not the root layout. The six
+destinations moved under a route group, `app/(app)/`, and `login/` stayed
+outside it. Putting the nav in the root layout would wrap a signed-out user
+in chrome for a dashboard they can't see yet.
+
+### Flag counts instead of a review page
+
+There is no Review section. `needs_review` surfaces in two places instead: a
+count badge on the Deals nav item, and a marker on the affected rows within
+each screen.
+
+Four of six deals carried the flag before this phase and nothing in the app
+showed it — flagged rows were reachable only through `entry.py review`, which
+meant they did not get reviewed.
+
+### Decisions recorded in DECISIONS.md
+
+- Tokens live in `@theme` in `globals.css`. Tailwind v4 has no config file;
+  none was added.
+- `--color-accent` and `--color-brand-soft` are fills and borders only, never
+  text.
+- Positive is brand blue, negative is accent ink, and every figure carries an
+  explicit sign. Colour never carries meaning alone.
+- The chart reads the same tokens as the UI. The palette is not duplicated in
+  TypeScript.
+- Authenticated routes live in the `(app)` route group so `/login` stays
+  outside the nav layout.
+- `/people` supersedes "Buyers" in the UI. The table name stays for now.
+
+### Not in this phase
+
+Dark mode — the palette is light-only and a half-built dark theme is worse
+than none. A Taxes screen, a Review screen, sell-through and aging on
+`/insights`, a deals entry UI (deals are still entered through the skill),
+per-show grouping, and any change to `/data` beyond making it reachable.
