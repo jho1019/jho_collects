@@ -66,23 +66,23 @@ export default async function InsightsPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-ink">Insights</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="text-xl font-semibold text-surface">Insights</h1>
+        <p className="text-sm text-surface/70">
           Margin as a share of proceeds, by sale price.
         </p>
       </header>
 
       {error && (
-        <p className="rounded bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {error.message}
         </p>
       )}
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-ink-muted">
+        <h2 className="text-sm font-semibold text-surface">
           Margin by price band
         </h2>
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs text-surface/70">
           Net as a share of proceeds. Bars under 25% are flagged — the fixed
           per-order fee and label eat low-price cards.
         </p>

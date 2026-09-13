@@ -37,12 +37,12 @@ export default async function DealsPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-ink">Deals</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="text-xl font-semibold text-surface">Deals</h1>
+        <p className="text-sm text-surface/70">
           Card show events — purchases, sales, and trades grouped by
           counterparty.
           {needsReview > 0 && (
-            <span className="ml-2 font-medium text-accent-ink">
+            <span className="ml-2 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-accent-ink">
               {needsReview} need{needsReview === 1 ? "s" : ""} review
             </span>
           )}
@@ -50,7 +50,7 @@ export default async function DealsPage() {
       </header>
 
       {error && (
-        <p className="rounded bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {error.message}
         </p>
       )}

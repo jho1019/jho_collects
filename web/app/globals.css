@@ -5,7 +5,14 @@
  * and has no config file. Each --color-* below generates matching utilities
  * (bg-page, text-ink, border-brand-soft, ...) automatically.
  *
- * Contrast, measured against --color-page:
+ * --color-page IS --color-brand. The app background is brand blue, so
+ * --color-brand can no longer be used as foreground TEXT sitting directly on
+ * the page — it would be invisible on its own background. It still works
+ * fine as text/fills inside a --color-surface (white) card, table, or badge,
+ * since those aren't blue.
+ *
+ * Contrast, measured against --color-surface (white) — the ground for
+ * anything inside a card, table, or badge:
  *
  *   --color-ink          13.7   body text
  *   --color-ink-muted      6.7   labels, secondary text
@@ -14,17 +21,25 @@
  *   --color-accent          2.8   fills only — never text
  *   --color-brand-soft      2.3   borders/dividers/inactive icons only — never text
  *
- * --color-accent and --color-brand-soft fail AA for text. They are shapes,
- * not words. A dollar figure (or any other text) rendered in either is a bug.
+ * --color-accent and --color-brand-soft fail AA for text on white, and fail
+ * harder on the blue page. They are shapes, not words, anywhere.
  *
- * There is no green in this palette. Positive figures use --color-brand,
- * negative use --color-accent-ink — blue against rose stays distinguishable
- * under deuteranopia, where red against green does not. Because blue alone
+ * For anything sitting directly on --color-page (headers, page titles —
+ * outside any white surface), ink/ink-muted don't apply either: both are
+ * dark, tuned for a light ground, and read as near-invisible on blue. Use
+ * --color-surface itself (white) for that text, and --color-surface at
+ * reduced opacity (e.g. text-surface/70) for the muted variant — the same
+ * ink/ink-muted pairing, inverted for a dark ground.
+ *
+ * There is no green in this palette. Positive figures use --color-brand
+ * (inside a card; --color-surface directly on the page), negative use
+ * --color-accent-ink — blue against rose stays distinguishable under
+ * deuteranopia, where red against green does not. Because blue alone
  * doesn't *read* as positive, every figure carries an explicit sign or arrow;
  * colour is emphasis here, never the only carrier of meaning.
  */
 @theme {
-  --color-page:        #f5f0ee;
+  --color-page:        #3b67b7;
   --color-surface:     #ffffff;
   --color-brand:       #3b67b7;
   --color-brand-soft:  #8ba1ca;

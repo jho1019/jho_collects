@@ -114,13 +114,13 @@ export default async function Dashboard() {
     <main className="mx-auto max-w-5xl space-y-8 p-6">
       <header className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-ink">Card ledger</h1>
-          <p className="text-sm text-ink-muted">{user.email}</p>
+          <h1 className="text-xl font-semibold text-surface">Card ledger</h1>
+          <p className="text-sm text-surface/70">{user.email}</p>
         </div>
         <form action={logout}>
           <button
             type="submit"
-            className="rounded border border-brand-soft/40 px-3 py-1.5 text-sm text-ink-muted hover:bg-brand-soft/10"
+            className="rounded border border-surface/40 px-3 py-1.5 text-sm text-surface hover:bg-surface/10"
           >
             Sign out
           </button>
@@ -128,7 +128,7 @@ export default async function Dashboard() {
       </header>
 
       {countMissing && (
-        <p className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded-lg border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           Year-end inventory count for {countYear} is not recorded. Count the
           unsold cards, estimate what you <em>paid</em> for them, and add an{" "}
           <code>inventory_counts</code> row for tax year {countYear}. Until then
@@ -137,7 +137,7 @@ export default async function Dashboard() {
       )}
 
       {missingFees > 0 && (
-        <p className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded-lg border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {missingFees} transaction{missingFees === 1 ? "" : "s"} still have
           estimated fees. The tax figures are not final until an eBay report
           import fills them in.
@@ -145,7 +145,7 @@ export default async function Dashboard() {
       )}
 
       {(tErr || lErr) && (
-        <p className="rounded bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {tErr?.message ?? lErr?.message}
         </p>
       )}
@@ -155,7 +155,7 @@ export default async function Dashboard() {
       <CashChart series={series} />
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-ink-muted">Recent ledger</h2>
+        <h2 className="text-sm font-semibold text-surface">Recent ledger</h2>
         <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
           <table className="w-full text-sm">
             <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
@@ -198,7 +198,7 @@ export default async function Dashboard() {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-ink-muted">Rolling windows</h2>
+        <h2 className="text-sm font-semibold text-surface">Rolling windows</h2>
         <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
           <table className="w-full text-sm">
             <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">

@@ -64,19 +64,19 @@ export default function CardInventory({
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-ink-muted">
-          Card inventory <span className="text-ink-muted">({rows.length})</span>
+        <h2 className="text-sm font-semibold text-surface">
+          Card inventory <span className="font-normal text-surface/70">({rows.length})</span>
         </h2>
         <div className="flex items-center gap-2">
-          <div className="flex rounded border border-brand-soft/40 text-xs">
+          <div className="flex rounded border border-surface/40 text-xs">
             {STATUSES.map((s) => (
               <button
                 key={s}
                 onClick={() => setFilter(s)}
                 className={`px-2 py-1 capitalize ${
                   filter === s
-                    ? "bg-brand text-surface"
-                    : "text-ink-muted hover:bg-brand-soft/10"
+                    ? "bg-surface text-brand"
+                    : "text-surface/80 hover:bg-surface/10"
                 }`}
               >
                 {s}
@@ -87,7 +87,7 @@ export default function CardInventory({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
-            className="w-56 rounded border border-brand-soft/40 px-2 py-1 text-xs text-ink"
+            className="w-56 rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink"
           />
         </div>
       </div>

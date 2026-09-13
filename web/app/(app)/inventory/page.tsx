@@ -27,15 +27,15 @@ export default async function InventoryPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-ink">Inventory</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="text-xl font-semibold text-surface">Inventory</h1>
+        <p className="text-sm text-surface/70">
           Individually tracked cards. Bulk-lot commons stay a single cash row
           and never show up here — that&rsquo;s the point.
         </p>
       </header>
 
       {error && (
-        <p className="rounded bg-accent/10 px-3 py-2 text-sm text-accent-ink">
+        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {error.message}
         </p>
       )}
