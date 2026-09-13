@@ -64,19 +64,19 @@ export default function CardInventory({
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-medium text-zinc-700">
-          Card inventory <span className="text-zinc-400">({rows.length})</span>
+        <h2 className="text-sm font-semibold text-surface">
+          Card inventory <span className="font-normal text-surface/70">({rows.length})</span>
         </h2>
         <div className="flex items-center gap-2">
-          <div className="flex rounded border border-zinc-300 text-xs">
+          <div className="flex rounded border border-surface/40 text-xs">
             {STATUSES.map((s) => (
               <button
                 key={s}
                 onClick={() => setFilter(s)}
                 className={`px-2 py-1 capitalize ${
                   filter === s
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-600 hover:bg-zinc-50"
+                    ? "bg-surface text-brand"
+                    : "text-surface/80 hover:bg-surface/10"
                 }`}
               >
                 {s}
@@ -87,13 +87,13 @@ export default function CardInventory({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
-            className="w-56 rounded border border-zinc-300 px-2 py-1 text-xs"
+            className="w-56 rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink"
           />
         </div>
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-600 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-xs text-ink-muted sm:grid-cols-3">
           <Stat label="On hand" value={String(summary.cards_on_hand)} />
           <Stat
             label="Opening stock"
@@ -114,9 +114,9 @@ export default function CardInventory({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
+      <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
         <table className="w-full text-sm">
-          <thead className="border-b border-zinc-200 text-left text-xs uppercase text-zinc-500">
+          <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
             <tr>
               <th className="px-3 py-2 font-medium">Card</th>
               <th className="px-3 py-2 font-medium">Set</th>
@@ -128,46 +128,38 @@ export default function CardInventory({
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id} className="border-b border-zinc-100 last:border-0">
+              <tr key={c.id} className="border-b border-brand-soft/15 last:border-0">
                 <td className="px-3 py-2">
-                  <span className="text-zinc-800">{c.title}</span>
-                  <span className="ml-2 text-xs text-zinc-400">{grade(c)}</span>
+                  <span className="text-ink">{c.title}</span>
+                  <span className="ml-2 text-xs text-ink-muted">{grade(c)}</span>
                   {c.is_opening_stock && (
-                    <span className="ml-2 rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600">
+                    <span className="ml-2 rounded bg-brand-soft/10 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
                       opening
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2 text-zinc-600">{setLine(c)}</td>
+                <td className="px-3 py-2 text-ink-muted">{setLine(c)}</td>
                 <td className="px-3 py-2">
                   <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                      c.status === "sold"
-                        ? "bg-zinc-100 text-zinc-500"
-                        : c.status === "traded"
-                          ? "bg-sky-50 text-sky-700"
-                          : c.status === "listed"
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-green-50 text-green-700"
-                    }`}
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadge(c.status)}`}
                   >
                     {c.status}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
+                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                   {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                   {c.acquired_on ?? "—"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-zinc-600">
+                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
                   {c.exited_on ?? "—"}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-zinc-400">
+                <td colSpan={6} className="px-3 py-6 text-center text-ink-muted">
                   {cards.length === 0
                     ? "No tracked cards yet — bulk lots stay as cash rows."
                     : "No matches."}
@@ -181,11 +173,28 @@ export default function CardInventory({
   );
 }
 
+// held/listed are on hand (brand, the "active" state); sold/traded have left
+// inventory (muted ink, distinguished by an accent fill on traded since it's
+// the one that moved for something other than a receipt).
+function statusBadge(status: Card["status"]) {
+  switch (status) {
+    case "held":
+      return "bg-brand/10 text-brand";
+    case "listed":
+      return "bg-brand/15 text-brand";
+    case "traded":
+      return "bg-accent/15 text-accent-ink";
+    case "sold":
+    default:
+      return "bg-brand-soft/10 text-ink-muted";
+  }
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-zinc-400">{label}: </span>
-      <span className="tabular-nums text-zinc-700">{value}</span>
+      <span className="text-ink-muted">{label}: </span>
+      <span className="tabular-nums text-ink-muted">{value}</span>
     </div>
   );
 }

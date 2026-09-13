@@ -6,7 +6,7 @@ import {
   commitEbay,
   type EbayPreview,
   type EbayCommit,
-} from "@/app/data/ebay/actions";
+} from "@/app/(app)/data/ebay/actions";
 import { usd } from "@/lib/format";
 
 export default function EbayImport() {

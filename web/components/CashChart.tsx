@@ -37,13 +37,13 @@ export default function CashChart({ series }: { series: CashPoint[] }) {
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-sm font-medium text-zinc-700">
+          <h2 className="text-sm font-semibold text-surface">
             Cumulative net cash
           </h2>
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs text-zinc-600"
+            className="rounded border border-surface/40 bg-surface px-2 py-0.5 text-xs text-ink-muted"
           >
             {WINDOWS.map((w) => (
               <option key={w.label} value={w.days}>
@@ -52,31 +52,37 @@ export default function CashChart({ series }: { series: CashPoint[] }) {
             ))}
           </select>
         </div>
-        <span className="text-lg font-semibold tabular-nums text-zinc-900">
+        <span
+          className={`text-lg font-semibold tabular-nums ${
+            current < 0
+              ? "rounded bg-surface px-2 py-0.5 text-accent-ink"
+              : "text-surface"
+          }`}
+        >
           {usd(current)}
         </span>
       </div>
-      <p className="text-xs text-zinc-500">
+      <p className="text-xs text-surface/70">
         Cash in and out, not net worth. Dips below zero are normal — inventory
         bought and not yet sold.
       </p>
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-3">
+      <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
         <div className="h-80 w-full">
           <ResponsiveContainer>
             <LineChart
               data={data}
               margin={{ top: 8, right: 16, bottom: 4, left: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-brand-soft)" opacity={0.25} />
               <XAxis
                 dataKey="day"
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }}
                 minTickGap={48}
                 tickFormatter={(d: string) => d.slice(5)}
               />
               <YAxis
-                tick={{ fontSize: 11 }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }}
                 width={64}
                 tickFormatter={(v: number) => usd(v)}
               />
@@ -87,11 +93,11 @@ export default function CashChart({ series }: { series: CashPoint[] }) {
                 ]}
                 labelFormatter={(d: unknown) => String(d)}
               />
-              <ReferenceLine y={0} stroke="#a1a1aa" />
+              <ReferenceLine y={0} stroke="var(--color-brand-soft)" />
               <Line
                 type="monotone"
                 dataKey="net"
-                stroke="#2563eb"
+                stroke="var(--color-brand)"
                 strokeWidth={2}
                 dot={false}
                 isAnimationActive={false}
@@ -100,7 +106,7 @@ export default function CashChart({ series }: { series: CashPoint[] }) {
           </ResponsiveContainer>
         </div>
         {data.length === 0 && (
-          <p className="py-8 text-center text-sm text-zinc-400">
+          <p className="py-8 text-center text-sm text-ink-muted">
             No transactions yet.
           </p>
         )}

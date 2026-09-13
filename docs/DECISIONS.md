@@ -215,3 +215,59 @@ exists; inventing one inside `deals` would corrupt what a deal means.
 A deal's counterparty is a vendor you bought from as often as someone you sold
 to. The table name is a known misnomer, kept for now — renaming to
 `counterparties` costs 5 rows if it ever becomes worth doing.
+
+## Colour tokens live in `@theme`, not a Tailwind config file
+
+Tailwind v4 is CSS-first — `tailwind.config.js` is gone. The eight tokens
+(`page`, `surface`, `brand`, `brand-soft`, `accent`, `accent-ink`, `ink`,
+`ink-muted`) are defined once in `app/globals.css` and nowhere else. Do not
+add a config file to hold them; that would be a second source of truth for
+the same eight values, and Tailwind v4 would ignore it for utility generation
+anyway.
+
+## `accent` and `brand-soft` are fills and borders, never text
+
+Measured against the page background, `accent` (2.8) and `brand-soft` (2.3)
+both fail AA for text. They read fine as shapes — chart bars, badge fills,
+dividers — and fail as words. A dollar figure, a label, or any other text
+rendered in either is a defect, not a style choice.
+
+## Positive is brand blue, negative is accent ink; every figure carries a sign
+
+The palette has no green. Blue against rose stays distinguishable under
+deuteranopia, where red against green does not — but blue alone doesn't
+*read* as positive the way green would. The mitigation is that every money
+figure carries an explicit sign (`usd()`'s locale formatter already prints
+the minus), so colour is emphasis on top of an unambiguous number, never the
+only carrier of meaning.
+
+## The chart reads the same CSS custom properties as the rest of the UI
+
+`recharts` takes colour props, not classes, but SVG `fill`/`stroke` accept
+`var(--color-brand)` directly. The palette is not forked into a TypeScript
+constants file for the chart's sake — two copies of eight colours drift, and
+the copy nobody remembers to update is the one that ships wrong.
+
+## Authenticated routes live under `app/(app)/`
+
+The route group's layout owns the sidebar and the auth redirect; `app/login/`
+sits outside it under the same root layout. Putting the nav in the root
+layout would wrap a signed-out user's login screen in chrome for a dashboard
+they can't see yet. Route groups add no URL segment, so `/data` and friends
+are unaffected by living inside the group.
+
+## `/people` supersedes "Buyers" in the UI; the table name stays
+
+The nav label and page heading say "People" — the table now holds show
+counterparties bought *from* as often as buyers sold *to*, and the nav is
+where a fresh surface can just not repeat an old misnomer. Renaming the
+`buyers` table itself is still not worth a migration for 5 rows; see the
+Phase 6 entry above.
+
+## No Review screen; `needs_review` surfaces as counts and row markers instead
+
+A dedicated review page would be a second place deals live, competing with
+`/deals` for which one is current. A nav badge (count of `needs_review`
+deals) plus an inline marker on the affected row does the same job — surface
+the gap where the data already lives — without a screen whose only content is
+"go look at rows that live somewhere else."
