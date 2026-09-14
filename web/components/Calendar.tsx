@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import DayEntryTable from "@/components/DayEntryTable";
+import Spinner from "@/components/Spinner";
 import { getDayEntries } from "@/app/(app)/actions";
 import type { LedgerEntry } from "@/lib/ledgerTypes";
 
@@ -27,6 +28,29 @@ export type ReleaseRow = {
   status: string;
 };
 
+export type ShowRow = {
+  id: number;
+  name: string;
+  venue: string | null;
+  city: string | null;
+  state: string | null;
+  starts_on: string;
+  ends_on: string | null;
+  doors_at: string | null;
+  admission_cost: number | string | null;
+  table_cost: number | string | null;
+  url: string | null;
+  notes: string | null;
+  status: string;
+  needs_review: boolean;
+};
+
+export type ShowSummaryRow = {
+  show_id: number;
+  deal_count: number;
+  net_cash: number | string;
+};
+
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -39,6 +63,20 @@ function pad(n: number) {
 
 function isoOf(year: number, month: number, day: number) {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
+}
+
+// Every calendar day from `start` through `end` inclusive, as ISO strings.
+// Used to mark a multi-day show on each day it spans — a weekend show
+// marked only on its start date is the failure mode this avoids.
+function daysBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  const cur = new Date(`${start}T00:00:00Z`);
+  const last = new Date(`${end}T00:00:00Z`);
+  while (cur <= last) {
+    out.push(cur.toISOString().slice(0, 10));
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return out;
 }
 
 // Sign always shown, colour applied on top of it — Phase 7's rule that
@@ -75,12 +113,16 @@ export default function Calendar({
   todayIso,
   dailyCash,
   releases,
+  shows,
+  showSummaries,
 }: {
   year: number;
   month: number;
   todayIso: string;
   dailyCash: DailyCashRow[];
   releases: ReleaseRow[];
+  shows: ShowRow[];
+  showSummaries: ShowSummaryRow[];
 }) {
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dayEntries, setDayEntries] = useState<LedgerEntry[]>([]);
@@ -104,6 +146,26 @@ export default function Calendar({
     releasesByDay.set(r.release_on, list);
   }
 
+  // Marks every day a show spans, not just starts_on — see daysBetween.
+  const showsByDay = new Map<string, ShowRow[]>();
+  for (const s of shows) {
+    for (const day of daysBetween(s.starts_on, s.ends_on ?? s.starts_on)) {
+      const list = showsByDay.get(day) ?? [];
+      list.push(s);
+      showsByDay.set(day, list);
+    }
+  }
+
+  const summaryByShowId = new Map<number, ShowSummaryRow>();
+  for (const s of showSummaries) summaryByShowId.set(s.show_id, s);
+
+  // A show still 'planned' after its last day has passed needs a human to
+  // reconcile it — that's a prompt, not history, so it reads differently
+  // from an ordinary attended show.
+  function isUnresolvedPastShow(s: ShowRow) {
+    return s.status === "planned" && (s.ends_on ?? s.starts_on) < todayIso;
+  }
+
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   const startWeekday = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const cells: (number | null)[] = [
@@ -123,6 +185,7 @@ export default function Calendar({
   }
 
   const selectedReleases = selectedDay ? (releasesByDay.get(selectedDay) ?? []) : [];
+  const selectedShows = selectedDay ? (showsByDay.get(selectedDay) ?? []) : [];
 
   return (
     <div className="space-y-3">
@@ -169,11 +232,13 @@ export default function Calendar({
             const net = netByDay.get(iso);
             const count = countByDay.get(iso) ?? 0;
             const dayReleases = releasesByDay.get(iso) ?? [];
+            const dayShows = showsByDay.get(iso) ?? [];
             const isToday = iso === todayIso;
             const isSelected = iso === selectedDay;
             const hasFlagged = dayReleases.some(
               (r) => r.time_unconfirmed || r.drop_type_uncertain,
             );
+            const hasUnresolvedShow = dayShows.some(isUnresolvedPastShow);
             // Half of BAR_BOX on either side of the centre baseline.
             const BAR_BOX = 32;
             const barPx =
@@ -204,16 +269,39 @@ export default function Calendar({
                   >
                     {day}
                   </div>
-                  {/* Release presence is its own indicator, separate from
-                      the cash bar below — a dot, not a signed figure, so
-                      it needs no pos/neg colour convention. Centred against
-                      the date number, not top-aligned. */}
-                  {dayReleases.length > 0 && (
-                    <span
-                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                        hasFlagged ? "bg-accent-ink" : "bg-accent"
-                      }`}
-                    />
+                  {/* Release and show presence are their own indicators,
+                      separate from the cash bar below — neither is a
+                      signed figure, so neither needs a pos/neg colour
+                      convention. Distinguished from each other by shape
+                      (a dot for a release, a flag for a show), never by
+                      inventing a new hue — Phase 7 already spent the
+                      colour budget on cash. Fill/stroke colour carries
+                      urgency (a flagged release, an unresolved past show)
+                      using the same accent/accent-ink pair either way. */}
+                  {(dayReleases.length > 0 || dayShows.length > 0) && (
+                    <div className="flex shrink-0 items-center gap-1">
+                      {dayShows.length > 0 && (
+                        <svg
+                          viewBox="0 0 16 16"
+                          className={`h-3 w-3 ${hasUnresolvedShow ? "text-accent-ink" : "text-accent"}`}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M3.5 14.5V2" />
+                          <path d="M3.5 2.5l8 3-8 3" fill="currentColor" stroke="none" />
+                        </svg>
+                      )}
+                      {dayReleases.length > 0 && (
+                        <span
+                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${
+                            hasFlagged ? "bg-accent-ink" : "bg-accent"
+                          }`}
+                        />
+                      )}
+                    </div>
                   )}
                 </div>
 
@@ -236,11 +324,16 @@ export default function Calendar({
                   </div>
                 )}
 
-                {(net !== undefined || dayReleases.length > 0) && (
+                {(net !== undefined || dayReleases.length > 0 || dayShows.length > 0) && (
                   <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-ink px-2 py-1 text-xs text-surface shadow-lg group-hover:block">
                     {net !== undefined && (
                       <div>
                         {signedAmount(net)} · {count} {count === 1 ? "entry" : "entries"}
+                      </div>
+                    )}
+                    {dayShows.length > 0 && (
+                      <div>
+                        {dayShows.map((s) => s.name).join(", ")}
                       </div>
                     )}
                     {dayReleases.length > 0 && (
@@ -271,10 +364,51 @@ export default function Calendar({
           </div>
 
           {isPending ? (
-            <p className="mt-2 text-sm text-ink-muted">Loading…</p>
+            <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+              <Spinner />
+              Loading…
+            </div>
           ) : (
             <div className="mt-2">
               <DayEntryTable entries={dayEntries} />
+            </div>
+          )}
+
+          {selectedShows.length > 0 && (
+            <div className="mt-3 space-y-1.5 border-t border-brand-soft/15 pt-2">
+              <div className="text-xs font-medium uppercase text-ink-muted">
+                Shows
+              </div>
+              {selectedShows.map((s) => {
+                const summary = summaryByShowId.get(s.id);
+                const unresolved = isUnresolvedPastShow(s);
+                return (
+                  <div key={s.id} className="text-sm text-ink">
+                    <span className="font-medium">{s.name}</span>{" "}
+                    <span className="text-ink-muted">
+                      {[s.venue, s.city].filter(Boolean).join(", ") || "venue unknown"}
+                      {s.doors_at && <> · doors {formatPacificTime(s.doors_at)}</>}
+                      {s.admission_cost != null && (
+                        <> · admission ${Number(s.admission_cost).toFixed(2)} (expected)</>
+                      )}
+                    </span>
+                    {unresolved && (
+                      <span className="ml-1 rounded border border-accent-ink px-1 text-xs text-accent-ink">
+                        unresolved
+                      </span>
+                    )}
+                    {s.status === "attended" && summary && (
+                      <div className="text-ink-muted">
+                        {summary.deal_count} {summary.deal_count === 1 ? "deal" : "deals"} ·
+                        net {signedAmount(Number(summary.net_cash))}
+                      </div>
+                    )}
+                    {s.needs_review && (
+                      <div className="text-xs text-accent-ink">needs review</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 

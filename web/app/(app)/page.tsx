@@ -1,4 +1,9 @@
-import Calendar, { type DailyCashRow, type ReleaseRow } from "@/components/Calendar";
+import Calendar, {
+  type DailyCashRow,
+  type ReleaseRow,
+  type ShowRow,
+  type ShowSummaryRow,
+} from "@/components/Calendar";
 import { createClient } from "@/lib/supabase/server";
 
 // Home is the calendar, as of Phase 9. Position cards, the cash chart, and
@@ -38,6 +43,7 @@ export default async function HomePage({
   const [
     { data: dailyCash, error: dcErr },
     { data: releases, error: rErr },
+    { data: shows, error: shErr },
   ] = await Promise.all([
     supabase
       .from("daily_cash")
@@ -53,13 +59,33 @@ export default async function HomePage({
       .lte("release_on", monthEnd)
       .order("release_on", { ascending: true })
       .order("release_at", { ascending: true, nullsFirst: true }),
+    // A show overlaps the visible month if it starts before month-end and
+    // (has no end date and starts on/after month-start) or (ends on/after
+    // month-start) — this is what makes a multi-day show that started last
+    // month still mark this month's days.
+    supabase
+      .from("shows")
+      .select(
+        "id, name, venue, city, state, starts_on, ends_on, doors_at, admission_cost, table_cost, url, notes, status, needs_review",
+      )
+      .lte("starts_on", monthEnd)
+      .or(
+        `and(ends_on.is.null,starts_on.gte.${monthStart}),and(ends_on.not.is.null,ends_on.gte.${monthStart})`,
+      )
+      .order("starts_on", { ascending: true }),
   ]);
+
+  const showIds = (shows ?? []).map((s) => s.id);
+  const { data: showSummaries, error: ssErr } =
+    showIds.length > 0
+      ? await supabase.from("show_summary").select("show_id, deal_count, net_cash").in("show_id", showIds)
+      : { data: [] as ShowSummaryRow[], error: null };
 
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center space-y-6 p-6">
-      {(dcErr || rErr) && (
+      {(dcErr || rErr || shErr || ssErr) && (
         <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {dcErr?.message ?? rErr?.message}
+          {dcErr?.message ?? rErr?.message ?? shErr?.message ?? ssErr?.message}
         </p>
       )}
 
@@ -69,6 +95,8 @@ export default async function HomePage({
         todayIso={todayIso}
         dailyCash={(dailyCash ?? []) as DailyCashRow[]}
         releases={(releases ?? []) as ReleaseRow[]}
+        shows={(shows ?? []) as ShowRow[]}
+        showSummaries={(showSummaries ?? []) as ShowSummaryRow[]}
       />
     </main>
   );
