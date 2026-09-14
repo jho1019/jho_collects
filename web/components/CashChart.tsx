@@ -12,19 +12,11 @@ import {
   YAxis,
 } from "recharts";
 import { usd } from "@/lib/format";
+import type { EntriesByDay } from "@/lib/ledgerTypes";
+import DayEntryTable from "@/components/DayEntryTable";
 
 export type CashPoint = { day: string; net: number };
-
-export type LedgerEntry = {
-  id: number;
-  type: string;
-  description: string;
-  net_cash: number | string;
-};
-
-// Keyed by ISO day (matches CashPoint.day) so a Server Component can
-// serialise it as a plain object — a Map wouldn't survive the RSC boundary.
-export type EntriesByDay = Record<string, LedgerEntry[]>;
+export type { LedgerEntry, EntriesByDay } from "@/lib/ledgerTypes";
 
 const WINDOWS: { label: string; days: number }[] = [
   { label: "30d", days: 30 },
@@ -235,32 +227,9 @@ export default function CashChart({
               Dismiss
             </button>
           </div>
-          {pinnedEntries.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-muted">No activity.</p>
-          ) : (
-            <div className="mt-2 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
-                  <tr>
-                    <th className="py-1 pr-3 font-medium">Type</th>
-                    <th className="py-1 pr-3 font-medium">Description</th>
-                    <th className="py-1 text-right font-medium">Net cash</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pinnedEntries.map((e) => (
-                    <tr key={e.id} className="border-b border-brand-soft/15 last:border-0">
-                      <td className="py-1 pr-3 text-ink-muted">{e.type}</td>
-                      <td className="py-1 pr-3 text-ink">{e.description}</td>
-                      <td className="py-1 text-right tabular-nums text-ink">
-                        {usd(e.net_cash)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <div className="mt-2">
+            <DayEntryTable entries={pinnedEntries} />
+          </div>
         </div>
       )}
     </div>
