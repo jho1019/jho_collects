@@ -34,7 +34,7 @@ export default function Sidebar({ dealsNeedingReview }: { dealsNeedingReview: nu
     <nav className="fixed inset-y-0 left-0 flex w-56 flex-col justify-between border-r border-brand-soft/25 bg-surface px-3 py-4">
       <div>
         <div className="mb-4 px-2">
-          <span className="text-sm font-semibold text-ink">Card ledger</span>
+          <span className="text-sm font-semibold text-ink">jho_collects</span>
         </div>
         <ul className="space-y-0.5">
           {SECTIONS.map((item) => {
