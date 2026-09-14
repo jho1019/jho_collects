@@ -115,4 +115,11 @@ select cron.schedule(
 -- PostgREST (/rest/v1/rpc/notify_upcoming_releases) and spam the Discord
 -- webhook on demand. pg_cron itself runs as the scheduling role, which
 -- still has execute rights.
+--
+-- Revoking from anon/authenticated alone is not enough: Postgres grants
+-- EXECUTE to PUBLIC by default at creation time, and anon/authenticated
+-- inherit through that regardless of a direct revoke. Found via
+-- information_schema.routine_privileges while verifying Phase 11 — the
+-- earlier revoke left PUBLIC still holding it.
 revoke execute on function notify_upcoming_releases() from anon, authenticated;
+revoke execute on function notify_upcoming_releases() from public;

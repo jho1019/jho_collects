@@ -28,6 +28,7 @@ sale. Refunds and corrections attach to whichever side they adjust.
 | "I already own a 1986 Fleer Jordan PSA 8" | opening stock | `add_opening_stock()` — **no transaction** |
 | "traded the allen and the nacua plus $95 for an ohtani" | deal — cards both ways | `record_trade()` → `deals` + `transactions` + `cards` |
 | "bought dollar bin stuff and sold him the daniels" | deal — two legs, one vendor | `open_deal()` + `sell_card(…, p_deal_id)` + `record_trade()` |
+| "Anaheim show next Wednesday, $5 admission" | upcoming show | direct `insert into shows`, `status = 'planned'` — no preview, single row |
 | "call that one the jordan" | naming | `name_card()` |
 | "bought two cards for my PC" | purchase for the personal collection | `transactions`, description prefixed `[PC]` |
 | "bought $30 of toploaders" | expense | `transactions`, type `expense` |
@@ -107,8 +108,29 @@ carry $30. Comps go in `est_value` and never touch `acquisition_cost`.
    an uncaptured card cannot be reconstructed.
 
 **Never ask for:** date (default today; parse only if stated), counterparty,
-event name, comp or sticker value, grade, set, parallel, or per-card
+the show's name, comp or sticker value, grade, set, parallel, or per-card
 allocation.
+
+### Resolving the show
+
+If the utterance names a show or vendor location ("at the Anaheim show",
+"at the LA show"), resolve it to a `shows` row before calling
+`open_deal()` or `record_trade()`:
+
+```sql
+select find_or_create_show('<show name>', '<occurred_on>');
+```
+
+Match is case-insensitive name plus the date falling within the show's
+`[starts_on, ends_on]` range. **No match does not block the deal** — it
+creates the show with `status = 'attended'` and `needs_review = true`
+(recording a deal there means the show was attended, whatever else is
+unknown about it), and the deal still writes. Same principle as an
+unresolvable card falling through to `add_opening_stock`: the cash and the
+movement are real regardless of what's catalogued.
+
+If the utterance names no show at all ("bought some cards today"), pass
+`p_show_id => null`. Do not invent a show name to force a resolution.
 
 ### Confirmation splits by direction
 
@@ -139,17 +161,79 @@ select record_trade(
   p_cash_amount    => 95.00,
   p_cash_direction => 'paid',              -- or 'received'. NEVER guessed.
   p_occurred_on    => date '2026-09-09',
-  p_event_name     => '<show or vendor>'
+  p_show_id        => (select find_or_create_show('<show or vendor>', date '2026-09-09'))
 );
 ```
 
 For a sale that is part of a deal, pass the deal through
 `sell_card(..., p_deal_id => <id>)` so the cash row and the card both attach.
-`open_deal()` starts an empty deal; `attach_transaction(deal_id, txn_id)`
-retro-fits grouping onto a row that already exists.
+`open_deal(p_occurred_on, p_show_id, p_counterparty_id, p_notes)` starts an
+empty deal; `attach_transaction(deal_id, txn_id)` retro-fits grouping onto a
+row that already exists.
 
 Read a deal back with `deal_summary` — one row per deal, with the net and a
 derived kind. Never store that net.
+
+### Show-level expenses
+
+Admission, table fees, parking — money spent at the show but with no
+counterparty — are `expense` transactions with `show_id` set and
+`deal_id` left null. Do **not** attach them to whichever deal happened to
+be recorded first; a deal is one counterparty, and the door fee belongs to
+the show, not to any vendor.
+
+There is no `--show-id` flag on the CLI, same as there is no `--deal-id`
+one. Write the expense through the normal Step 3 preview-and-confirm flow,
+then attach the show afterward:
+
+```
+python scripts/entry.py expense --amount 10 --category fees --dry-run
+```
+
+then, on confirm, the real insert followed by:
+
+```sql
+select attach_show(<show_id>, <transaction_id>);
+```
+
+Resolve `<show_id>` the same way as for a deal —
+`find_or_create_show('<show name>', '<occurred_on>')`.
+
+`show_summary` reports these separately from deal cash (`unattached_net_cash`)
+and folds both into a true `net_cash` for the show.
+
+## Step 2.6 — Upcoming shows
+
+Trigger: the user states a future show conversationally — "Anaheim show
+next Wednesday", "there's a show in Riverside on the 20th, $5 to get in".
+Not a paste of several shows (there is no such batch case today) and not a
+deal (nothing was bought or sold).
+
+**Single-item entry writes straight through — no preview.** The
+`release-entry` skill previews because a paste is many rows of inference at
+once; one show conversationally stated is one row, and the acknowledgement
+after writing is the confirmation.
+
+Same weekday-resolves-forward rule as `release-entry`: a bare weekday means
+its next occurrence from today, inclusive.
+
+There is no CLI for `shows`. Insert directly via SQL, explicitly setting
+`user_id` from `OWNER_USER_ID` in `.env.local` — a direct SQL connection
+carries no `auth.uid()` session, same as `release-entry`.
+
+```sql
+insert into shows (user_id, name, starts_on, admission_cost, status)
+values (:owner, 'Anaheim Card Show', '2026-09-16', 5.00, 'planned');
+```
+
+Only `name` and `starts_on` are required. Set `admission_cost` or
+`table_cost` when stated; leave `venue`, `city`, `state`, `doors_at` and
+`url` null rather than guessed — fill them in from the next attended show.
+
+Do not use `find_or_create_show()` here — that function is for resolving a
+*deal* to a show that may already exist; this is deliberately always an
+insert, since the user is telling you about a show, not recording one that
+already happened.
 
 ## Step 3 — Preview and confirm every cash entry
 
@@ -339,3 +423,19 @@ category to `supplies`. Both required fields satisfied →
 
 **"spent $30 on business stuff"** — expense missing a usable category. Don't
 preview; ask what the $30 was for.
+
+**"Anaheim show next Wednesday, $5 admission"** — upcoming show. Resolve
+"next Wednesday" the same weekday-forward rule as `release-entry`. Single
+row, writes straight through with no preview:
+`insert into shows (user_id, name, starts_on, admission_cost, status)
+values (:owner, 'Anaheim Card Show', '2026-09-16', 5.00, 'planned')`.
+Report the date and cost back in one line.
+
+**"bought dollar bin stuff and sold him the daniels at the anaheim show"** —
+deal, one vendor, two legs, at a named show. Resolve the show first:
+`select find_or_create_show('anaheim show', current_date)` — if an Anaheim
+show already exists for today, its id comes back and nothing new is
+created; otherwise a new `attended` row is created flagged for review. Pass
+that id as `p_show_id` to `open_deal()`/`record_trade()`, same as the
+existing dollar-bin-vendor worked example, just with the show attached
+instead of left null.

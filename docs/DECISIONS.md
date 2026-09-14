@@ -391,6 +391,14 @@ webhook on demand. `search_path` is pinned to `public, vault, net` on the
 same grounds — a definer-rights function must not resolve an unqualified
 name to something a lower-privileged role planted.
 
+**Revoking from `anon`/`authenticated` alone was not enough.** Postgres
+grants `EXECUTE` to `PUBLIC` by default when a function is created, and
+`anon`/`authenticated` inherit through that regardless of a direct revoke
+naming them. Found while verifying Phase 11 via
+`information_schema.routine_privileges` — the original Phase 10 revoke had
+left `PUBLIC` still holding it. `EXECUTE` must be revoked from `public`
+explicitly, every time, not just from the roles that happen to concern you.
+
 ## Delivery is fire-and-forget; a failed Discord post is not retried
 
 `pg_net.http_post` is asynchronous — it returns a request id immediately, so
@@ -399,3 +407,84 @@ that release is never retried. Accepted for a personal ledger. If it ever
 matters, the fix is storing the request id and reconciling against
 `net._http_response` on a later run — not built, because nothing today
 depends on delivery being guaranteed.
+
+## Shows are stored one row per occurrence, with no recurrence engine
+
+A weekly show is weekly until it is not — holidays, special editions,
+changed hours. The dated row carries `status`, the actual `doors_at`,
+notes, and the deals that hang off it, none of which a series definition
+could hold. If repetition becomes tedious, the fix is a
+`duplicate_show(id, new_date)` helper, not a recurrence rule engine.
+
+## `admission_cost` and `table_cost` are planning estimates, never actual spend
+
+They exist so a show can be evaluated before deciding whether to go. What
+was actually paid is always a `transactions` row with that `show_id`. If
+either column is ever read into a P&L figure, there are now two ledgers for
+the same dollar and they will disagree — same trap `deals.event_name`
+avoided by never storing a number that a query could compute instead.
+
+## `deals.show_id` replaces `deals.event_name`, not supplements it
+
+`event_name` was free text — the six original rows read like "LA card show
+- deal 1" — which cannot be grouped or joined, only pattern-matched. A
+foreign key next to a free-text label describing the same thing is a
+second source of truth that drifts within a month, so `event_name` was
+dropped the same migration `show_id` was backfilled onto every existing
+deal. `deal_summary` still exposes a column called `event_name` for the
+web app's sake, but it is now sourced from `shows.name` through the join,
+never stored.
+
+## Show-level expenses attach via `transactions.show_id` with a null `deal_id`
+
+Admission, table fees, and parking have no counterparty, so forcing them
+onto whichever deal happened to be recorded first at a show would be
+wrong — a deal is one counterparty, and a door fee belongs to the show
+itself. `show_summary` sums these separately from deal cash
+(`unattached_net_cash`) and folds both into a true `net_cash`. The
+deal-leg transaction `record_trade()` writes never carries `show_id`
+itself — only `deal_id` — specifically so `show_summary` can filter
+unattached expenses with `deal_id is null` and never double-count a deal's
+cash through both paths.
+
+## Calendar markers are distinguished by glyph and border, never by a new colour
+
+Phase 7 spent the palette's colour budget on positive and negative cash,
+and the greyscale rule (every signed figure must still read without
+colour) means a colour-only marker fails regardless of budget. Shows and
+releases are both small bordered badges — `S` and `R` — so the category is
+legible from the glyph alone; the border colour reuses existing tokens
+(`accent`/`accent-ink` for releases, `brand-soft`/`accent-ink` for shows)
+to carry urgency, not identity. The glyph text itself always stays
+`ink-muted`: `accent` and `brand-soft` still fail AA for text, the same
+rule from Phase 7.
+
+## An unresolved past show reads differently from an attended one
+
+A show whose last day has passed but is still `status = 'planned'` is
+missing a human decision (did it happen? was it skipped?), not a
+completed record — so it renders with the same urgency border as a
+flagged release rather than blending in with ordinary attended shows on
+the calendar.
+
+## `find_or_create_show()` never blocks a deal on a missing show
+
+Resolving a deal's show is a name-plus-date match against existing rows.
+No match does not stop the deal from being recorded — it creates the show
+as `attended` (a deal is being recorded there right now, so it was
+attended, whatever else about it is unknown) with `needs_review = true`,
+same principle as an unresolvable card falling through to
+`add_opening_stock` rather than blocking entry. The cash and the card
+movement are real whether or not the show was catalogued in advance.
+
+## Single-item entry writes through; batch entry previews first
+
+An upcoming show stated conversationally ("Anaheim show next Wednesday,
+$5 admission") is one row and writes immediately, same policy as
+`card-entry`'s plain purchases and sales — the acknowledgement after
+writing is the confirmation. This is deliberately the opposite of
+`release-entry`, which previews every batch before writing anything
+because a pasted list is many rows of inference at once and one bad
+weekday resolution is easy to miss in a wall of text. One show stated in
+conversation carries none of that risk, so the batch skill's caution would
+just be friction here.
