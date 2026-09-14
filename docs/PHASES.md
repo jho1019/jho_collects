@@ -768,3 +768,105 @@ Filtering or searching the ledger, sorting by column, editing a row from the
 ledger, date-range selection on the chart beyond the existing window control,
 a deals-aware tooltip that groups a show's legs together, and CSV export of
 the current page.
+
+## Phase 9 — Calendar home and release tracking
+
+Home becomes a calendar. The ledger moves to its own route. A new table
+tracks upcoming product releases so the calendar shows what's coming as
+well as what happened.
+
+### Routes
+
+`/` is the calendar and nothing else. Everything Home used to show —
+`PositionCards`, `CashChart`, `RecentLedger`, the rolling-windows table —
+moved to `/ledger` intact.
+
+Nav order: Home, Ledger, Deals, Inventory, Insights, People, then Data
+pinned at the bottom, per `components/Sidebar.tsx`.
+
+The masthead and sign-out button used to be Home's own header. Home is the
+calendar now and has no more claim to owning them than any other route, so
+they moved into the shared `(app)` layout instead of either duplicating them
+per-page or leaving sign-out reachable only from `/ledger`.
+
+### Schema
+
+`schema/012_releases.sql` — the `releases` table. `drop_type` is text, not an
+enum, for the reason recorded for `deals` in Phase 6: Postgres has no
+`ALTER TYPE ... DROP VALUE`, and drop mechanics change often enough that a
+one-way door is the wrong shape. `drop_type_uncertain` and `time_unconfirmed`
+exist because the source text itself carries uncertainty ("(EQL?)") that
+flattening would discard.
+
+`schema/013_daily_cash.sql` — one row per day with transactions
+(`net_movement`, `txn_count`). The calendar's month query reads this and
+`releases` only, scoped to the visible month — it does not reuse the old
+Home page's full-transactions fetch, which existed to build a cumulative
+series and pulled every row ever.
+
+### Calendar
+
+`components/Calendar.tsx`, a client component. Opens on the current month
+(`America/Los_Angeles`, matching `release_on`'s timezone); month back/forward
+and a "Today" control move through `?year=&month=` search params, so a month
+is linkable the same way Phase 8's ledger pages are.
+
+The indicator is the day's net movement, not the running total, and a day
+with no transactions gets no indicator at all — not a zero. Positive is
+`--color-brand`, negative is `--color-accent-ink`, no green or red, and every
+active day shows the signed figure as text (`+146.00`, `−95.00`) so colour is
+never the only carrier. Releases render as a truncated title in the cell,
+marked when `drop_type_uncertain` or `time_unconfirmed` is set.
+
+Clicking a day opens a panel below the calendar with that day's ledger
+entries — via `DayEntryTable`, extracted from Phase 8's `CashChart`
+click-to-pin panel so both surfaces share one row renderer — plus that day's
+releases with time (converted to Pacific), drop type, and a link. Fetching a
+single day's entries is a separate, small server action
+(`app/(app)/actions.ts`), not part of the calendar's own month query.
+
+### Release entry skill
+
+`.claude/skills/release-entry/SKILL.md` — a separate skill from `card-entry`,
+not a branch on it. Different subject and, more importantly, the opposite
+write policy: `card-entry` writes additive rows straight through where it
+can; this skill never writes on the first turn, always previews the whole
+parsed batch and asks once before writing anything.
+
+Trigger is a pasted block of releases — product names alongside weekdays,
+times, or drop-mechanic markers. A duplicate check (same `release_on` +
+case-insensitive title, or same `url`) runs before the preview, so
+re-pasting an overlapping range reports existing rows rather than
+duplicating them.
+
+Parsing rules worth remembering: a bare weekday resolves to its next
+occurrence from today, inclusive; dates within one paste never decrease,
+so a list spanning a weekend doesn't collapse into one week; a line with no
+weekday inherits the last one seen; Eastern times parse as
+`America/New_York` wall-clock, never a fixed offset, since daylight saving
+makes a literal UTC-5 wrong for most of the year; and a trailing `?` on a
+drop type sets `drop_type_uncertain` rather than being dropped or flattened.
+
+There is no CLI for this table — the skill inserts directly via SQL,
+explicitly setting `user_id` from `OWNER_USER_ID` (same reason
+`scripts/entry.py` does: a direct SQL connection carries no `auth.uid()`
+session).
+
+### Decisions recorded in DECISIONS.md
+
+- Calendar indicators show daily net movement, not cumulative position.
+- Phase 7's colour rule stands on the calendar. No green/red; the signed
+  figure carries the meaning.
+- `releases.drop_type` is text. Enums remain off-limits for values that
+  change.
+- Weekday-only input resolves forward from today, and dates within one paste
+  never decrease.
+- Eastern times are parsed as `America/New_York` wall-clock, never a fixed
+  offset.
+
+### Not in this phase
+
+Linking a release to the purchase it produced, reminders or notifications
+ahead of a drop, a release-entry UI (pasted through the skill instead), week
+or day calendar views, showing deals as distinct calendar markers, and any
+change to how the ledger itself works.

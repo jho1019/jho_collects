@@ -9,10 +9,12 @@ type NavItem = {
   icon: (active: boolean) => React.ReactNode;
 };
 
-// Five sections, in the order Phase 7 specifies. /data is a utility and sits
-// below the separator, not among them.
+// Six sections, in the order Phase 9 specifies. /data is a utility and sits
+// below the separator, not among them. Home is the calendar as of Phase 9;
+// what Home used to show (position cards, chart, ledger) moved to /ledger.
 const SECTIONS: NavItem[] = [
-  { href: "/", label: "Dashboard", icon: iconGrid },
+  { href: "/", label: "Home", icon: iconCalendar },
+  { href: "/ledger", label: "Ledger", icon: iconTable },
   { href: "/deals", label: "Deals", icon: iconHandshake },
   { href: "/inventory", label: "Inventory", icon: iconBox },
   { href: "/insights", label: "Insights", icon: iconChart },
@@ -87,13 +89,20 @@ export default function Sidebar({ dealsNeedingReview }: { dealsNeedingReview: nu
 }
 
 // Minimal inline icons — no icon package, kept to a shared 18x18 stroke style.
-function iconGrid() {
+function iconCalendar() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" />
-      <rect x="9" y="1.5" width="5.5" height="5.5" rx="1" stroke="currentColor" />
-      <rect x="1.5" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" />
-      <rect x="9" y="9" width="5.5" height="5.5" rx="1" stroke="currentColor" />
+      <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" />
+      <path d="M1.5 6h13M4.5 1v3M11.5 1v3" stroke="currentColor" strokeLinecap="round" />
+      <path d="M4.5 9h2M9.5 9h2M4.5 12h2M9.5 12h2" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  );
+}
+function iconTable() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5" stroke="currentColor" />
+      <path d="M1.5 6.5h13M5.5 6.5v7" stroke="currentColor" strokeLinecap="round" />
     </svg>
   );
 }

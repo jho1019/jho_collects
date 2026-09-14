@@ -304,3 +304,46 @@ none — a paginated query has no other way to guarantee a stable cut.
 so every row carries the correct cumulative figure regardless of which page
 it lands on. Recomputing it from only the visible page would be wrong the
 moment there's a page before it.
+
+## Calendar indicators show daily net movement, not cumulative position
+
+A day cell shows what happened *that day* — the same shape as a
+`daily_cash.net_movement` row — never the running total. A cumulative figure
+on every cell would repeat almost the same number 30 times and tell you
+nothing about which day actually moved money; the whole point of a calendar
+view is the day-by-day shape, which a running total erases.
+
+## Phase 7's colour rule stands on the calendar
+
+No green, no red — positive is `--color-brand`, negative is
+`--color-accent-ink`, same as everywhere else. Because blue doesn't *read* as
+positive on its own, every active day shows the signed figure as text
+(`+146.00`, `−95.00`); colour is emphasis on top of that sign, never the only
+carrier. A day with nothing in it gets no indicator at all, not a zero —
+zero and "no data" are different facts and a bare `0.00` would claim the
+first when it means the second.
+
+## `releases.drop_type` is text
+
+Same reasoning as `deals` in Phase 6: Postgres has no
+`ALTER TYPE ... DROP VALUE`, and drop mechanics change often enough that a
+one-way door is the wrong shape. The release-entry skill validates against a
+documented set (`FCFS`, `EQL`, `raffle`, `queue`); the column itself does
+not.
+
+## Weekday-only input resolves forward, and dates never decrease within a paste
+
+"Monday" in a pasted release list means the next Monday from today,
+inclusive of today. Within one paste, resolved dates never go backward — if
+the next named weekday would land before the last one resolved, it advances
+a week instead. Without both rules a list spanning a weekend (e.g. Thursday
+through Monday) collapses into a single week and silently files the tail in
+the past, where a calendar view will never surface it.
+
+## Eastern times are parsed as `America/New_York` wall-clock, never a fixed offset
+
+`EST`, `EDT`, and `ET` all mean the same wall-clock zone; the date in
+question picks daylight vs. standard time, not the literal three-letter
+abbreviation. A hardcoded UTC-5 is wrong for roughly eight months of the
+year, and an hour is the entire outcome on a first-come-first-served
+preorder.
