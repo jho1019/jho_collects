@@ -352,3 +352,50 @@ question picks daylight vs. standard time, not the literal three-letter
 abbreviation. A hardcoded UTC-5 is wrong for roughly eight months of the
 year, and an hour is the entire outcome on a first-come-first-served
 preorder.
+
+## Release notifications run in Postgres via `pg_cron`, not on Vercel
+
+Vercel Hobby cron runs at most once a day and fires anywhere inside the
+scheduled hour — it cannot support a pre-drop ping. `pg_cron` runs as a
+background worker inside Supabase and `pg_net` makes the outbound call, so
+nothing touches the Next.js app: no route, no deploy, no traffic.
+
+## The notifier polls a lead window; it does not schedule one job per release
+
+A poll every 15 minutes checking for releases inside a 45-minute lead window
+needs no DST handling, leaves no orphaned per-release job when a date
+changes, and self-heals a missed run. **The lead window must stay longer
+than the poll interval** — at 45/15 every release passes through the window
+on at least two runs; shrink the window below the interval and drops fall
+silently between ticks. `release_at > now()` is what stops the very first
+run from firing every past release at once.
+
+## The Discord webhook URL lives only in Supabase Vault, never in the repo
+
+Inserted by hand with `vault.create_secret(...)`, once, outside of any
+migration file. `schema/014_release_notifications.sql` reads it by name from
+`vault.decrypted_secrets`; the value itself is never committed, logged, or
+written to a table column. It is a bearer credential — anyone holding the
+URL can post to the channel.
+
+## `notify_upcoming_releases()` is `SECURITY DEFINER`, filters `user_id` explicitly, and is not grantable to `anon`/`authenticated`
+
+`pg_cron` runs with no authenticated session, so `auth.uid()` is null and
+RLS would silently return zero rows — the function looks up the (single)
+owner's `auth.users.id` itself instead of relying on the `own_releases`
+policy. Being `SECURITY DEFINER` means it bypasses RLS entirely, which is
+also why `EXECUTE` is revoked from `anon` and `authenticated`: left granted,
+any signed-in or anonymous caller could hit
+`/rest/v1/rpc/notify_upcoming_releases` directly and fire the Discord
+webhook on demand. `search_path` is pinned to `public, vault, net` on the
+same grounds — a definer-rights function must not resolve an unqualified
+name to something a lower-privileged role planted.
+
+## Delivery is fire-and-forget; a failed Discord post is not retried
+
+`pg_net.http_post` is asynchronous — it returns a request id immediately, so
+a failed delivery isn't visible at the moment `notified_at` is written, and
+that release is never retried. Accepted for a personal ledger. If it ever
+matters, the fix is storing the request id and reconciling against
+`net._http_response` on a later run — not built, because nothing today
+depends on delivery being guaranteed.
