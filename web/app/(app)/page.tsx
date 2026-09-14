@@ -1,4 +1,3 @@
-import Link from "next/link";
 import Calendar, { type DailyCashRow, type ReleaseRow } from "@/components/Calendar";
 import { createClient } from "@/lib/supabase/server";
 
@@ -57,19 +56,7 @@ export default async function HomePage({
   ]);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-6">
-      <header>
-        <h1 className="text-xl font-semibold text-surface">Home</h1>
-        <p className="text-sm text-surface/70">
-          What happened, and what&rsquo;s coming. Position, cash flow, and the
-          full history live on{" "}
-          <Link href="/ledger" className="underline hover:text-surface">
-            Ledger
-          </Link>
-          .
-        </p>
-      </header>
-
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center space-y-6 p-6">
       {(dcErr || rErr) && (
         <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {dcErr?.message ?? rErr?.message}

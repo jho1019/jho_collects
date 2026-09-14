@@ -127,7 +127,7 @@ export default function Calendar({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-surface">
+        <h2 className="text-2xl font-semibold text-surface">
           {MONTH_NAMES[month]} {year}
         </h2>
         <div className="flex items-center gap-2 text-sm">
@@ -153,9 +153,9 @@ export default function Calendar({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-brand-soft/25 bg-surface">
-        <div className="grid grid-cols-7 border-b border-brand-soft/25 text-center text-xs font-medium uppercase text-ink-muted">
+        <div className="grid grid-cols-7 border-b border-brand-soft/25 text-center text-sm font-medium uppercase text-ink-muted">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="py-2">
+            <div key={w} className="py-3">
               {w}
             </div>
           ))}
@@ -163,7 +163,7 @@ export default function Calendar({
         <div className="grid grid-cols-7">
           {cells.map((day, i) => {
             if (day === null) {
-              return <div key={i} className="min-h-24 border-b border-r border-brand-soft/10" />;
+              return <div key={i} className="min-h-32 border-b border-r border-brand-soft/10" />;
             }
             const iso = isoOf(year, month, day);
             const net = netByDay.get(iso);
@@ -175,7 +175,7 @@ export default function Calendar({
               (r) => r.time_unconfirmed || r.drop_type_uncertain,
             );
             // Half of BAR_BOX on either side of the centre baseline.
-            const BAR_BOX = 20;
+            const BAR_BOX = 32;
             const barPx =
               net === undefined
                 ? 0
@@ -186,7 +186,7 @@ export default function Calendar({
                 key={i}
                 type="button"
                 onClick={() => selectDay(iso)}
-                className={`group relative flex min-h-24 flex-col border-b border-r border-brand-soft/10 p-1.5 text-left transition-colors hover:bg-brand-soft/10 ${
+                className={`group relative flex min-h-32 flex-col border-b border-r border-brand-soft/10 p-2 text-left transition-colors hover:bg-brand-soft/10 ${
                   isSelected ? "bg-brand/10" : ""
                 }`}
               >
@@ -196,9 +196,9 @@ export default function Calendar({
                     its date number up relative to an empty one. */}
                 <div className="flex items-center justify-between">
                   <div
-                    className={`text-xs ${
+                    className={`text-sm ${
                       isToday
-                        ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand font-semibold text-surface"
+                        ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand font-semibold text-surface"
                         : "text-ink-muted"
                     }`}
                   >
@@ -210,7 +210,7 @@ export default function Calendar({
                       the date number, not top-aligned. */}
                   {dayReleases.length > 0 && (
                     <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                         hasFlagged ? "bg-accent-ink" : "bg-accent"
                       }`}
                     />
@@ -221,7 +221,7 @@ export default function Calendar({
                     carries the sign, same as colour, so it still reads in
                     greyscale. Exact figures are hover/click-only. */}
                 {net !== undefined && (
-                  <div className="relative mx-auto mt-1.5 h-5 w-full max-w-10">
+                  <div className="relative mx-auto mt-2 h-8 w-full max-w-16">
                     <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-brand-soft/30" />
                     <div
                       className={`absolute inset-x-1 rounded-sm ${

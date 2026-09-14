@@ -24,9 +24,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     .eq("needs_review", true);
 
   return (
-    <div className="min-h-full bg-page">
+    <div className="min-h-screen bg-page">
       <Sidebar dealsNeedingReview={count ?? 0} />
-      <div className="pl-56">
+      <div className="flex min-h-screen flex-col pl-56">
         <header className="flex items-center justify-end border-b border-surface/20 px-6 py-3">
           <form action={logout}>
             <button
@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </button>
           </form>
         </header>
-        {children}
+        <div className="flex flex-1 flex-col">{children}</div>
       </div>
     </div>
   );
