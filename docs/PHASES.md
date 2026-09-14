@@ -876,3 +876,112 @@ Linking a release to the purchase it produced, reminders or notifications
 ahead of a drop, a release-entry UI (pasted through the skill instead), week
 or day calendar views, showing deals as distinct calendar markers, and any
 change to how the ledger itself works.
+
+## Phase 10 — Release notifications
+
+A Discord message before a drop, sent from Postgres on a schedule. Depends
+on Phase 9: `releases` and the entry skill have to exist and hold real rows
+first.
+
+### Where this runs
+
+Inside the database, not on Vercel. `pg_cron` runs as a background worker in
+the Supabase instance and `pg_net` makes the outbound HTTP call. Nothing
+touches the Next.js app — no route, no deploy, no traffic. Vercel Hobby cron
+runs at most once a day and fires anywhere inside the scheduled hour, which
+cannot support a pre-drop ping.
+
+### Setup outside the repo
+
+The webhook is a bearer credential — anyone holding the URL can post to the
+channel. It was inserted into Vault by hand, once, via the Supabase MCP
+connector rather than the SQL editor:
+
+```sql
+select vault.create_secret(
+  '<discord webhook url>',
+  'discord_webhook_url',
+  'Discord webhook for release notifications'
+);
+```
+
+**This statement never landed in a migration file.** No webhook URL in the
+repo, in a table column, or anywhere reachable from the browser.
+`schema/014_release_notifications.sql` reads the secret by name; it does not
+contain it.
+
+A private Discord server with one channel, then Channel Settings →
+Integrations → Webhooks. A channel webhook posts to a channel, not a DM —
+mobile push works the same either way, and a real DM would require a hosted
+bot application.
+
+### Schema
+
+`schema/014_release_notifications.sql`:
+
+- Enables `pg_cron` and `pg_net`.
+- Adds `releases.notified_at`.
+- `format_release_message(releases)` — builds the entire Discord webhook
+  body as `jsonb`, kept separate from the send logic so the message can
+  change without touching it. `jsonb_strip_nulls` is required: a release
+  with no `url` would otherwise send `"url": null`, which Discord rejects
+  outright — the whole message fails, not just that field. Times use
+  Discord's `<t:UNIX:f>` / `<t:UNIX:R>` tokens, which render in the viewer's
+  local timezone and a live countdown — no Pacific formatting or DST
+  handling in the message layer. Colour carries `drop_type_uncertain`
+  (brand blue normally, accent rose when set) using the Phase 7 tokens as
+  decimal integers; the Type field still spells out "unconfirmed" in words,
+  because colour never carries meaning alone.
+- `notify_upcoming_releases()` — polls for releases entering a 45-minute
+  lead window, posts each, marks it sent. `SECURITY DEFINER` because
+  `pg_cron` runs with no authenticated session, so `auth.uid()` is null and
+  RLS would return zero rows; the function looks up the single owner's
+  `auth.users.id` directly instead. `search_path` is pinned to
+  `public, vault, net` so a definer-rights function can't be hijacked by a
+  shadowed object. `EXECUTE` is revoked from `anon` and `authenticated` —
+  left granted, any caller could hit
+  `/rest/v1/rpc/notify_upcoming_releases` directly and fire the webhook on
+  demand.
+- Scheduled every 15 minutes via `cron.schedule('notify-releases', ...)`.
+
+**The lead window must be longer than the poll interval.** At 45 minutes
+with a 15-minute poll, every release passes through the window on at least
+two runs. Shrink the window below the interval and drops fall silently
+between ticks. `release_at > now()` is what stops the first run from firing
+every past release at once.
+
+### Known limitation
+
+`pg_net` is asynchronous — `http_post` returns a request id immediately, so
+a failed delivery is not visible at the moment `notified_at` is written and
+is never retried, and fails silently. Accepted for now. If it ever matters,
+the fix is to store the returned request id and reconcile against
+`net._http_response` on a later run.
+
+### Exit check
+
+Verified live against the production project: a test release inserted 5
+minutes out produced a Discord message with title, date/countdown, link,
+and description within the window; `notified_at` was set; a second call to
+`notify_upcoming_releases()` returned 0 for the same row (no duplicate
+send); `format_release_message` output matched the Phase 7 colour tokens
+(`3893175` brand / `14119565` accent); the security advisor's flags on the
+function (mutable `search_path`, public `EXECUTE`) were fixed before
+shipping.
+
+### Decisions recorded in DECISIONS.md
+
+- Notifications are scheduled in Postgres via `pg_cron`, not on Vercel.
+- The job polls a lead window rather than scheduling one job per release.
+- The lead window is always longer than the poll interval.
+- The webhook URL lives in Vault and never in the repo.
+- `notify_upcoming_releases()` is `SECURITY DEFINER` with an explicit
+  `user_id` filter and no grant to `anon`/`authenticated`.
+- Delivery is fire-and-forget. A failed POST is silent and not retried.
+
+### Not in this phase
+
+A morning digest of the day's drops, configurable lead time per release,
+notifications for anything other than releases, retry or delivery
+confirmation, a second channel or DM routing, and marking a release
+`bought` from Discord.
