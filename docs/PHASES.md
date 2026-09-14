@@ -812,11 +812,17 @@ and a "Today" control move through `?year=&month=` search params, so a month
 is linkable the same way Phase 8's ledger pages are.
 
 The indicator is the day's net movement, not the running total, and a day
-with no transactions gets no indicator at all — not a zero. Positive is
-`--color-brand`, negative is `--color-accent-ink`, no green or red, and every
-active day shows the signed figure as text (`+146.00`, `−95.00`) so colour is
-never the only carrier. Releases render as a truncated title in the cell,
-marked when `drop_type_uncertain` or `time_unconfirmed` is set.
+with no transactions gets no indicator at all — not a zero. It's a sleek
+bar, not a printed figure: it grows above a centre line for a positive day
+and below it for a negative one, so direction carries the sign and the rule
+still holds in greyscale, with colour (`--color-brand` / `--color-accent-ink`,
+no green or red) layered on top for emphasis. The exact signed figure only
+shows on hover or click — a month view has no room for thirty numbers.
+Releases get their own dot, separate from the bar, since presence-of-a-release
+and net-cash-that-day are different facts; the dot changes colour when any of
+that day's releases carries `drop_type_uncertain` or `time_unconfirmed`. Full
+release detail (title, time, drop type, link) is hover/click-only, same as
+the cash figure.
 
 Clicking a day opens a panel below the calendar with that day's ledger
 entries — via `DayEntryTable`, extracted from Phase 8's `CashChart`

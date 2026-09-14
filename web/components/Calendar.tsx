@@ -87,7 +87,15 @@ export default function Calendar({
   const [isPending, startTransition] = useTransition();
 
   const netByDay = new Map<string, number>();
-  for (const r of dailyCash) netByDay.set(r.day, Number(r.net_movement));
+  const countByDay = new Map<string, number>();
+  for (const r of dailyCash) {
+    netByDay.set(r.day, Number(r.net_movement));
+    countByDay.set(r.day, r.txn_count);
+  }
+  // Bar heights scale to the busiest day in the visible month, so a $2
+  // sale doesn't draw the same size bar as a $2,000 show. Floors out at 1
+  // to avoid a divide-by-zero on a month with only zero-net days.
+  const maxAbsNet = Math.max(1, ...dailyCash.map((r) => Math.abs(Number(r.net_movement))));
 
   const releasesByDay = new Map<string, ReleaseRow[]>();
   for (const r of releases) {
@@ -159,54 +167,88 @@ export default function Calendar({
             }
             const iso = isoOf(year, month, day);
             const net = netByDay.get(iso);
+            const count = countByDay.get(iso) ?? 0;
             const dayReleases = releasesByDay.get(iso) ?? [];
             const isToday = iso === todayIso;
             const isSelected = iso === selectedDay;
-            const shownReleases = dayReleases.slice(0, 2);
-            const remaining = dayReleases.length - shownReleases.length;
+            const hasFlagged = dayReleases.some(
+              (r) => r.time_unconfirmed || r.drop_type_uncertain,
+            );
+            // Half of BAR_BOX on either side of the centre baseline.
+            const BAR_BOX = 20;
+            const barPx =
+              net === undefined
+                ? 0
+                : Math.max(3, Math.round((Math.abs(net) / maxAbsNet) * (BAR_BOX / 2)));
 
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => selectDay(iso)}
-                className={`min-h-24 border-b border-r border-brand-soft/10 p-1.5 text-left align-top transition-colors hover:bg-brand-soft/10 ${
+                className={`group relative flex min-h-24 flex-col border-b border-r border-brand-soft/10 p-1.5 text-left transition-colors hover:bg-brand-soft/10 ${
                   isSelected ? "bg-brand/10" : ""
                 }`}
               >
-                <div
-                  className={`text-xs ${
-                    isToday
-                      ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand font-semibold text-surface"
-                      : "text-ink-muted"
-                  }`}
-                >
-                  {day}
-                </div>
-                {net !== undefined && (
+                {/* Buttons centre their content vertically by default in
+                    some browsers' UA stylesheet — the explicit flex-col
+                    above overrides that, so a cell with a bar doesn't push
+                    its date number up relative to an empty one. */}
+                <div className="flex items-center justify-between">
                   <div
-                    className={`mt-1 text-xs font-medium tabular-nums ${
-                      net < 0 ? "text-accent-ink" : "text-brand"
+                    className={`text-xs ${
+                      isToday
+                        ? "inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand font-semibold text-surface"
+                        : "text-ink-muted"
                     }`}
                   >
-                    {signedAmount(net)}
+                    {day}
+                  </div>
+                  {/* Release presence is its own indicator, separate from
+                      the cash bar below — a dot, not a signed figure, so
+                      it needs no pos/neg colour convention. Centred against
+                      the date number, not top-aligned. */}
+                  {dayReleases.length > 0 && (
+                    <span
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        hasFlagged ? "bg-accent-ink" : "bg-accent"
+                      }`}
+                    />
+                  )}
+                </div>
+
+                {/* The sleek bar: direction (above/below the centre line)
+                    carries the sign, same as colour, so it still reads in
+                    greyscale. Exact figures are hover/click-only. */}
+                {net !== undefined && (
+                  <div className="relative mx-auto mt-1.5 h-5 w-full max-w-10">
+                    <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-brand-soft/30" />
+                    <div
+                      className={`absolute inset-x-1 rounded-sm ${
+                        net < 0 ? "bg-accent-ink" : "bg-brand"
+                      }`}
+                      style={
+                        net < 0
+                          ? { top: "50%", height: `${barPx}px` }
+                          : { bottom: "50%", height: `${barPx}px` }
+                      }
+                    />
                   </div>
                 )}
-                {shownReleases.map((r) => (
-                  <div
-                    key={r.id}
-                    className="mt-0.5 truncate text-[11px] text-ink"
-                    title={r.title}
-                  >
-                    {(r.time_unconfirmed || r.drop_type_uncertain) && (
-                      <span className="text-accent-ink">! </span>
+
+                {(net !== undefined || dayReleases.length > 0) && (
+                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-ink px-2 py-1 text-xs text-surface shadow-lg group-hover:block">
+                    {net !== undefined && (
+                      <div>
+                        {signedAmount(net)} · {count} {count === 1 ? "entry" : "entries"}
+                      </div>
                     )}
-                    {r.title}
-                  </div>
-                ))}
-                {remaining > 0 && (
-                  <div className="mt-0.5 text-[11px] text-ink-muted">
-                    +{remaining} more
+                    {dayReleases.length > 0 && (
+                      <div>
+                        {dayReleases.length}{" "}
+                        {dayReleases.length === 1 ? "release" : "releases"}
+                      </div>
+                    )}
                   </div>
                 )}
               </button>

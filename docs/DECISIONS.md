@@ -316,12 +316,17 @@ view is the day-by-day shape, which a running total erases.
 ## Phase 7's colour rule stands on the calendar
 
 No green, no red — positive is `--color-brand`, negative is
-`--color-accent-ink`, same as everywhere else. Because blue doesn't *read* as
-positive on its own, every active day shows the signed figure as text
-(`+146.00`, `−95.00`); colour is emphasis on top of that sign, never the only
-carrier. A day with nothing in it gets no indicator at all, not a zero —
-zero and "no data" are different facts and a bare `0.00` would claim the
-first when it means the second.
+`--color-accent-ink`, same as everywhere else. The day cell itself shows a
+bar, not a figure: it grows *above* a centre line for a positive day and
+*below* it for a negative one, so direction — not colour — is what actually
+carries the sign, and the rule holds even in greyscale. Colour is layered on
+top for emphasis. The exact signed figure (`+146.00`, `−95.00`) is revealed
+on hover or click, never printed in the cell itself — a compact calendar has
+no room for thirty numbers at once, and the bar is the point. A day with
+nothing in it gets no bar at all, not a zero — zero and "no data" are
+different facts and a bare `0.00` would claim the first when it means the
+second. A release on a day gets its own dot, independent of the bar; the two
+are different kinds of fact and were never meant to share one indicator.
 
 ## `releases.drop_type` is text
 
