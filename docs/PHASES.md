@@ -1107,6 +1107,112 @@ Phase 10 machinery makes this cheap later), vending features (table
 inventory, what to bring, table-level P&L), travel or mileage against a
 show, and any UI for creating shows outside the skill.
 
+## Phase 12 — Mobile responsiveness
+
+No requirements doc exists for this one — checked both `docs/` and the
+owner's Notion, neither has it. Phase 13 (Buying) shipped after whatever
+plan originally motivated "Phase 12" was made, so scope is being set now,
+from the owner's stated use case: pulling up the buying list on a phone at
+a card show to check whether a card in a dealer's case is one they're
+after.
+
+### What this closes
+
+Every page before this was laid out for a laptop only: a fixed 224px side
+rail (`components/Sidebar.tsx`) ate a third of a phone's width, and
+`/buying`'s five-column table (`app/(app)/buying/page.tsx`) had no room to
+breathe below `md`. Nothing in the app had a responsive breakpoint at all
+before this phase.
+
+### Scope: two passes
+
+The owner asked for the buying tab first — it didn't exist when whatever the
+original Phase 12 plan was got written, and it's the one they'll actually
+reach for standing in a dealer's aisle. Nav and Buying shipped in the first
+pass; a second pass then carried the same pattern to the rest of the app
+(Home, Ledger, Deals, Inventory, People) once the buying tab was confirmed
+working on a real phone.
+
+### Nav
+
+`Sidebar` now renders two things instead of one, gated by the same `md`
+breakpoint Tailwind already ships:
+
+- **md and up** — the original fixed left rail, untouched.
+- **Below md** — a sticky top bar (logo + a single hamburger button, no
+  side rail at all) and a slide-in drawer with the same nav list, opened
+  from the hamburger and closed by its own X, the backdrop, or Escape.
+  Sign-out moved into the drawer/rail footer (next to Data) since it used
+  to live in the layout's own header bar, which is desktop-only now.
+
+`app/(app)/layout.tsx`'s content offset (`pl-56`) and header both became
+`md:`-gated to match — nothing pushes content sideways or duplicates
+sign-out below md.
+
+### Buying list
+
+Below `md`, the table is replaced by `components/BuyingTargetCard.tsx`: one
+row per target showing only its thumbnail and title, tap to expand. Collapsed
+is deliberately minimal — at a show the only question is "is this the card
+I'm hunting" — everything else (comp, target price, notes, the sold/130point/
+listing links, and a tap-to-zoom on the image via the existing
+`CardImageLightbox`) sits behind that one toggle. The `md`-and-up table is
+unchanged; both render from the same query, gated with `hidden`/`md:hidden`
+rather than duplicating data fetching.
+
+### Rest of the app (second pass)
+
+Same `hidden`/`md:hidden` pattern as Buying, applied per page — a mobile
+card list stands in for each dense table, desktop is untouched:
+
+- **Home** (`components/Calendar.tsx`) — the header was a 3-column grid that
+  forced "← Prev / Today / Next →" into a third of the width regardless of
+  content; below `sm` it's now a stacked title with a full-width nav row,
+  logo dropped (decorative). Day cells drop from `min-h-32` to `min-h-20`
+  below `sm` — seven 128px-tall columns on a 390px phone was mostly empty
+  space.
+- **Ledger** — `RecentLedger.tsx`'s transaction table and the inline
+  "Rolling windows" table in `app/(app)/ledger/page.tsx` both get a card list
+  below `md`.
+- **Deals** (`components/DealList.tsx`) — the trickiest of these, since the
+  table already had click-to-expand transaction/card detail per row. The
+  expanded content itself was pulled into a shared `DealDetail` component so
+  the desktop `<tr>` and the mobile card render the same JSX rather than two
+  copies; the mobile card keeps the same tap-to-toggle state.
+- **Inventory** (`components/CardInventory.tsx`) — card list below `md`;
+  the status-filter tabs and search box switch from a fixed `w-56` to
+  `w-full sm:w-56` so the input doesn't force horizontal scroll.
+- **People** (`components/BuyerList.tsx`) — card list below `md`, plus a
+  `<select>` + direction-toggle button standing in for the table's
+  clickable sortable headers, which have nothing to click on a card list.
+- **Data** (`DataTabs.tsx`, `DataIO.tsx`) and `AddCardModal.tsx` — padding
+  and header-wrap fixes only. The CSV import/export preview tables keep
+  their existing horizontal scroll rather than getting a card list — a
+  raw-column preview for a power-user import flow, not a day-to-day screen.
+
+### Exit check
+
+Verified with Playwright against a throwaway unauthenticated preview route
+(mock props, no live Supabase project available in the build environment).
+First pass, at a 390×844 mobile viewport and 1440×900 desktop: mobile shows
+the sticky top bar with no side rail, the hamburger opens a drawer with all
+six sections plus Data and Sign out, tapping a buying card expands it in
+place with a larger tap-to-zoom image, comp/target price/notes and all
+three links, and a target with no image or comp degrades to a placeholder
+swatch with no Comp row rather than erroring. Second pass, at 390×900:
+Home's header stacks and the calendar grid fits without horizontal scroll;
+Ledger, Deals, Inventory and People all render as card lists with every
+field readable, the Deals card's tap-to-expand still opens the same
+transaction/card breakdown, and People's mobile sort select actually
+re-sorts the list. Desktop is pixel-identical to before this phase, both
+passes. `next build` and `eslint` pass clean on every file touched.
+
+### Not in this phase
+
+No PWA/installability, no offline support, no swipe gestures on the nav
+drawer, and the Data page's CSV preview tables stay horizontal-scroll rather
+than becoming card lists.
+
 ## Phase 13 — Buying list and target prices
 
 A list of cards to buy, what they are worth, and the most to pay. Built so

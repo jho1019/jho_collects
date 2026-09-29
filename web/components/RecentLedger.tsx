@@ -80,7 +80,37 @@ export default async function RecentLedger({
         </p>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
+      {/* Below md: one card per row (a 5-column table has no room on a
+          phone). md+: the table, unchanged. */}
+      <div className="space-y-2 md:hidden">
+        {ledger.map((r) => (
+          <div
+            key={r.id}
+            className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
+          >
+            <div className="flex items-center justify-between gap-2 text-xs text-ink-muted">
+              <span className="tabular-nums">{isoDay(r.occurred_on)}</span>
+              <span>{r.type}</span>
+            </div>
+            <div className="mt-0.5 text-ink">{r.description}</div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-ink-muted">
+              <span>
+                Net <span className="tabular-nums text-ink">{usd(r.net_cash)}</span>
+              </span>
+              <span>
+                Running <span className="tabular-nums text-ink">{usd(r.running_total)}</span>
+              </span>
+            </div>
+          </div>
+        ))}
+        {ledger.length === 0 && (
+          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
+            No transactions yet.
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
         <table className="w-full text-sm">
           <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
             <tr>

@@ -213,8 +213,8 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   if (embedded) return body;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8 p-6">
-      <header className="flex items-center justify-between">
+    <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
+      <header className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-xl font-semibold text-surface">
           Data import / export
         </h1>

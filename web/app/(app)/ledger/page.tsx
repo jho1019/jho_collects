@@ -126,7 +126,7 @@ export default async function LedgerPage({
     );
 
   return (
-    <main className="mx-auto max-w-5xl space-y-8 p-6">
+    <main className="mx-auto max-w-5xl space-y-8 p-4 md:p-6">
       <header>
         <h1 className="text-xl font-bold text-surface">Ledger</h1>
         <p className="text-sm text-surface/70">
@@ -165,7 +165,42 @@ export default async function LedgerPage({
 
       <section className="space-y-2">
         <h2 className="text-sm font-semibold text-surface">Rolling windows</h2>
-        <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
+
+        {/* Below md: one card per window — a 6-column table has no room on
+            a phone. md+: the table, unchanged. */}
+        <div className="space-y-2 md:hidden">
+          {((windows ?? []) as WindowRow[]).map((w) => (
+            <div
+              key={w.days}
+              className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink">{w.label}</span>
+                <span className="text-xs text-ink-muted">
+                  {w.sale_count} sale{w.sale_count === 1 ? "" : "s"}
+                </span>
+              </div>
+              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-ink-muted">
+                <span>
+                  Gross <span className="tabular-nums text-ink">{usd(w.gross_sales)}</span>
+                </span>
+                <span>
+                  Fees + shipping{" "}
+                  <span className="tabular-nums text-ink">{usd(w.fees_and_shipping)}</span>
+                </span>
+                <span>
+                  Spent on cards{" "}
+                  <span className="tabular-nums text-ink">{usd(w.spent_on_cards)}</span>
+                </span>
+                <span className="font-medium">
+                  Net cash <span className="tabular-nums text-ink">{usd(w.net_cash)}</span>
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
           <table className="w-full text-sm">
             <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
               <tr>

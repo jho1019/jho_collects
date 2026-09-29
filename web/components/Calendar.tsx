@@ -189,15 +189,18 @@ export default function Calendar({
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-3 items-center">
-        <h2 className="text-2xl font-semibold text-surface">
+      {/* Below sm, three items evenly forced into a third of the width each
+          left no room for "← Prev / Today / Next →" — stack the title above
+          a full-width nav row instead, and drop the logo (decorative). */}
+      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:items-center">
+        <h2 className="text-xl font-semibold text-surface sm:text-2xl">
           {MONTH_NAMES[month]} {year}
         </h2>
-        <div className="flex justify-center">
+        <div className="hidden justify-center sm:flex">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.webp" alt="jho_collects" className="h-12 w-12 rounded-lg" />
         </div>
-        <div className="flex items-center justify-end gap-2 text-sm">
+        <div className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           <Link
             href={`/?year=${py}&month=${pm + 1}`}
             className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
@@ -220,9 +223,9 @@ export default function Calendar({
       </div>
 
       <div className="overflow-hidden rounded-lg border border-brand-soft/25 bg-surface">
-        <div className="grid grid-cols-7 border-b border-brand-soft/25 text-center text-sm font-medium uppercase text-ink-muted">
+        <div className="grid grid-cols-7 border-b border-brand-soft/25 text-center text-xs font-medium uppercase text-ink-muted sm:text-sm">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="py-3">
+            <div key={w} className="py-2 sm:py-3">
               {w}
             </div>
           ))}
@@ -230,7 +233,12 @@ export default function Calendar({
         <div className="grid grid-cols-7">
           {cells.map((day, i) => {
             if (day === null) {
-              return <div key={i} className="min-h-32 border-b border-r border-brand-soft/10" />;
+              return (
+                <div
+                  key={i}
+                  className="min-h-20 border-b border-r border-brand-soft/10 sm:min-h-32"
+                />
+              );
             }
             const iso = isoOf(year, month, day);
             const net = netByDay.get(iso);
@@ -255,7 +263,7 @@ export default function Calendar({
                 key={i}
                 type="button"
                 onClick={() => selectDay(iso)}
-                className={`group relative flex min-h-32 flex-col border-b border-r border-brand-soft/10 p-2 text-left transition-colors hover:bg-brand-soft/10 ${
+                className={`group relative flex min-h-20 flex-col border-b border-r border-brand-soft/10 p-1 text-left transition-colors hover:bg-brand-soft/10 sm:min-h-32 sm:p-2 ${
                   isSelected ? "bg-brand/10" : ""
                 }`}
               >

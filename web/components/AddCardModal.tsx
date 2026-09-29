@@ -67,7 +67,7 @@ export default function AddCardModal() {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/50 p-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-ink/50 p-3 sm:p-6"
           onClick={(e) => {
             if (e.target === e.currentTarget) close();
           }}

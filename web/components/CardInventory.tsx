@@ -67,13 +67,13 @@ export default function CardInventory({
         <h2 className="text-sm font-semibold text-surface">
           Card inventory <span className="font-normal text-surface/70">({rows.length})</span>
         </h2>
-        <div className="flex items-center gap-2">
-          <div className="flex rounded border border-surface/40 text-xs">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <div className="flex overflow-x-auto rounded border border-surface/40 text-xs">
             {STATUSES.map((s) => (
               <button
                 key={s}
                 onClick={() => setFilter(s)}
-                className={`px-2 py-1 capitalize ${
+                className={`whitespace-nowrap px-2 py-1 capitalize ${
                   filter === s
                     ? "bg-surface text-brand"
                     : "text-surface/80 hover:bg-surface/10"
@@ -87,13 +87,13 @@ export default function CardInventory({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
-            className="w-56 rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink"
+            className="w-full rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
           />
         </div>
       </div>
 
       {summary && (
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1 rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-xs text-ink-muted sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-xs text-ink-muted sm:grid-cols-3">
           <Stat label="On hand" value={String(summary.cards_on_hand)} />
           <Stat
             label="Opening stock"
@@ -114,7 +114,51 @@ export default function CardInventory({
         </div>
       )}
 
-      <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
+      {/* Below md: one card per row — a 6-column table has no room on a
+          phone. md+: the table, unchanged. */}
+      <div className="space-y-2 md:hidden">
+        {rows.map((c) => (
+          <div key={c.id} className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="text-ink">{c.title}</span>
+                <span className="ml-2 text-xs text-ink-muted">{grade(c)}</span>
+              </div>
+              <span
+                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadge(c.status)}`}
+              >
+                {c.status}
+              </span>
+            </div>
+            <div className="mt-0.5 text-xs text-ink-muted">
+              {setLine(c)}
+              {c.is_opening_stock && (
+                <span className="ml-2 rounded bg-brand-soft/10 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
+                  opening
+                </span>
+              )}
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-ink-muted">
+              <span>
+                {c.acquired_on ?? "—"}
+                {c.exited_on && <> → {c.exited_on}</>}
+              </span>
+              <span className="tabular-nums text-ink">
+                {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
+              </span>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
+            {cards.length === 0
+              ? "No tracked cards yet — bulk lots stay as cash rows."
+              : "No matches."}
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
         <table className="w-full text-sm">
           <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
             <tr>
