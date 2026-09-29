@@ -116,7 +116,7 @@ export default function CardInventory({
 
       <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
         <table className="w-full text-sm">
-          <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
+          <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
             <tr>
               <th className="px-3 py-2 font-medium">Card</th>
               <th className="px-3 py-2 font-medium">Set</th>

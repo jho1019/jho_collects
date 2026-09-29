@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { brandFont } from "@/lib/fonts";
 
 type NavItem = {
   href: string;
@@ -17,7 +18,7 @@ const SECTIONS: NavItem[] = [
   { href: "/ledger", label: "Ledger", icon: iconTable },
   { href: "/deals", label: "Deals", icon: iconHandshake },
   { href: "/inventory", label: "Inventory", icon: iconBox },
-  { href: "/insights", label: "Insights", icon: iconChart },
+  { href: "/buying", label: "Buying", icon: iconTag },
   { href: "/people", label: "People", icon: iconPeople },
 ];
 
@@ -33,8 +34,14 @@ export default function Sidebar({ dealsNeedingReview }: { dealsNeedingReview: nu
   return (
     <nav className="fixed inset-y-0 left-0 flex w-56 flex-col justify-between border-r border-brand-soft/25 bg-surface px-3 py-4">
       <div>
-        <div className="mb-4 px-2">
-          <span className="text-sm font-semibold text-ink">jho_collects</span>
+        <div className="mb-4 flex items-center gap-2 px-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.webp" alt="" className="h-10 w-10 shrink-0 rounded-md" />
+          <span
+            className={`${brandFont.className} truncate text-xl leading-none tracking-wide text-ink`}
+          >
+            jho_collects
+          </span>
         </div>
         <ul className="space-y-0.5">
           {SECTIONS.map((item) => {
@@ -130,14 +137,15 @@ function iconBox() {
     </svg>
   );
 }
-function iconChart() {
+function iconTag() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <path
-        d="M2 13.5V2M2 13.5h12M5 11V7.5M8.5 11V5M12 11V8.5"
+        d="M1.5 8.5V2.5h6l7 7-6 6z"
         stroke="currentColor"
-        strokeLinecap="round"
+        strokeLinejoin="round"
       />
+      <circle cx="5" cy="5.5" r="1" stroke="currentColor" />
     </svg>
   );
 }

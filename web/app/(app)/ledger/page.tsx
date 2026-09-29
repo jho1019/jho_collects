@@ -128,7 +128,7 @@ export default async function LedgerPage({
   return (
     <main className="mx-auto max-w-5xl space-y-8 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-surface">Ledger</h1>
+        <h1 className="text-xl font-bold text-surface">Ledger</h1>
         <p className="text-sm text-surface/70">
           Position, cash flow, and the full transaction history.
         </p>
@@ -167,7 +167,7 @@ export default async function LedgerPage({
         <h2 className="text-sm font-semibold text-surface">Rolling windows</h2>
         <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
           <table className="w-full text-sm">
-            <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
+            <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Window</th>
                 <th className="px-3 py-2 text-right font-medium">Sales</th>

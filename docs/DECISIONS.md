@@ -488,3 +488,37 @@ because a pasted list is many rows of inference at once and one bad
 weekday resolution is easy to miss in a wall of text. One show stated in
 conversation carries none of that risk, so the batch skill's caution would
 just be friction here.
+
+## Seller fees apply only to cards bought to resell
+
+eBay's final value fee is charged to the seller. A card bought to keep
+(`purpose = 'pc'`) costs price, shipping and sales tax — nothing else, so
+its `max_all_in` is the comp times `pricing_settings.buy_pct` (default 0.80, configurable, all-in: price + shipping + tax). Only `flip` items subtract fees and margin, and those settings are nullable so pc-only use needs none.
+
+## Targets compare against all-in cost, never listing price alone
+
+What leaves the account is price + shipping + tax. `buying_targets` reports
+`max_all_in`, and `target_listing_price` converts back to the number visible
+on a listing at the assumed `pricing_settings.buy_shipping`.
+
+## Comps are observations with dates, not a single overwritten value
+
+A comp row is a price seen on a date. Overwriting destroys the history that
+shows whether a card is rising or falling. Targets use the most recent; one
+older than 30 days marks the target stale but still shows it.
+
+## Derived comps use the median
+
+Sold prices carry outliers in both directions; one moves a mean far and a
+median barely. $170, $180, $400 derives $180, not $250.
+
+## Fees are modelled as rate plus fixed fee, never a flat percentage
+
+A flat share of gross is inflated by the fixed fee on small sales (17.3% over
+the first five, mostly $10 orders). Refit both from `platform_fees` as
+history grows.
+
+## The daily digest waits for live listings
+
+A digest with nothing new is noise, and a muted channel also costs the
+Phase 10 release alerts. It ships in Phase 14 with the scanner.

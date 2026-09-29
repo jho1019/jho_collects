@@ -37,7 +37,7 @@ export default async function DealsPage() {
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6">
       <header>
-        <h1 className="text-xl font-semibold text-surface">Deals</h1>
+        <h1 className="text-xl font-bold text-surface">Deals</h1>
         <p className="text-sm text-surface/70">
           Card show events — purchases, sales, and trades grouped by
           counterparty.

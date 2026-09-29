@@ -8,10 +8,15 @@
  * --color-page IS --color-brand. The app background is brand blue, so
  * --color-brand can no longer be used as foreground TEXT sitting directly on
  * the page — it would be invisible on its own background. It still works
- * fine as text/fills inside a --color-surface (white) card, table, or badge,
- * since those aren't blue.
+ * fine as text/fills inside a --color-surface (light grey) card, table, or
+ * badge, since those aren't blue.
  *
- * Contrast, measured against --color-surface (white) — the ground for
+ * --color-surface is a light grey (#e9edf3), not pure white — flat white
+ * cards read as too stark against the brand blue page. It is still light
+ * enough that every contrast figure below barely moves off the numbers
+ * measured against true white.
+ *
+ * Contrast, measured against --color-surface — the ground for
  * anything inside a card, table, or badge:
  *
  *   --color-ink          13.7   body text
@@ -40,19 +45,32 @@
  */
 @theme {
   --color-page:        #3b67b7;
-  --color-surface:     #ffffff;
+  --color-surface:     #e9edf3;
   --color-brand:       #3b67b7;
   --color-brand-soft:  #8ba1ca;
   --color-accent:      #d7728d;
   --color-accent-ink:  #a83e5c;
   --color-ink:         #1c2436;
   --color-ink-muted:   #4a5568;
+
+  /* Bound to the next/font CSS variable set on <html> in app/layout.tsx —
+   * registers Tailwind's own font-sans utility against the loaded font,
+   * rather than only setting it on the body element below. */
+  --font-sans: var(--font-body);
 }
 
 body {
   background: var(--color-page);
   color: var(--color-ink);
   font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+    var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+/* Table rows are governed by cell padding, not line-height, but the browser
+ * default (~1.2) still reads cramped next to that padding. One rule here
+ * loosens every table in the app instead of editing leading-* on each <td>. */
+td, th {
+  line-height: 1.4;
 }

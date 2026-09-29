@@ -189,11 +189,15 @@ export default function Calendar({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
+      <div className="grid grid-cols-3 items-center">
         <h2 className="text-2xl font-semibold text-surface">
           {MONTH_NAMES[month]} {year}
         </h2>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex justify-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.webp" alt="jho_collects" className="h-12 w-12 rounded-lg" />
+        </div>
+        <div className="flex items-center justify-end gap-2 text-sm">
           <Link
             href={`/?year=${py}&month=${pm + 1}`}
             className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
