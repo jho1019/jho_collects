@@ -72,7 +72,7 @@ export default function DealList({
   return (
     <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
       <table className="w-full text-sm">
-        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
+        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
           <tr>
             <th className="w-6 px-3 py-2" />
             <th className="px-3 py-2 font-medium">Date</th>

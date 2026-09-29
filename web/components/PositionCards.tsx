@@ -48,7 +48,7 @@ export default function PositionCards({ netCash }: { netCash: number }) {
       />
 
       <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-        <div className="text-xs uppercase text-ink-muted">
+        <div className="text-xs uppercase tracking-wide text-ink-muted">
           Est. inventory value
         </div>
         <div className="mt-1 flex items-center gap-1">
@@ -89,7 +89,7 @@ function Card({
 }) {
   return (
     <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-      <div className="text-xs uppercase text-ink-muted">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-ink-muted">{label}</div>
       <div
         className={`mt-1 text-lg font-semibold tabular-nums ${
           negative ? "text-accent-ink" : "text-brand"

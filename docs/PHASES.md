@@ -1106,3 +1106,60 @@ A recurrence generator, Discord notifications for upcoming shows (the
 Phase 10 machinery makes this cheap later), vending features (table
 inventory, what to bring, table-level P&L), travel or mileage against a
 show, and any UI for creating shows outside the skill.
+
+## Phase 13 — Buying list and target prices
+
+A list of cards to buy, what they are worth, and the most to pay. Built so
+Phase 14's eBay scanner has something to scan for and a number to compare
+against. Full spec: `docs/Phase_13_buying_list.md`.
+
+### Built
+
+`schema/017_buying_list.sql` — `buying_list`, `comps`, `pricing_settings`
+(RLS on all three), the `buying_targets` view (one row per `hunting` item:
+latest comp, age, staleness, target all-in, target listing price) and
+`buying_set_progress` (owned out of total per set). `.claude/skills/comp-entry`
+for comps and adding to the list. `/buying` route, grouped by purpose then set,
+linked from the sidebar.
+
+Deviation from the spec: `pricing_settings` gains `buy_shipping`, since
+`target_listing_price` needs a stated shipping cost and the spec had no home
+for it. `max_price` is read as an all-in ceiling, so the listing price for a
+$150 override at the fixture settings is 132.72.
+
+`schema/018_buy_pct.sql` — `pricing_settings.buy_pct` (default 0.80): a `pc`
+target is comp × buy_pct, all-in. At the seeded settings a $180 comp gives
+144.00 all-in and a 125.83 listing price.
+
+`schema/019_buying_list_image.sql` — `buying_list.image_path`, a private
+`card-images` bucket readable only under `<user_id>/...`, and the path exposed
+through `buying_targets`. `scripts/upload_buying_image.py <item id> <file>`
+uploads with the service-role key (local CLI only) and sets the path; the page
+reads through one-hour signed URLs under the owner's session.
+
+### Exit check
+
+Verified live in a rolled-back transaction with the spec's fixture settings:
+flip $100 comp → 63.60 / 53.64; pc $180 → 180.00 / 160.18 (before `buy_pct`; 144.00 / 125.83 after, at the real settings); `max_price` 150
+overrides; a 31-day-old comp is stale and still shown; no comp gives null, not
+zero; a `bought` item leaves `buying_targets`; a set with one bought and one
+hunting row reports 1 of 2. Median-of-three ($170, $180, $400 → $180) is
+enforced by the skill's instructions, not the database.
+
+### Open
+
+- `pricing_settings` is seeded from real receipts only: `sales_tax_rate`
+  0.0975 (item price only, shipping untaxed) and `buy_shipping` 5.90 (median of
+  four orders; real shipping ranged 1.99–10.00). `buy_pct` defaults to 0.80.
+  The flip-only fields (fee rate, fixed fee, resale postage, margin) are null,
+  so flip targets stay null until they are set.
+- No seed data: titles, grades and the Heritage checklist come from the owner.
+- "Owned out of total" only counts cards entered as `buying_list` rows. Owned
+  Heritage cards must be added with `status = 'bought'` or the total reads low.
+
+### `/insights` removed
+
+The Phase 7 margin-by-price-band route (`MarginByBand`, `app/(app)/insights`)
+was dropped at the owner's request — not needed. `CashChart` and
+`DayEntryTable` stay; `/ledger` and the Home calendar still use them. Nav is
+now Home, Ledger, Deals, Inventory, Buying, People, then Data.

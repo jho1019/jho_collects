@@ -13,7 +13,7 @@ export default function DayEntryTable({ entries }: { entries: LedgerEntry[] }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase text-ink-muted">
+        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
           <tr>
             <th className="py-1 pr-3 font-medium">Type</th>
             <th className="py-1 pr-3 font-medium">Description</th>

@@ -105,7 +105,7 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
 
       <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
         <table className="w-full text-sm">
-          <thead className="border-b border-brand-soft/25 text-xs uppercase text-ink-muted">
+          <thead className="border-b border-brand-soft/25 text-xs uppercase tracking-wide text-ink-muted">
             <tr>
               {header("platform_username", "Buyer")}
               {header("last_state", "State")}
