@@ -16,10 +16,10 @@ type NavItem = {
 const SECTIONS: NavItem[] = [
   { href: "/", label: "Home", icon: iconCalendar },
   { href: "/ledger", label: "Ledger", icon: iconTable },
+  { href: "/buying", label: "Buying", icon: iconTag },
   { href: "/deals", label: "Deals", icon: iconHandshake },
   { href: "/inventory", label: "Inventory", icon: iconBox },
-  { href: "/buying", label: "Buying", icon: iconTag },
-  { href: "/people", label: "People", icon: iconPeople },
+  { href: "/people", label: "Buyers", icon: iconPeople },
 ];
 
 export default function Sidebar({ dealsNeedingReview }: { dealsNeedingReview: number }) {
