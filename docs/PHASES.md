@@ -1107,6 +1107,76 @@ Phase 10 machinery makes this cheap later), vending features (table
 inventory, what to bring, table-level P&L), travel or mileage against a
 show, and any UI for creating shows outside the skill.
 
+## Phase 12 — Mobile responsiveness
+
+No requirements doc exists for this one — checked both `docs/` and the
+owner's Notion, neither has it. Phase 13 (Buying) shipped after whatever
+plan originally motivated "Phase 12" was made, so scope is being set now,
+from the owner's stated use case: pulling up the buying list on a phone at
+a card show to check whether a card in a dealer's case is one they're
+after.
+
+### What this closes
+
+Every page before this was laid out for a laptop only: a fixed 224px side
+rail (`components/Sidebar.tsx`) ate a third of a phone's width, and
+`/buying`'s five-column table (`app/(app)/buying/page.tsx`) had no room to
+breathe below `md`. Nothing in the app had a responsive breakpoint at all
+before this phase.
+
+### Scope: buying tab first
+
+The owner asked for the buying tab specifically, since it didn't exist when
+whatever the original Phase 12 plan was got written and it's the one they'll
+actually reach for standing in a dealer's aisle. The rest of the app (Home
+calendar, Ledger, Deals, Inventory, People, Data) is unchanged and still
+laptop-only — a later pass, not this one.
+
+### Nav
+
+`Sidebar` now renders two things instead of one, gated by the same `md`
+breakpoint Tailwind already ships:
+
+- **md and up** — the original fixed left rail, untouched.
+- **Below md** — a sticky top bar (logo + a single hamburger button, no
+  side rail at all) and a slide-in drawer with the same nav list, opened
+  from the hamburger and closed by its own X, the backdrop, or Escape.
+  Sign-out moved into the drawer/rail footer (next to Data) since it used
+  to live in the layout's own header bar, which is desktop-only now.
+
+`app/(app)/layout.tsx`'s content offset (`pl-56`) and header both became
+`md:`-gated to match — nothing pushes content sideways or duplicates
+sign-out below md.
+
+### Buying list
+
+Below `md`, the table is replaced by `components/BuyingTargetCard.tsx`: one
+row per target showing only its thumbnail and title, tap to expand. Collapsed
+is deliberately minimal — at a show the only question is "is this the card
+I'm hunting" — everything else (comp, target price, notes, the sold/130point/
+listing links, and a tap-to-zoom on the image via the existing
+`CardImageLightbox`) sits behind that one toggle. The `md`-and-up table is
+unchanged; both render from the same query, gated with `hidden`/`md:hidden`
+rather than duplicating data fetching.
+
+### Exit check
+
+Verified with Playwright against a throwaway unauthenticated preview route
+(mock props, no live Supabase project available in the build environment) at
+a 390×844 mobile viewport and 1440×900 desktop: mobile shows the sticky top
+bar with no side rail, the hamburger opens a drawer with all six sections
+plus Data and Sign out, tapping a buying card expands it in place with a
+larger tap-to-zoom image, comp/target price/notes and all three links, and a
+target with no image or comp degrades to a placeholder swatch with no
+Comp row rather than erroring. Desktop is pixel-identical to before this
+phase. `next build` and `eslint` both pass clean.
+
+### Not in this phase
+
+Every other route (Home, Ledger, Deals, Inventory, People, Data) — still
+laptop-only until a follow-up phase covers them. No PWA/installability, no
+offline support, no swipe gestures on the drawer.
+
 ## Phase 13 — Buying list and target prices
 
 A list of cards to buy, what they are worth, and the most to pay. Built so

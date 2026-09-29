@@ -6,6 +6,7 @@ import RowNotes from "@/components/RowNotes";
 import AddCardModal from "@/components/AddCardModal";
 import CardImageLightbox from "@/components/CardImageLightbox";
 import CollapsibleSection from "@/components/CollapsibleSection";
+import BuyingTargetCard from "@/components/BuyingTargetCard";
 
 export const dynamic = "force-dynamic";
 
@@ -87,8 +88,8 @@ export default async function BuyingPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 p-6">
-      <header className="flex items-start justify-between gap-4">
+    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-surface">Buying list</h1>
           <p className="text-sm text-surface/70">
@@ -120,7 +121,34 @@ export default async function BuyingPage() {
                 Nothing here yet.
               </p>
             ) : (
-            <div className="overflow-x-auto rounded bg-surface">
+            <>
+            {/* Below md: image + title only, rest behind "See more" — a
+                five-column table is unreadable at phone width, and at a show
+                the only question is "is this the card I'm hunting". */}
+            <div className="space-y-2 md:hidden">
+              {rows.map((t) => {
+                const url = safeUrl(t.search_url) ?? ebaySearchUrl(t.title);
+                const img = t.image_path ? imageUrls.get(t.image_path) : undefined;
+                return (
+                  <BuyingTargetCard
+                    key={t.id}
+                    id={t.id}
+                    title={t.title}
+                    img={img}
+                    latestComp={t.latest_comp == null ? null : Number(t.latest_comp)}
+                    compAgeDays={t.comp_age_days}
+                    isStale={t.is_stale}
+                    maxAllIn={t.max_all_in}
+                    isManual={t.is_manual}
+                    notes={t.notes}
+                    soldUrl={ebaySoldUrl(t.title)}
+                    searchUrl={url}
+                    pointUrl={POINT130_URL}
+                  />
+                );
+              })}
+            </div>
+            <div className="hidden overflow-x-auto rounded bg-surface md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-ink-muted">
@@ -201,6 +229,7 @@ export default async function BuyingPage() {
                 </tbody>
               </table>
             </div>
+            </>
             )}
           </CollapsibleSection>
         );
