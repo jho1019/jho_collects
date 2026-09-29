@@ -82,7 +82,7 @@ export default async function HomePage({
       : { data: [] as ShowSummaryRow[], error: null };
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center space-y-6 p-6">
+    <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col justify-center space-y-6 p-4 md:p-6">
       {(dcErr || rErr || shErr || ssErr) && (
         <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
           {dcErr?.message ?? rErr?.message ?? shErr?.message ?? ssErr?.message}

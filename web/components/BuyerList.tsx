@@ -33,6 +33,18 @@ const NUMERIC: SortKey[] = [
   "avg_item_price",
 ];
 
+// Mirrors the table's column headers — used to build the mobile sort
+// <select>, since a card list has no header row of its own to click.
+const SORT_OPTIONS: { key: SortKey; label: string }[] = [
+  { key: "platform_username", label: "Buyer" },
+  { key: "last_state", label: "State" },
+  { key: "distinct_orders", label: "Orders" },
+  { key: "lifetime_gross", label: "Lifetime gross" },
+  { key: "lifetime_net", label: "Lifetime net" },
+  { key: "avg_item_price", label: "Avg price" },
+  { key: "last_order_on", label: "Last order" },
+];
+
 export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("last_order_on");
@@ -85,7 +97,7 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
           People{" "}
           <span className="font-normal text-surface/70">({rows.length})</span>
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           <label className="flex items-center gap-1 text-xs text-surface/80">
             <input
               type="checkbox"
@@ -98,12 +110,84 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter username / name / state"
-            className="w-56 rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink"
+            className="w-full rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
           />
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
+      {/* Below md: a sort <select> stands in for the table's clickable
+          headers, then one card per buyer. md+: the table, unchanged. */}
+      <div className="flex items-center gap-2 md:hidden">
+        <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+          Sort
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded border border-brand-soft/40 bg-surface px-1.5 py-1 text-xs text-ink"
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          onClick={() => setDir(dir === "asc" ? "desc" : "asc")}
+          className="rounded border border-brand-soft/40 px-2 py-1 text-xs text-ink-muted"
+        >
+          {dir === "asc" ? "▲ asc" : "▼ desc"}
+        </button>
+      </div>
+
+      <div className="space-y-2 md:hidden">
+        {rows.map((b) => (
+          <div
+            key={b.platform_username}
+            className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <span className="text-ink">{b.platform_username}</span>
+                {b.is_repeat_buyer && (
+                  <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
+                    repeat
+                  </span>
+                )}
+                {b.display_name && (
+                  <div className="text-xs text-ink-muted">{b.display_name}</div>
+                )}
+              </div>
+              <span className="shrink-0 text-xs text-ink-muted">{b.last_state ?? "—"}</span>
+            </div>
+            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-ink-muted">
+              <span>
+                Orders <span className="tabular-nums text-ink">{b.distinct_orders}</span>
+              </span>
+              <span>
+                Last order <span className="tabular-nums text-ink">{b.last_order_on ?? "—"}</span>
+              </span>
+              <span>
+                Gross <span className="tabular-nums text-ink">{usd(b.lifetime_gross)}</span>
+              </span>
+              <span>
+                Net <span className="tabular-nums text-ink">{usd(b.lifetime_net)}</span>
+              </span>
+              <span>
+                Avg price <span className="tabular-nums text-ink">{usd(b.avg_item_price)}</span>
+              </span>
+            </div>
+          </div>
+        ))}
+        {rows.length === 0 && (
+          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
+            {buyers.length === 0 ? "No buyers yet." : "No matches."}
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
         <table className="w-full text-sm">
           <thead className="border-b border-brand-soft/25 text-xs uppercase tracking-wide text-ink-muted">
             <tr>

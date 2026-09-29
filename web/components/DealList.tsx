@@ -49,6 +49,79 @@ function kindBadge(kind: Deal["kind"]) {
   }
 }
 
+// Shared between the desktop table's expanded row and the mobile card's
+// expanded section — same three-column breakdown either way.
+function DealDetail({
+  dealTxns,
+  cardsIn,
+  cardsOut,
+  notes,
+}: {
+  dealTxns: DealTxn[];
+  cardsIn: DealCard[];
+  cardsOut: DealCard[];
+  notes: string | null;
+}) {
+  return (
+    <>
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <div className="mb-1 text-xs uppercase text-ink-muted">Transactions</div>
+          {dealTxns.length === 0 ? (
+            <p className="text-xs text-ink-muted">No cash rows.</p>
+          ) : (
+            <ul className="space-y-1 text-xs text-ink">
+              {dealTxns.map((t) => (
+                <li key={t.id} className="flex justify-between gap-2">
+                  <span className="text-ink-muted">
+                    {t.type} — {t.description}
+                  </span>
+                  <span className="tabular-nums">{usd(t.net_cash)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <div className="mb-1 text-xs uppercase text-ink-muted">Cards in</div>
+          {cardsIn.length === 0 ? (
+            <p className="text-xs text-ink-muted">None.</p>
+          ) : (
+            <ul className="space-y-1 text-xs text-ink">
+              {cardsIn.map((c) => (
+                <li key={c.id} className="flex justify-between gap-2">
+                  <span>{c.title}</span>
+                  <span className="tabular-nums text-ink-muted">
+                    {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <div className="mb-1 text-xs uppercase text-ink-muted">Cards out</div>
+          {cardsOut.length === 0 ? (
+            <p className="text-xs text-ink-muted">None.</p>
+          ) : (
+            <ul className="space-y-1 text-xs text-ink">
+              {cardsOut.map((c) => (
+                <li key={c.id} className="flex justify-between gap-2">
+                  <span>{c.title}</span>
+                  <span className="tabular-nums text-ink-muted">
+                    {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+      {notes && <p className="mt-3 text-xs italic text-ink-muted">{notes}</p>}
+    </>
+  );
+}
+
 export default function DealList({
   deals,
   txns,
@@ -70,7 +143,80 @@ export default function DealList({
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface">
+    <>
+      {/* Below md: one card per deal, same tap-to-expand behaviour as the
+          table's row click — an 8-column table has no room on a phone. */}
+      <div className="space-y-2 md:hidden">
+        {deals.map((d) => {
+          const expanded = open.has(d.deal_id);
+          const net = Number(d.net_cash);
+          const dealTxns = txns.filter((t) => t.deal_id === d.deal_id);
+          const cardsIn = cards.filter((c) => c.acquired_deal_id === d.deal_id);
+          const cardsOut = cards.filter((c) => c.disposed_deal_id === d.deal_id);
+          return (
+            <div key={d.deal_id} className="rounded-lg border border-brand-soft/25 bg-surface">
+              <button
+                type="button"
+                onClick={() => toggle(d.deal_id)}
+                aria-expanded={expanded}
+                className="flex w-full flex-col gap-1 px-3 py-2 text-left text-sm"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="tabular-nums text-xs text-ink-muted">{d.occurred_on}</span>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${kindBadge(d.kind)}`}
+                  >
+                    {d.kind.replace("_", " ")}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-ink">
+                    {d.event_name ?? "—"}
+                    {d.needs_review && (
+                      <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
+                        needs review
+                      </span>
+                    )}
+                  </span>
+                  <span className={`shrink-0 text-ink-muted transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden>
+                    ▾
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-2 text-xs text-ink-muted">
+                  <span>{d.counterparty ?? "—"}</span>
+                  <span className="flex items-center gap-3">
+                    <span>
+                      {d.cards_in} in · {d.cards_out} out
+                    </span>
+                    <span
+                      className={`tabular-nums font-medium ${net < 0 ? "text-accent-ink" : "text-brand"}`}
+                    >
+                      {usd(net)}
+                    </span>
+                  </span>
+                </div>
+              </button>
+              {expanded && (
+                <div className="border-t border-brand-soft/15 bg-page/60 px-3 py-3">
+                  <DealDetail
+                    dealTxns={dealTxns}
+                    cardsIn={cardsIn}
+                    cardsOut={cardsOut}
+                    notes={d.notes}
+                  />
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {deals.length === 0 && (
+          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
+            No deals yet.
+          </p>
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
       <table className="w-full text-sm">
         <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
           <tr>
@@ -134,68 +280,12 @@ export default function DealList({
                 {expanded && (
                   <tr className="border-b border-brand-soft/15 last:border-0">
                     <td colSpan={8} className="bg-page/60 px-6 py-3">
-                      <div className="grid gap-4 sm:grid-cols-3">
-                        <div>
-                          <div className="mb-1 text-xs uppercase text-ink-muted">
-                            Transactions
-                          </div>
-                          {dealTxns.length === 0 ? (
-                            <p className="text-xs text-ink-muted">No cash rows.</p>
-                          ) : (
-                            <ul className="space-y-1 text-xs text-ink">
-                              {dealTxns.map((t) => (
-                                <li key={t.id} className="flex justify-between gap-2">
-                                  <span className="text-ink-muted">
-                                    {t.type} — {t.description}
-                                  </span>
-                                  <span className="tabular-nums">{usd(t.net_cash)}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        <div>
-                          <div className="mb-1 text-xs uppercase text-ink-muted">
-                            Cards in
-                          </div>
-                          {cardsIn.length === 0 ? (
-                            <p className="text-xs text-ink-muted">None.</p>
-                          ) : (
-                            <ul className="space-y-1 text-xs text-ink">
-                              {cardsIn.map((c) => (
-                                <li key={c.id} className="flex justify-between gap-2">
-                                  <span>{c.title}</span>
-                                  <span className="tabular-nums text-ink-muted">
-                                    {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                        <div>
-                          <div className="mb-1 text-xs uppercase text-ink-muted">
-                            Cards out
-                          </div>
-                          {cardsOut.length === 0 ? (
-                            <p className="text-xs text-ink-muted">None.</p>
-                          ) : (
-                            <ul className="space-y-1 text-xs text-ink">
-                              {cardsOut.map((c) => (
-                                <li key={c.id} className="flex justify-between gap-2">
-                                  <span>{c.title}</span>
-                                  <span className="tabular-nums text-ink-muted">
-                                    {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                      {d.notes && (
-                        <p className="mt-3 text-xs italic text-ink-muted">{d.notes}</p>
-                      )}
+                      <DealDetail
+                        dealTxns={dealTxns}
+                        cardsIn={cardsIn}
+                        cardsOut={cardsOut}
+                        notes={d.notes}
+                      />
                     </td>
                   </tr>
                 )}
@@ -211,6 +301,7 @@ export default function DealList({
           )}
         </tbody>
       </table>
-    </div>
+      </div>
+    </>
   );
 }
