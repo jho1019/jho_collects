@@ -11,13 +11,14 @@ type NavItem = {
   icon: (active: boolean) => React.ReactNode;
 };
 
-// Six sections, in the order Phase 9 specifies. /data is a utility and sits
+// Seven sections (Releases added after Phase 13), in the order Phase 9 specifies plus Releases. /data is a utility and sits
 // below the separator, not among them. Home is the calendar as of Phase 9;
 // what Home used to show (position cards, chart, ledger) moved to /ledger.
 const SECTIONS: NavItem[] = [
   { href: "/", label: "Home", icon: iconCalendar },
   { href: "/ledger", label: "Ledger", icon: iconTable },
   { href: "/buying", label: "Buying", icon: iconTag },
+  { href: "/releases", label: "Releases", icon: iconRelease },
   { href: "/deals", label: "Deals", icon: iconHandshake },
   { href: "/inventory", label: "Inventory", icon: iconBox },
   { href: "/people", label: "Buyers", icon: iconPeople },
@@ -201,6 +202,14 @@ function iconCalendar() {
       <rect x="1.5" y="2.5" width="13" height="12" rx="1.5" stroke="currentColor" />
       <path d="M1.5 6h13M4.5 1v3M11.5 1v3" stroke="currentColor" strokeLinecap="round" />
       <path d="M4.5 9h2M9.5 9h2M4.5 12h2M9.5 12h2" stroke="currentColor" strokeLinecap="round" />
+    </svg>
+  );
+}
+function iconRelease() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <circle cx="8" cy="8" r="6.5" stroke="currentColor" />
+      <path d="M8 4.5V8l2.5 1.5" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
