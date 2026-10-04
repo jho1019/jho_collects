@@ -151,7 +151,8 @@ export default function CashChart({
       </div>
       <p className="text-xs text-surface/70">
         Cash in and out, not net worth. Dips below zero are normal — inventory
-        bought and not yet sold.
+        bought and not yet sold. Excludes standalone expenses (supplies,
+        subscriptions, mileage…), so this figure sits above the position card.
       </p>
 
       <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">

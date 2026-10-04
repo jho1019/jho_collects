@@ -36,7 +36,13 @@ const DAY = 86_400_000;
 // One cumulative point per day from the first transaction through today.
 // Replaces the fixed-180-day daily_position view so the chart's window
 // control can reach all the way back.
-function buildSeries(rows: TxnRow[]): CashPoint[] {
+//
+// Standalone `expense` rows (supplies, subscriptions, mileage…) are left out so
+// the line shows trading cash flow. Fees and postage on a sale live on the sale
+// row itself, so they stay in. The position card does NOT use this series — it
+// takes the all-rows total, which still includes expenses.
+function buildSeries(allRows: TxnRow[]): CashPoint[] {
+  const rows = allRows.filter((r) => r.type !== "expense");
   if (rows.length === 0) return [];
   const byDay = new Map<string, number>();
   for (const r of rows) {
@@ -58,9 +64,12 @@ function buildSeries(rows: TxnRow[]): CashPoint[] {
 // Same rows buildSeries already groups by day, grouped again into full entry
 // lists for the chart's hover tooltip and click-to-pin panel. One query, no
 // second round trip.
+// Expenses are excluded here too so the tooltip's per-day movement adds up to
+// the change in the line above it.
 function buildEntriesByDay(rows: TxnRow[]): EntriesByDay {
   const out: EntriesByDay = {};
   for (const r of rows) {
+    if (r.type === "expense") continue;
     const d = isoDay(r.occurred_on);
     (out[d] ??= []).push({
       id: r.id,
@@ -107,6 +116,10 @@ export default async function LedgerPage({
 
   const series = buildSeries((txns ?? []) as TxnRow[]);
   const entriesByDay = buildEntriesByDay((txns ?? []) as TxnRow[]);
+  const totalNetCash =
+    Math.round(
+      ((txns ?? []) as TxnRow[]).reduce((t, r) => t + Number(r.net_cash), 0) * 100,
+    ) / 100;
   const missingFees = (health ?? []).reduce(
     (t: number, r: { rows_missing_fees: number }) =>
       t + Number(r.rows_missing_fees),
@@ -157,7 +170,7 @@ export default async function LedgerPage({
         </p>
       )}
 
-      <PositionCards netCash={series.at(-1)?.net ?? 0} />
+      <PositionCards netCash={totalNetCash} />
 
       <CashChart series={series} entriesByDay={entriesByDay} />
 
