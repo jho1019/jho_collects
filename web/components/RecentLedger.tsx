@@ -65,7 +65,7 @@ export default async function RecentLedger({
   const rangeStart = total === 0 ? 0 : from + 1;
   const rangeEnd = total === 0 ? 0 : from + ledger.length;
 
-  const hrefFor = (p: number) => `/?rows=${rows}&page=${p}`;
+  const hrefFor = (p: number) => `/ledger?rows=${rows}&page=${p}`;
 
   return (
     <section className="space-y-2">
