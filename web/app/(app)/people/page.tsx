@@ -17,8 +17,8 @@ export default async function PeoplePage() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header>
-        <h1 className="text-xl font-bold text-surface">People</h1>
-        <p className="text-sm text-surface/70">
+        <h1 className="text-xl font-bold text-on-page">People</h1>
+        <p className="text-sm text-on-page/70">
           Buyers, and card-show counterparties you&rsquo;ve bought from.
         </p>
       </header>

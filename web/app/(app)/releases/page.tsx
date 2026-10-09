@@ -143,8 +143,8 @@ export default async function ReleasesPage() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header>
-        <h1 className="text-xl font-bold text-surface">Releases</h1>
-        <p className="text-sm text-surface/70">
+        <h1 className="text-xl font-bold text-on-page">Releases</h1>
+        <p className="text-sm text-on-page/70">
           Dates and times are Pacific. Add releases by pasting a schedule to Claude.
         </p>
       </header>

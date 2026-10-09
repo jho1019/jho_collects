@@ -93,12 +93,12 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-surface">
+        <h2 className="text-sm font-semibold text-on-page">
           People{" "}
-          <span className="font-normal text-surface/70">({rows.length})</span>
+          <span className="font-normal text-on-page/70">({rows.length})</span>
         </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <label className="flex items-center gap-1 text-xs text-surface/80">
+          <label className="flex items-center gap-1 text-xs text-on-page/80">
             <input
               type="checkbox"
               checked={repeatOnly}
@@ -110,7 +110,7 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter username / name / state"
-            className="w-full rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
+            className="w-full rounded border border-on-page/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
           />
         </div>
       </div>

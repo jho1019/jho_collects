@@ -28,14 +28,14 @@ export default function CardImageLightbox({ src, alt }: { src: string; alt: stri
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={src} alt={alt} className="h-28 w-auto rounded border border-brand-soft/25" />
-        <span className="absolute inset-0 flex items-center justify-center rounded bg-ink/0 opacity-0 transition-opacity group-hover:bg-ink/40 group-hover:opacity-100">
+        <span className="absolute inset-0 flex items-center justify-center rounded bg-black/0 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100">
           <MagnifierIcon />
         </span>
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/75 p-6"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
           onClick={() => setOpen(false)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -48,7 +48,7 @@ export default function CardImageLightbox({ src, alt }: { src: string; alt: stri
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Close"
-            className="absolute right-6 top-6 text-2xl leading-none text-surface hover:opacity-80"
+            className="absolute right-6 top-6 text-2xl leading-none text-on-page hover:opacity-80"
           >
             ✕
           </button>

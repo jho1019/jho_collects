@@ -141,8 +141,8 @@ export default async function LedgerPage({
   return (
     <main className="mx-auto w-full max-w-5xl space-y-8 p-4 md:p-6">
       <header>
-        <h1 className="text-xl font-bold text-surface">Ledger</h1>
-        <p className="text-sm text-surface/70">
+        <h1 className="text-xl font-bold text-on-page">Ledger</h1>
+        <p className="text-sm text-on-page/70">
           Position, cash flow, and the full transaction history.
         </p>
       </header>
@@ -177,7 +177,7 @@ export default async function LedgerPage({
       <RecentLedger searchParams={ledgerParams} />
 
       <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-surface">Rolling windows</h2>
+        <h2 className="text-sm font-semibold text-on-page">Rolling windows</h2>
 
         {/* Below md: one card per window — a 6-column table has no room on
             a phone. md+: the table, unchanged. */}

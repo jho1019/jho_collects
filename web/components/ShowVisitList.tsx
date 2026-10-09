@@ -110,7 +110,8 @@ export default function ShowVisitList({
           ...v.expenses.map((e) => Number(e.net_cash)),
         ];
         const received = flows.filter((n) => n > 0).reduce((a, n) => a + n, 0);
-        const spent = -flows.filter((n) => n < 0).reduce((a, n) => a + n, 0);
+        // Subtract rather than negate a sum: -(0) is -0, which formats as "-$0.00".
+        const spent = flows.filter((n) => n < 0).reduce((a, n) => a - n, 0);
         const net = received - spent;
         const cardsIn = v.deals.reduce((a, d) => a + Number(d.cards_in), 0);
         const cardsOut = v.deals.reduce((a, d) => a + Number(d.cards_out), 0);

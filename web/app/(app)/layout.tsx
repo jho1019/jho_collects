@@ -29,11 +29,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen flex-col md:pl-56">
         {/* Sign-out lives in Sidebar's own drawer/rail below md — this bar
             would otherwise double up with its sticky mobile top bar. */}
-        <header className="hidden items-center justify-end border-b border-surface/20 px-6 py-3 md:flex">
+        <header className="hidden items-center justify-end border-b border-on-page/20 px-6 py-3 md:flex">
           <form action={logout}>
             <button
               type="submit"
-              className="rounded border border-surface/40 px-3 py-1.5 text-sm text-surface hover:bg-surface/10"
+              className="rounded border border-on-page/40 px-3 py-1.5 text-sm text-on-page hover:bg-on-page/10"
             >
               Sign out
             </button>

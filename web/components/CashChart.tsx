@@ -124,13 +124,13 @@ export default function CashChart({
     <div className="space-y-2">
       <div className="flex items-baseline justify-between">
         <div className="flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-surface">
+          <h2 className="text-sm font-semibold text-on-page">
             Cumulative net cash
           </h2>
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded border border-surface/40 bg-surface px-2 py-0.5 text-xs text-ink-muted"
+            className="rounded border border-on-page/40 bg-surface px-2 py-0.5 text-xs text-ink-muted"
           >
             {WINDOWS.map((w) => (
               <option key={w.label} value={w.days}>
@@ -143,13 +143,13 @@ export default function CashChart({
           className={`text-lg font-semibold tabular-nums ${
             current < 0
               ? "rounded bg-surface px-2 py-0.5 text-accent-ink"
-              : "text-surface"
+              : "text-on-page"
           }`}
         >
           {usd(current)}
         </span>
       </div>
-      <p className="text-xs text-surface/70">
+      <p className="text-xs text-on-page/70">
         Cash in and out, not net worth. Dips below zero are normal — inventory
         bought and not yet sold. Excludes standalone expenses (supplies,
         subscriptions, mileage…), so this figure sits above the position card.

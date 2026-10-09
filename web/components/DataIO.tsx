@@ -53,7 +53,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   const body = (
     <div className="space-y-6">
       <section className="space-y-2">
-        <label className="text-sm font-medium text-surface">Table</label>
+        <label className="text-sm font-medium text-on-page">Table</label>
         <select
           value={table}
           onChange={(e) => {
@@ -62,7 +62,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
             setCsv("");
             setFileName("");
           }}
-          className="ml-2 rounded border border-zinc-300 bg-white px-2 py-1 text-sm"
+          className="ml-2 rounded border border-brand-soft/50 bg-surface px-2 py-1 text-sm"
         >
           {TABLE_NAMES.map((t) => (
             <option key={t} value={t}>
@@ -72,23 +72,23 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
         </select>
       </section>
 
-      <section className="space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-medium text-zinc-700">Export</h2>
-        <p className="text-xs text-zinc-500">
+      <section className="space-y-2 rounded-lg border border-brand-soft/25 bg-surface p-4">
+        <h2 className="text-sm font-medium text-ink">Export</h2>
+        <p className="text-xs text-ink-muted">
           Every row, all columns including <code>id</code> — the format{" "}
           <code>restore.py</code> and the import below expect.
         </p>
         <a
           href={`/data/export?table=${table}`}
-          className="inline-block rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800"
+          className="inline-block rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90"
         >
           Download {table}.csv
         </a>
       </section>
 
-      <section className="space-y-3 rounded-lg border border-zinc-200 bg-white p-4">
-        <h2 className="text-sm font-medium text-zinc-700">Import</h2>
-        <p className="text-xs text-zinc-500">
+      <section className="space-y-3 rounded-lg border border-brand-soft/25 bg-surface p-4">
+        <h2 className="text-sm font-medium text-ink">Import</h2>
+        <p className="text-xs text-ink-muted">
           Preview first, then commit. Generated and unknown columns are dropped;
           rows are matched on{" "}
           <code>{table === "inventory_counts" ? "tax_year" : "id"}</code>.
@@ -98,10 +98,10 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
-          className="block text-sm text-zinc-600 file:mr-3 file:rounded file:border file:border-zinc-300 file:bg-zinc-50 file:px-3 file:py-1.5 file:text-sm"
+          className="block text-sm text-ink-muted file:mr-3 file:rounded file:border file:border-brand-soft/50 file:bg-surface file:px-3 file:py-1.5 file:text-sm"
         />
 
-        {busy && <p className="text-sm text-zinc-500">working…</p>}
+        {busy && <p className="text-sm text-ink-muted">working…</p>}
 
         {preview && !preview.ok && (
           <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -116,7 +116,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
                 <strong>{preview.total}</strong> rows in {fileName}
               </span>
               <span className="text-green-700">{preview.newCount} new</span>
-              <span className="text-zinc-500">
+              <span className="text-ink-muted">
                 {preview.existingCount} already present
               </span>
             </div>
@@ -126,9 +126,9 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
               </p>
             ))}
 
-            <div className="max-h-64 overflow-auto rounded border border-zinc-200">
+            <div className="max-h-64 overflow-auto rounded border border-brand-soft/25">
               <table className="w-full text-xs">
-                <thead className="bg-zinc-50 text-left text-zinc-500">
+                <thead className="bg-brand-soft/10 text-left text-ink-muted">
                   <tr>
                     {Object.keys(preview.sample[0] ?? {}).map((c) => (
                       <th key={c} className="px-2 py-1 font-medium">
@@ -139,9 +139,9 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
                 </thead>
                 <tbody>
                   {preview.sample.map((r, i) => (
-                    <tr key={i} className="border-t border-zinc-100">
+                    <tr key={i} className="border-t border-brand-soft/15">
                       {Object.keys(preview.sample[0] ?? {}).map((c) => (
-                        <td key={c} className="whitespace-nowrap px-2 py-1 text-zinc-700">
+                        <td key={c} className="whitespace-nowrap px-2 py-1 text-ink">
                           {r[c]}
                         </td>
                       ))}
@@ -151,13 +151,13 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
               </table>
             </div>
             {preview.total > preview.sample.length && (
-              <p className="text-xs text-zinc-400">
+              <p className="text-xs text-ink-muted">
                 showing first {preview.sample.length} of {preview.total}
               </p>
             )}
 
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1 text-sm text-zinc-700">
+              <label className="flex items-center gap-1 text-sm text-ink">
                 <input
                   type="radio"
                   checked={mode === "insert"}
@@ -165,7 +165,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
                 />
                 insert new only
               </label>
-              <label className="flex items-center gap-1 text-sm text-zinc-700">
+              <label className="flex items-center gap-1 text-sm text-ink">
                 <input
                   type="radio"
                   checked={mode === "update"}
@@ -184,7 +184,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
             <button
               onClick={onCommit}
               disabled={busy}
-              className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+              className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-50"
             >
               Commit {mode === "insert" ? preview.newCount : preview.total} rows
             </button>
@@ -215,10 +215,10 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   return (
     <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold text-surface">
+        <h1 className="text-xl font-semibold text-on-page">
           Data import / export
         </h1>
-        <Link href="/" className="text-sm text-surface/70 hover:text-surface">
+        <Link href="/" className="text-sm text-on-page/70 hover:text-on-page">
           ← dashboard
         </Link>
       </header>

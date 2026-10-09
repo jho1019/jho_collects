@@ -53,8 +53,8 @@ export default async function DealsPage() {
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header>
-        <h1 className="text-xl font-bold text-surface">Deals</h1>
-        <p className="text-sm text-surface/70">
+        <h1 className="text-xl font-bold text-on-page">Deals</h1>
+        <p className="text-sm text-on-page/70">
           Grouped by show visit — each visit holds its deals, one per
           counterparty.
           {needsReview > 0 && (

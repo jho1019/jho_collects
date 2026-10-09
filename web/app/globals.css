@@ -29,12 +29,17 @@
  * --color-accent and --color-brand-soft fail AA for text on white, and fail
  * harder on the blue page. They are shapes, not words, anywhere.
  *
- * For anything sitting directly on --color-page (headers, page titles —
- * outside any white surface), ink/ink-muted don't apply either: both are
- * dark, tuned for a light ground, and read as near-invisible on blue. Use
- * --color-surface itself (white) for that text, and --color-surface at
- * reduced opacity (e.g. text-surface/70) for the muted variant — the same
- * ink/ink-muted pairing, inverted for a dark ground.
+ * For anything sitting directly on --color-page (headers, page titles,
+ * pagers — outside any card), ink/ink-muted don't apply: they're tuned for
+ * a card. Use --color-on-page (text-on-page, border-on-page/40,
+ * hover:bg-on-page/10) and reduced opacity for the muted variant
+ * (text-on-page/70). In light mode it equals --color-surface; it exists as
+ * its own token because in dark mode the page and surface are both dark,
+ * and on-page text has to flip light while card backgrounds stay dark.
+ *
+ * text-surface is for text on a filled brand/accent/ink shape (buttons,
+ * badges, the today dot) — those fills are light in dark mode, so the dark
+ * surface colour is exactly the right text colour there.
  *
  * There is no green in this palette. Positive figures use --color-brand
  * (inside a card; --color-surface directly on the page), negative use
@@ -52,11 +57,40 @@
   --color-accent-ink:  #a83e5c;
   --color-ink:         #1c2436;
   --color-ink-muted:   #4a5568;
+  --color-on-page:     #e9edf3;
 
   /* Bound to the next/font CSS variable set on <html> in app/layout.tsx —
    * registers Tailwind's own font-sans utility against the loaded font,
    * rather than only setting it on the body element below. */
   --font-sans: var(--font-body);
+}
+
+/*
+ * Dark mode follows the device (prefers-color-scheme), for night use.
+ * Same roles, same blue-gain / rose-loss pairing, no green. Contrast against
+ * the dark --color-surface (#182032):
+ *
+ *   --color-ink          13.2   --color-brand        6.6
+ *   --color-ink-muted     6.6   --color-accent-ink   7.0
+ *   --color-accent        3.6   fills only
+ *   --color-brand-soft    2.4   borders/inactive icons only (light: 2.3)
+ *
+ * Off-white rather than pure white text, and navy rather than black, to cut
+ * glare. text-surface on a brand fill (buttons) is 6.6; on accent-ink 7.0.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-page:        #0f1420;
+    --color-surface:     #182032;
+    --color-brand:       #7ea6e8;
+    --color-brand-soft:  #4a5b7d;
+    --color-accent:      #b8566f;
+    --color-accent-ink:  #f08ca5;
+    --color-ink:         #e3e8f0;
+    --color-ink-muted:   #9aa6ba;
+    --color-on-page:     #e3e8f0;
+  }
 }
 
 body {

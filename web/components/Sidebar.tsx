@@ -170,7 +170,7 @@ export default function Sidebar({
             type="button"
             aria-label="Close menu"
             onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-black/40"
           />
           <nav className="absolute inset-y-0 left-0 flex w-64 max-w-[80vw] flex-col justify-between bg-surface px-3 py-4 shadow-xl">
             <div>

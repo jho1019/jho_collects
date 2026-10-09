@@ -64,11 +64,11 @@ export default function CardInventory({
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-surface">
-          Card inventory <span className="font-normal text-surface/70">({rows.length})</span>
+        <h2 className="text-sm font-semibold text-on-page">
+          Card inventory <span className="font-normal text-on-page/70">({rows.length})</span>
         </h2>
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="flex overflow-x-auto rounded border border-surface/40 text-xs">
+          <div className="flex overflow-x-auto rounded border border-on-page/40 text-xs">
             {STATUSES.map((s) => (
               <button
                 key={s}
@@ -76,7 +76,7 @@ export default function CardInventory({
                 className={`whitespace-nowrap px-2 py-1 capitalize ${
                   filter === s
                     ? "bg-surface text-brand"
-                    : "text-surface/80 hover:bg-surface/10"
+                    : "text-on-page/80 hover:bg-on-page/10"
                 }`}
               >
                 {s}
@@ -87,7 +87,7 @@ export default function CardInventory({
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
-            className="w-full rounded border border-surface/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
+            className="w-full rounded border border-on-page/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
           />
         </div>
       </div>
