@@ -21,7 +21,7 @@ export const TABLES: Record<
       "sales_record_number", "item_number", "buyer_id", "ship_to_name",
       "ship_to_city", "ship_to_state", "ship_to_zip", "ship_to_country",
       "shipping_service", "tracking_number", "promoted_listing", "fees_estimated",
-      "deal_id", "non_cash_consideration",
+      "deal_id", "non_cash_consideration", "show_id",
     ],
     generated: ["buyer_paid_total", "net_cash"],
     conflictTarget: "id",

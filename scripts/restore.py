@@ -33,14 +33,23 @@ ENV_FILE = REPO_ROOT / ".env.local"
 SSL_KEYS = ("DB_SSL_INSECURE", "DB_SSL_ROOT_CERT")
 
 # Load order respects foreign keys. (table, conflict-target columns, has identity id)
+# Every table backup.py dumps must be here — main() refuses a backup that
+# holds a table this list doesn't know, rather than silently skipping it.
 PLAN = [
     ("buyers", ["id"], True),
+    ("shows", ["id"], True),
     ("inventory_counts", ["user_id", "tax_year"], False),
-    # deals references buyers; transactions and cards both reference deals.
+    ("pricing_settings", ["user_id"], False),
+    ("releases", ["id"], True),
+    # deals references buyers and shows; transactions references all three;
+    # cards references deals and transactions.
     ("deals", ["id"], True),
     ("transactions", ["id"], True),
     ("cards", ["id"], True),
     ("card_aliases", ["id"], True),
+    # buying_list references cards; comps references buying_list.
+    ("buying_list", ["id"], True),
+    ("comps", ["id"], True),
 ]
 
 
@@ -143,6 +152,11 @@ def main():
     backup_dir = Path(args.backup_dir)
     if not backup_dir.is_dir():
         sys.exit(f"not a directory: {backup_dir}")
+    known = {t for t, _, _ in PLAN}
+    unknown = sorted(p.stem for p in backup_dir.glob("*.csv") if p.stem not in known)
+    if unknown:
+        sys.exit(f"backup holds tables restore.py does not know: {', '.join(unknown)}"
+                 f" -- add them to PLAN in foreign-key order")
 
     env = load_env(ENV_FILE)
     for k in SSL_KEYS:

@@ -51,6 +51,19 @@ def parse_date(s):
     raise ValueError(f"unparseable date: {s!r}")
 
 
+def split(amount, weights):
+    """Apportion amount by weights; the last part takes the rounding remainder
+    so the parts always sum to amount ($5.00 over 3 is 1.67/1.67/1.66)."""
+    total = sum(weights)
+    parts, left = [], round(amount, 2)
+    for i, w in enumerate(weights):
+        last = i == len(weights) - 1
+        part = left if last else round(amount * (w / total if total else 1 / len(weights)), 2)
+        parts.append(part)
+        left = round(left - part, 2)
+    return parts
+
+
 def load(path):
     """Skip the notes preamble and find the real header row."""
     rows = list(csv.reader(open(path, encoding="utf-8-sig")))
@@ -106,15 +119,24 @@ def parse(path):
         by_order[clean(r["Order number"])].append(r)
 
     out = []
+    sale_orders = set()
     for order_no, items in by_order.items():
-        subtotals = [money(i["Item subtotal"]) for i in items]
-        total_sub = sum(subtotals) or 1.0
-        label_cost = labels.get(order_no, 0.0)
+        # A label is a cost of the sale. On a refund row it would flip into
+        # income (the ledger negates refunds), so split it over sales only; an
+        # order with no sale in this file sends its label to the orphan path.
+        sales = [r for r in items if clean(r["Type"]).lower() == "order"]
+        if sales:
+            sale_orders.add(order_no)
+        label_parts = split(labels.get(order_no, 0.0),
+                            [money(r["Item subtotal"]) for r in sales])
+        label_of = {id(r): p for r, p in zip(sales, label_parts)}
         meta = label_meta.get(order_no, {})
 
-        for i, r in enumerate(items):
-            share = subtotals[i] / total_sub
+        for r in items:
             is_refund = clean(r["Type"]).lower() == "refund"
+            # The ledger negates refund rows itself, so store their amounts
+            # positive whichever sign eBay writes them with.
+            amt = (lambda c: abs(money(r[c]))) if is_refund else (lambda c: money(r[c]))
 
             fees = sum(abs(money(r.get(c, "")))
                        for c in ("Final Value Fee - fixed",
@@ -131,12 +153,12 @@ def parse(path):
                 "platform": "ebay",
                 "description": clean(r["Item title"]),
                 "qty": int(clean(r["Quantity"]) or 1),
-                "item_amount": round(money(r["Item subtotal"]), 2),
-                "shipping_charged": round(money(r["Shipping and handling"]), 2),
-                "sales_tax_collected": round(money(r["eBay collected tax"])
-                                             + money(r["Seller collected tax"]), 2),
+                "item_amount": round(amt("Item subtotal"), 2),
+                "shipping_charged": round(amt("Shipping and handling"), 2),
+                "sales_tax_collected": round(amt("eBay collected tax")
+                                             + amt("Seller collected tax"), 2),
                 "platform_fees": round(fees, 2),
-                "shipping_cost": round(label_cost * share, 2),
+                "shipping_cost": label_of.get(id(r), 0.0),
                 "other_cost": 0,
                 "source_ref": clean(r["Transaction ID"]) or None,
                 "order_ref": order_no,
@@ -156,13 +178,14 @@ def parse(path):
                 **meta,
             })
 
-    # Labels whose order has no line item in THIS file belong to a prior
-    # month's order. The loader must attach these to the existing transaction
-    # by order_ref, not drop them. See docs/reference/ebay-report-notes.md.
+    # Labels whose order has no sale line in THIS file belong to a prior
+    # month's order (or are a return label next to a refund). The loader must
+    # attach these to the existing sale by order_ref, not drop them. See
+    # docs/reference/ebay-report-notes.md.
     orphan_labels = {
         on: {"amount": round(amt, 2), **label_meta.get(on, {})}
         for on, amt in labels.items()
-        if on not in by_order
+        if on not in sale_orders
     }
 
     out.sort(key=lambda x: (x["occurred_on"], x["source_ref"] or ""))
