@@ -15,7 +15,7 @@ export default async function PeoplePage() {
     );
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header>
         <h1 className="text-xl font-bold text-surface">People</h1>
         <p className="text-sm text-surface/70">
