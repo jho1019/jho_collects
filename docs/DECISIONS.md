@@ -518,6 +518,25 @@ A flat share of gross is inflated by the fixed fee on small sales (17.3% over
 the first five, mostly $10 orders). Refit both from `platform_fees` as
 history grows.
 
+## Shipping labels land on sale rows only, never on a refund
+
+`net_cash` negates a refund row, so a label share on one turns a cost into
+income: a sale and its refund in the same report used to net the label to
+zero, and a return label booked as a gain. Both importers split a label over
+the order's sale rows (the last row takes the rounding remainder, so the parts
+sum exactly). An order with no sale in the file — a return label beside a
+refund, or a label bought the day after the month closed — goes through the
+orphan path onto the original sale. Refund amounts are stored positive
+whatever sign eBay writes, because the ledger supplies the sign.
+`importers/test_parse_ebay.py` checks all of it.
+
+## The database clock is Pacific
+
+`alter database postgres set timezone to 'America/Los_Angeles'`
+(`schema/023`). Every `default current_date` reads it. On the UTC default,
+anything entered after 5pm Pacific was dated tomorrow — wrong show matches,
+and a Dec 31 evening sale in the next tax year.
+
 ## The daily digest waits for live listings
 
 A digest with nothing new is noise, and a muted channel also costs the

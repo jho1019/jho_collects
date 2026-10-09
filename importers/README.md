@@ -27,7 +27,7 @@ Keep the CSV outside the repo (it carries buyer PII). `.gitignore` blocks
   first/last-seen window, refreshes name and city/state from the latest row.
 - **orphan shipping labels** — a label whose order has no line item in this
   file belongs to a prior month's order (see the report notes). The loader
-  `UPDATE`s that existing transaction's `shipping_cost`, apportioned by item
+  `UPDATE`s that existing sale's `shipping_cost`, apportioned by item
   subtotal for multi-item orders, guarded by an `[orphan-label <order>]` note
   marker so a re-run never double-adds. If no matching transaction exists
   (e.g. the order predates the ledger), it is reported as UNRESOLVED and

@@ -33,7 +33,7 @@ sys.path.insert(0, str(REPO_ROOT / "scripts"))
 sys.path.insert(0, str(HERE))
 
 from check_connection import load_env, sql_ssl_context  # noqa: E402
-from parse_ebay import parse  # noqa: E402
+from parse_ebay import parse, split  # noqa: E402
 
 ENV_FILE = REPO_ROOT / ".env.local"
 SSL_KEYS = ("DB_SSL_INSECURE", "DB_SSL_ROOT_CERT")
@@ -192,7 +192,7 @@ def apply_orphan_labels(conn, owner, orphans):
             """
             select id, item_amount from transactions
             where user_id = :o and platform = 'ebay' and order_ref = :oref
-              and type in ('sale', 'refund')
+              and type = 'sale'
             order by id
             """,
             o=owner, oref=order_ref,
@@ -200,11 +200,9 @@ def apply_orphan_labels(conn, owner, orphans):
         if not rows:
             unresolved.append(order_ref)
             continue
-        total = sum(float(x[1]) for x in rows) or float(len(rows))
         changed = 0
-        for tid, item_amt in rows:
-            share = (float(item_amt) / total) if total else (1.0 / len(rows))
-            portion = round(amount * share, 2)
+        portions = split(amount, [float(x[1]) for x in rows])
+        for (tid, _), portion in zip(rows, portions):
             res = conn.run(
                 """
                 update transactions set

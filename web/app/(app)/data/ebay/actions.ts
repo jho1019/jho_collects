@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { parseEbayReport, type EbayRow } from "@/lib/ebay/parse";
+import { parseEbayReport, splitCents, type EbayRow } from "@/lib/ebay/parse";
 
 // Port of importers/load_ebay.py. Idempotent: sale/refund rows dedupe on
 // source_ref, buyers upsert on (user_id, platform, platform_username),
@@ -73,6 +73,7 @@ export async function previewEbay(fd: FormData): Promise<EbayPreview> {
     const { data: orphanHits } = await supabase
       .from("transactions")
       .select("order_ref")
+      .eq("type", "sale")
       .in("order_ref", orphanOrderRefs.length ? orphanOrderRefs : ["__none__"]);
     const orphanTargets = new Set((orphanHits ?? []).map((o) => o.order_ref));
 
@@ -228,20 +229,20 @@ export async function commitEbay(fd: FormData): Promise<EbayCommit> {
         .from("transactions")
         .select("id, item_amount, shipping_cost, notes, tracking_number, shipping_service")
         .eq("order_ref", o.order_ref)
-        .in("type", ["sale", "refund"]);
-      const pending = (targets ?? []).filter(
-        (t) => !(t.notes ?? "").includes(marker),
-      );
+        .eq("type", "sale")
+        .order("id");
       if (!targets || targets.length === 0) {
         orphansUnresolved.push(o.order_ref);
         continue;
       }
+      // Split over every sale row so each row's part is the same on a re-run;
+      // only rows without the marker are written.
+      const parts = splitCents(o.amount, targets.map((t) => Number(t.item_amount)));
+      const pending = targets
+        .map((t, i) => ({ t, portion: parts[i] }))
+        .filter(({ t }) => !(t.notes ?? "").includes(marker));
       if (pending.length === 0) continue; // already applied
-      const total =
-        pending.reduce((s, t) => s + Number(t.item_amount), 0) || pending.length;
-      for (const t of pending) {
-        const share = total ? Number(t.item_amount) / total : 1 / pending.length;
-        const portion = Math.round(o.amount * share * 100) / 100;
+      for (const { t, portion } of pending) {
         const { error } = await supabase
           .from("transactions")
           .update({

@@ -108,6 +108,21 @@ export type ParsedReport = {
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
 
+// Apportion `amount` by `weights`; the last part takes the rounding remainder
+// so the parts always sum to `amount` ($5.00 over 3 is 1.67/1.67/1.66).
+export function splitCents(amount: number, weights: number[]): number[] {
+  const total = weights.reduce((a, b) => a + b, 0);
+  let left = r2(amount);
+  return weights.map((w, i) => {
+    const part =
+      i === weights.length - 1
+        ? left
+        : r2(amount * (total ? w / total : 1 / weights.length));
+    left = r2(left - part);
+    return part;
+  });
+}
+
 export function parseEbayReport(text: string): ParsedReport {
   const all = parseCsvRows(text);
   const hi = all.findIndex(
@@ -165,18 +180,28 @@ export function parseEbayReport(text: string): ParsedReport {
   }
 
   const rows: EbayRow[] = [];
+  const saleOrders = new Set<string>();
   for (const [orderNo, items] of byOrder) {
-    const subtotals = items.map((i) => money(i["Item subtotal"]));
-    const totalSub = subtotals.reduce((a, b) => a + b, 0) || 1;
-    const labelCost = labels.get(orderNo) ?? 0;
+    // A label is a cost of the sale. On a refund row it would flip into
+    // income (the ledger negates refunds), so split it over sales only; an
+    // order with no sale in this file sends its label to the orphan path.
+    const sales = items.filter((r) => clean(r["Type"]).toLowerCase() === "order");
+    if (sales.length) saleOrders.add(orderNo);
+    const labelParts = splitCents(
+      labels.get(orderNo) ?? 0,
+      sales.map((r) => money(r["Item subtotal"])),
+    );
     const meta = labelMeta.get(orderNo) ?? {
       tracking_number: null,
       shipping_service: null,
     };
 
-    items.forEach((rec, i) => {
-      const share = subtotals[i] / totalSub;
+    items.forEach((rec) => {
+      const si = sales.indexOf(rec);
       const isRefund = clean(rec["Type"]).toLowerCase() === "refund";
+      // The ledger negates refund rows itself, so store their amounts
+      // positive whichever sign eBay writes them with.
+      const amt = (c: string) => (isRefund ? Math.abs(money(rec[c])) : money(rec[c]));
       const fees = FEE_COLUMNS.reduce(
         (t, c) => t + Math.abs(money(rec[c])),
         0,
@@ -187,13 +212,11 @@ export function parseEbayReport(text: string): ParsedReport {
         platform: "ebay",
         description: clean(rec["Item title"]),
         qty: parseInt(clean(rec["Quantity"]) || "1", 10),
-        item_amount: r2(money(rec["Item subtotal"])),
-        shipping_charged: r2(money(rec["Shipping and handling"])),
-        sales_tax_collected: r2(
-          money(rec["eBay collected tax"]) + money(rec["Seller collected tax"]),
-        ),
+        item_amount: r2(amt("Item subtotal")),
+        shipping_charged: r2(amt("Shipping and handling")),
+        sales_tax_collected: r2(amt("eBay collected tax") + amt("Seller collected tax")),
         platform_fees: r2(fees),
-        shipping_cost: r2(labelCost * share),
+        shipping_cost: si === -1 ? 0 : labelParts[si],
         other_cost: 0,
         source_ref: clean(rec["Transaction ID"]) || null,
         order_ref: orderNo,
@@ -220,7 +243,7 @@ export function parseEbayReport(text: string): ParsedReport {
 
   const orphanLabels: OrphanLabel[] = [];
   for (const [on, amt] of labels) {
-    if (byOrder.has(on)) continue;
+    if (saleOrders.has(on)) continue;
     const m = labelMeta.get(on);
     orphanLabels.push({
       order_ref: on,
