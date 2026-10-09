@@ -122,15 +122,24 @@ function DealDetail({
   );
 }
 
+// Inside a show visit the date and show name are already in the group header,
+// so a grouped list labels each deal by what moved instead.
+function dealLabel(d: Deal, dealTxns: DealTxn[]): string {
+  return dealTxns[0]?.description ?? d.notes ?? d.counterparty ?? "—";
+}
+
 export default function DealList({
   deals,
   txns,
   cards,
+  grouped = false,
 }: {
   deals: Deal[];
   txns: DealTxn[];
   cards: DealCard[];
+  grouped?: boolean;
 }) {
+  const cols = grouped ? 7 : 8;
   const [open, setOpen] = useState<Set<number>>(new Set());
 
   function toggle(id: number) {
@@ -162,7 +171,9 @@ export default function DealList({
                 className="flex w-full flex-col gap-1 px-3 py-2 text-left text-sm"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="tabular-nums text-xs text-ink-muted">{d.occurred_on}</span>
+                  <span className="tabular-nums text-xs text-ink-muted">
+                    {grouped ? "" : d.occurred_on}
+                  </span>
                   <span
                     className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${kindBadge(d.kind)}`}
                   >
@@ -171,7 +182,7 @@ export default function DealList({
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-ink">
-                    {d.event_name ?? "—"}
+                    {grouped ? dealLabel(d, dealTxns) : (d.event_name ?? "—")}
                     {d.needs_review && (
                       <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
                         needs review
@@ -221,8 +232,14 @@ export default function DealList({
         <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
           <tr>
             <th className="w-6 px-3 py-2" />
-            <th className="px-3 py-2 font-medium">Date</th>
-            <th className="px-3 py-2 font-medium">Event</th>
+            {grouped ? (
+              <th className="px-3 py-2 font-medium">Deal</th>
+            ) : (
+              <>
+                <th className="px-3 py-2 font-medium">Date</th>
+                <th className="px-3 py-2 font-medium">Event</th>
+              </>
+            )}
             <th className="px-3 py-2 font-medium">Counterparty</th>
             <th className="px-3 py-2 font-medium">Kind</th>
             <th className="px-3 py-2 text-right font-medium">Net cash</th>
@@ -244,11 +261,13 @@ export default function DealList({
                   className="cursor-pointer border-b border-brand-soft/15 last:border-0 hover:bg-brand-soft/5"
                 >
                   <td className="px-3 py-2 text-ink-muted">{expanded ? "▾" : "▸"}</td>
-                  <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink-muted">
-                    {d.occurred_on}
-                  </td>
+                  {!grouped && (
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink-muted">
+                      {d.occurred_on}
+                    </td>
+                  )}
                   <td className="px-3 py-2 text-ink">
-                    {d.event_name ?? "—"}
+                    {grouped ? dealLabel(d, dealTxns) : (d.event_name ?? "—")}
                     {d.needs_review && (
                       <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
                         needs review
@@ -279,7 +298,7 @@ export default function DealList({
                 </tr>
                 {expanded && (
                   <tr className="border-b border-brand-soft/15 last:border-0">
-                    <td colSpan={8} className="bg-page/60 px-6 py-3">
+                    <td colSpan={cols} className="bg-page/60 px-6 py-3">
                       <DealDetail
                         dealTxns={dealTxns}
                         cardsIn={cardsIn}
@@ -294,7 +313,7 @@ export default function DealList({
           })}
           {deals.length === 0 && (
             <tr>
-              <td colSpan={8} className="px-3 py-6 text-center text-ink-muted">
+              <td colSpan={cols} className="px-3 py-6 text-center text-ink-muted">
                 No deals yet.
               </td>
             </tr>

@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
-import DealList, {
-  type Deal,
-  type DealTxn,
-  type DealCard,
-} from "@/components/DealList";
+import type { Deal, DealTxn, DealCard } from "@/components/DealList";
+import ShowVisitList, {
+  type DealShow,
+  type ShowName,
+  type ShowExpense,
+} from "@/components/ShowVisitList";
 
 // deal_summary is net new — no component existed for it before this phase.
 // Per-deal net is computed in the view, never stored, never collapsed into a
@@ -13,8 +14,14 @@ export const dynamic = "force-dynamic";
 export default async function DealsPage() {
   const supabase = await createClient();
 
-  const [{ data: deals, error }, { data: txns }, { data: cards }] =
-    await Promise.all([
+  const [
+    { data: deals, error },
+    { data: txns },
+    { data: cards },
+    { data: dealShows },
+    { data: shows },
+    { data: expenses },
+  ] = await Promise.all([
       supabase
         .from("deal_summary")
         .select(
@@ -30,6 +37,15 @@ export default async function DealsPage() {
         .from("cards")
         .select("id, title, acquisition_cost, acquired_deal_id, disposed_deal_id")
         .or("acquired_deal_id.not.is.null,disposed_deal_id.not.is.null"),
+      // deal_summary exposes only the show's name; group on the id.
+      supabase.from("deals").select("deal_id:id, show_id"),
+      supabase.from("shows").select("id, name"),
+      // Show-level expenses: on the show, never on a deal (DECISIONS.md).
+      supabase
+        .from("transactions")
+        .select("id, show_id, occurred_on, description, net_cash")
+        .is("deal_id", null)
+        .not("show_id", "is", null),
     ]);
 
   const needsReview = (deals ?? []).filter((d) => d.needs_review).length;
@@ -39,7 +55,7 @@ export default async function DealsPage() {
       <header>
         <h1 className="text-xl font-bold text-surface">Deals</h1>
         <p className="text-sm text-surface/70">
-          Card show events — purchases, sales, and trades grouped by
+          Grouped by show visit — each visit holds its deals, one per
           counterparty.
           {needsReview > 0 && (
             <span className="ml-2 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-accent-ink">
@@ -55,10 +71,13 @@ export default async function DealsPage() {
         </p>
       )}
 
-      <DealList
+      <ShowVisitList
         deals={(deals ?? []) as Deal[]}
         txns={(txns ?? []) as DealTxn[]}
         cards={(cards ?? []) as DealCard[]}
+        dealShows={(dealShows ?? []) as DealShow[]}
+        shows={(shows ?? []) as ShowName[]}
+        expenses={(expenses ?? []) as ShowExpense[]}
       />
     </main>
   );

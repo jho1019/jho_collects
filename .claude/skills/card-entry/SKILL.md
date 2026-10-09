@@ -202,6 +202,30 @@ Resolve `<show_id>` the same way as for a deal —
 `show_summary` reports these separately from deal cash (`unattached_net_cash`)
 and folds both into a true `net_cash` for the show.
 
+### Every purchase or sale at a show goes in a deal
+
+`/deals` lists `deals` rows, not transactions. A plain purchase or sale
+written at a show with no deal is invisible there, and the show reads
+"0 in · 0 out" even though money moved. So for each counterparty at a show:
+
+1. `open_deal(<occurred_on>, <show_id>)` — one deal per vendor. If the user
+   didn't say which legs shared a vendor, one deal per cash row; never merge
+   on a guess.
+2. Write the cash row, then `attach_transaction(<deal_id>, <txn_id>)`.
+3. The cash row carries `deal_id` **only — leave `transactions.show_id`
+   null.** The show reaches it through the deal. `show_id` on a transaction
+   is reserved for show-level expenses with a null `deal_id` (above);
+   setting both breaks the convention in DECISIONS.md and the per-path
+   filtering in `show_summary`.
+
+**Offer a card row for anything worth finding later** — graded slabs,
+named singles, anything expensive — when the preview is shown, not after.
+Insert it with `acquired_deal_id = <deal_id>`, `acquisition_transaction_id
+= <txn_id>`, `is_opening_stock = false`, and `acquisition_cost` null when
+it came in a multi-card lot with no stated split. Without a card row the
+deal shows "0 in" and the slab can't be sold by name. Bulk commons still
+get no card rows.
+
 ## Step 2.6 — Upcoming shows
 
 Trigger: the user states a future show conversationally — "Anaheim show
@@ -308,6 +332,12 @@ with the transaction-report import. Never invent it.
 
 ### Offer three actions
 
+**The preview must be somewhere the user can see it.** Text written before a
+tool call is not reliably shown — put the preview table either in the
+`preview` field of the confirm option, or in the reply text itself and end
+the turn asking for "confirm". Never write a question that refers to a
+preview "above" when the preview sat before the tool call.
+
 Ask with `AskUserQuestion`:
 
 1. **Confirm & write** — for a CLI row, re-run the exact command without
@@ -355,6 +385,18 @@ Add `--dry-run` to see the parsed row without writing. Resolve relative dates
 ("last Saturday") to `YYYY-MM-DD` yourself; the CLI takes `today`, `yesterday`,
 `N days ago`, `YYYY-MM-DD`, `M/D`. Card-object intents (`sell_card`,
 `add_opening_stock`, `name_card`) are RPC calls, not the CLI.
+
+**When the CLI can't run** (no `.env.local`, e.g. a cloud session) and writes
+go through Supabase SQL instead: the RPCs scope by `auth.uid()`, which a
+direct connection doesn't have. Wrap the writes in one `do $$ … $$` block
+that first sets `set_config('request.jwt.claim.sub', '<owner uuid>', true)`,
+and set `user_id` explicitly on direct inserts. Take the owner uuid from
+existing rows (`select distinct user_id from transactions`). There is no
+`--dry-run` on this path, so say in the preview that you're writing through
+SQL and can't quote the CLI's cash-position line — and don't present a
+computed position as if it came from the database. `deal_summary` and
+`show_summary` also filter on `auth.uid()` and return nothing over a plain
+connection; verify against the base tables.
 
 - Missing *optional* fields → write with `needs_review = true`, or surface them
   through "Add more fields" in the Step 3 preview. Never interrogate for one
