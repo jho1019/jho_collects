@@ -25,10 +25,10 @@ export default async function InventoryPage() {
   ]);
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header>
-        <h1 className="text-xl font-bold text-surface">Inventory</h1>
-        <p className="text-sm text-surface/70">
+        <h1 className="text-xl font-bold text-on-page">Inventory</h1>
+        <p className="text-sm text-on-page/70">
           Individually tracked cards. Bulk-lot commons stay a single cash row
           and never show up here — that&rsquo;s the point.
         </p>

@@ -70,7 +70,7 @@ export default async function RecentLedger({
   return (
     <section className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-surface">Ledger</h2>
+        <h2 className="text-sm font-semibold text-on-page">Ledger</h2>
         <LedgerPageSizeSelect rows={rows} />
       </div>
 
@@ -150,7 +150,7 @@ export default async function RecentLedger({
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-surface/70">
+      <div className="flex items-center justify-between text-xs text-on-page/70">
         <span>
           {total === 0 ? "0 of 0" : `${rangeStart}–${rangeEnd} of ${total}`}
         </span>
@@ -158,24 +158,24 @@ export default async function RecentLedger({
           {page > 1 ? (
             <Link
               href={hrefFor(page - 1)}
-              className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
+              className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
             >
               Previous
             </Link>
           ) : (
-            <span className="rounded border border-surface/15 px-2 py-1 text-surface/40">
+            <span className="rounded border border-on-page/15 px-2 py-1 text-on-page/40">
               Previous
             </span>
           )}
           {page < totalPages ? (
             <Link
               href={hrefFor(page + 1)}
-              className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
+              className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
             >
               Next
             </Link>
           ) : (
-            <span className="rounded border border-surface/15 px-2 py-1 text-surface/40">
+            <span className="rounded border border-on-page/15 px-2 py-1 text-on-page/40">
               Next
             </span>
           )}

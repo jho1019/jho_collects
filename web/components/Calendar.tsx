@@ -193,7 +193,7 @@ export default function Calendar({
           left no room for "← Prev / Today / Next →" — stack the title above
           a full-width nav row instead, and drop the logo (decorative). */}
       <div className="flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:items-center">
-        <h2 className="text-xl font-semibold text-surface sm:text-2xl">
+        <h2 className="text-xl font-semibold text-on-page sm:text-2xl">
           {MONTH_NAMES[month]} {year}
         </h2>
         <div className="hidden justify-center sm:flex">
@@ -203,19 +203,19 @@ export default function Calendar({
         <div className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           <Link
             href={`/?year=${py}&month=${pm + 1}`}
-            className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
+            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
           >
             ← Prev
           </Link>
           <Link
             href="/"
-            className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
+            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
           >
             Today
           </Link>
           <Link
             href={`/?year=${ny}&month=${nm + 1}`}
-            className="rounded border border-surface/40 px-2 py-1 text-surface hover:bg-surface/10"
+            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
           >
             Next →
           </Link>

@@ -91,8 +91,8 @@ export default async function BuyingPage() {
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-surface">Buying list</h1>
-          <p className="text-sm text-surface/70">
+          <h1 className="text-xl font-bold text-on-page">Buying list</h1>
+          <p className="text-sm text-on-page/70">
             Targets are all-in — price plus shipping plus sales tax.
           </p>
         </div>

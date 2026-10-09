@@ -41,7 +41,7 @@ export default function EbayImport() {
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-surface/70">
+      <p className="text-xs text-on-page/70">
         The raw Seller Hub <strong>Transaction report</strong> CSV. Payout /
         charge / transfer rows are ignored; sale &amp; refund rows dedupe on
         eBay&apos;s transaction id, so re-importing an overlapping range is safe.
@@ -51,10 +51,10 @@ export default function EbayImport() {
         type="file"
         accept=".csv,text/csv"
         onChange={onFile}
-        className="block text-sm text-surface/80 file:mr-3 file:rounded file:border file:border-zinc-300 file:bg-zinc-50 file:px-3 file:py-1.5 file:text-sm file:text-zinc-700"
+        className="block text-sm text-on-page/80 file:mr-3 file:rounded file:border file:border-brand-soft/50 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:text-ink"
       />
 
-      {busy && <p className="text-sm text-surface/70">working…</p>}
+      {busy && <p className="text-sm text-on-page/70">working…</p>}
 
       {preview && !preview.ok && (
         <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -64,16 +64,16 @@ export default function EbayImport() {
 
       {preview && preview.ok && (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-surface">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-on-page">
             <span>
               <strong>{preview.rowCount}</strong> rows in {fileName}
             </span>
-            <span className="font-medium text-surface">{preview.newCount} new</span>
-            <span className="text-surface/70">
+            <span className="font-medium text-on-page">{preview.newCount} new</span>
+            <span className="text-on-page/70">
               {preview.dupCount} already imported
             </span>
             {Object.keys(preview.ignored).length > 0 && (
-              <span className="text-surface/60">
+              <span className="text-on-page/60">
                 ignored{" "}
                 {Object.entries(preview.ignored)
                   .map(([k, v]) => `${v} ${k}`)
@@ -82,11 +82,11 @@ export default function EbayImport() {
             )}
           </div>
 
-          <div className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs">
-            <div className="mb-1 font-medium text-zinc-600">
+          <div className="rounded border border-brand-soft/25 bg-brand-soft/10 px-3 py-2 text-xs">
+            <div className="mb-1 font-medium text-ink-muted">
               Cross-check against eBay&apos;s own figures
             </div>
-            <div className="grid grid-cols-2 gap-x-6 tabular-nums text-zinc-700 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-x-6 tabular-nums text-ink sm:grid-cols-3">
               <span>gross buyer payments {usd(preview.totals.grossBuyerPayments)}</span>
               <span>order proceeds ex-tax {usd(preview.totals.orderProceedsExTax)}</span>
               <span>eBay fees {usd(preview.totals.fees)}</span>
@@ -96,7 +96,7 @@ export default function EbayImport() {
           </div>
 
           {preview.orphansResolvable.length > 0 && (
-            <p className="text-xs text-zinc-600">
+            <p className="text-xs text-ink-muted">
               {preview.orphansResolvable.length} orphan shipping label(s) will
               attach to an earlier order: {preview.orphansResolvable.join(", ")}
             </p>
@@ -109,9 +109,9 @@ export default function EbayImport() {
             </p>
           )}
 
-          <div className="max-h-64 overflow-auto rounded border border-zinc-200">
+          <div className="max-h-64 overflow-auto rounded border border-brand-soft/25">
             <table className="w-full text-xs">
-              <thead className="bg-zinc-50 text-left text-zinc-500">
+              <thead className="bg-brand-soft/10 text-left text-ink-muted">
                 <tr>
                   <th className="px-2 py-1 font-medium">Date</th>
                   <th className="px-2 py-1 font-medium">Type</th>
@@ -123,21 +123,21 @@ export default function EbayImport() {
               </thead>
               <tbody>
                 {preview.sample.map((r, i) => (
-                  <tr key={i} className="border-t border-zinc-100">
-                    <td className="px-2 py-1 tabular-nums text-zinc-600">
+                  <tr key={i} className="border-t border-brand-soft/15">
+                    <td className="px-2 py-1 tabular-nums text-ink-muted">
                       {r.occurred_on}
                     </td>
-                    <td className="px-2 py-1 text-zinc-600">{r.type}</td>
-                    <td className="px-2 py-1 text-zinc-700">
+                    <td className="px-2 py-1 text-ink-muted">{r.type}</td>
+                    <td className="px-2 py-1 text-ink">
                       {r.buyer_username ?? "—"}
                     </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-zinc-700">
+                    <td className="px-2 py-1 text-right tabular-nums text-ink">
                       {usd(r.item_amount)}
                     </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-zinc-700">
+                    <td className="px-2 py-1 text-right tabular-nums text-ink">
                       {usd(r.platform_fees)}
                     </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-zinc-700">
+                    <td className="px-2 py-1 text-right tabular-nums text-ink">
                       {usd(r.shipping_cost)}
                     </td>
                   </tr>
@@ -146,7 +146,7 @@ export default function EbayImport() {
             </table>
           </div>
           {preview.rowCount > preview.sample.length && (
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-ink-muted">
               showing first {preview.sample.length} of {preview.rowCount}
             </p>
           )}
@@ -154,7 +154,7 @@ export default function EbayImport() {
           <button
             onClick={onCommit}
             disabled={busy}
-            className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-800 disabled:opacity-50"
+            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-50"
           >
             Import {preview.newCount} new row{preview.newCount === 1 ? "" : "s"}
           </button>
