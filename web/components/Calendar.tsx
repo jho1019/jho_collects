@@ -198,7 +198,7 @@ export default function Calendar({
         </h2>
         <div className="hidden justify-center sm:flex">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="jho_collects" className="h-12 w-12 rounded-lg" />
+          <img src="/logo-mark.webp" alt="shotime_cards" className="h-12 w-12 rounded-lg" />
         </div>
         <div className="flex items-center justify-between gap-2 text-sm sm:justify-end">
           <Link
