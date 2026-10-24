@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Deal, DealTxn, DealCard } from "@/components/DealList";
+import GuideLink from "@/components/GuideLink";
 import ShowVisitList, {
   type DealShow,
   type ShowName,
@@ -52,17 +53,20 @@ export default async function DealsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
-      <header>
-        <h1 className="text-xl font-bold text-on-page">Deals</h1>
-        <p className="text-sm text-on-page/70">
-          Grouped by show visit — each visit holds its deals, one per
-          counterparty.
-          {needsReview > 0 && (
-            <span className="ml-2 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-accent-ink">
-              {needsReview} need{needsReview === 1 ? "s" : ""} review
-            </span>
-          )}
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-on-page">Deals</h1>
+          <p className="text-sm text-on-page/70">
+            Grouped by show visit — each visit holds its deals, one per
+            counterparty.
+            {needsReview > 0 && (
+              <span className="ml-2 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-accent-ink">
+                {needsReview} need{needsReview === 1 ? "s" : ""} review
+              </span>
+            )}
+          </p>
+        </div>
+        <GuideLink guide="playbook" />
       </header>
 
       {error && (
