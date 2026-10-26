@@ -4,3 +4,9 @@
 # without extra tooling. Used by scripts/check_connection.py and the Phase 5
 # backup job. The eBay parser (importers/parse_ebay.py) uses only the stdlib.
 pg8000>=1.30
+
+# scripts/insta_post.py: Instagram carousel cropping (HEIC needs pillow-heif)
+opencv-python-headless>=4.10
+pillow>=11
+pillow-heif>=0.18
+numpy>=2
