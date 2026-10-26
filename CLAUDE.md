@@ -2,7 +2,9 @@
 
 Personal P&L system for a sports card reselling business (eBay seller
 `jho_sportscards`, also sells on CollX). Tracks cash flow, produces Schedule C
-figures at year end, and shows a dashboard.
+figures at year end, and shows a dashboard. Also holds the Instagram carousel
+builder (`scripts/insta_post.py`, `insta-post` skill), which never touches the
+database.
 
 Read `docs/DECISIONS.md` before changing the data model. The choices there were
 argued out and reversing one silently will produce numbers that look fine and
