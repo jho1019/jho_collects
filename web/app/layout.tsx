@@ -3,7 +3,7 @@ import { bodyFont } from "@/lib/fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "jho_collects",
+  title: "shotime_cards",
   description: "Personal P&L for a sports card reselling business",
 };
 

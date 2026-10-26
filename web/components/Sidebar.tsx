@@ -52,19 +52,21 @@ export default function Sidebar({
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
   }
 
+  // The full logo carries its own "SHOTIME_CARDS" banner, so the rail and
+  // drawer show it large with no text beside it. The ring keeps the navy tile
+  // from melting into the dark-mode surface.
   const logo = (
     <Link
       href="/"
       onClick={() => setOpen(false)}
-      className="flex items-center gap-2 rounded-md px-2 hover:opacity-80"
+      className="block min-w-0 flex-1 hover:opacity-90"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/logo.webp" alt="" className="h-10 w-10 shrink-0 rounded-md" />
-      <span
-        className={`${brandFont.className} truncate text-xl leading-none tracking-wide text-ink`}
-      >
-        jho_collects
-      </span>
+      <img
+        src="/logo.webp"
+        alt="shotime_cards"
+        className="aspect-square w-full rounded-xl ring-1 ring-brand-soft/25"
+      />
     </Link>
   );
 
@@ -145,11 +147,15 @@ export default function Sidebar({
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-brand-soft/25 bg-surface px-3 py-2 md:hidden">
         <Link href="/" className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.webp" alt="" className="h-8 w-8 shrink-0 rounded-md" />
+          <img
+            src="/logo-mark.webp"
+            alt=""
+            className="h-9 w-9 shrink-0 rounded-md ring-1 ring-brand-soft/25"
+          />
           <span
             className={`${brandFont.className} text-lg leading-none tracking-wide text-ink`}
           >
-            jho_collects
+            shotime_cards
           </span>
         </Link>
         <button

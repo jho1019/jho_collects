@@ -3,6 +3,7 @@ import { usd } from "@/lib/format";
 import CompInput from "@/components/CompInput";
 import CopyTitle from "@/components/CopyTitle";
 import RowNotes from "@/components/RowNotes";
+import GuideLink from "@/components/GuideLink";
 import AddCardModal from "@/components/AddCardModal";
 import CardImageLightbox from "@/components/CardImageLightbox";
 import CollapsibleSection from "@/components/CollapsibleSection";
@@ -96,7 +97,10 @@ export default async function BuyingPage() {
             Targets are all-in — price plus shipping plus sales tax.
           </p>
         </div>
-        <AddCardModal />
+        <div className="flex flex-wrap items-center gap-2">
+          <GuideLink guide="calendar" />
+          <AddCardModal />
+        </div>
       </header>
 
       {error && (
