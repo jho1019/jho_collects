@@ -9,7 +9,7 @@ Install deps once: `python -m pip install -r ../requirements.txt`.
 | `entry.py` | manual ledger entry: `purchase` / `sale` / `refund` / `expense` / `review` (see `--help`) |
 | `backup.py` | dated CSV dump of every `public` table → `../backups/<UTC-timestamp>/` + `manifest.txt`, with `--keep N` retention pruning |
 | `restore.py` | load a backup dir back in, `ON CONFLICT (pk) DO NOTHING`, ids preserved, sequences bumped; `--dry-run` inserts then rolls back |
-| `insta_post.py` | Instagram carousel: crops toploader card photos so every card sits at the same size and spot, box/pack cover first (no database, no `.env.local`) |
+| `insta_post.py` | Instagram carousel: crops toploader card photos so every card sits at the same size and spot, box/pack cover first, `@shotime_cards` along the bottom (no database, no `.env.local`) |
 | `schedule_backup.ps1` | register/remove a daily Windows Scheduled Task that runs `backup.py` (also the free-tier keep-alive) |
 
 ## Nightly backup

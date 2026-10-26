@@ -15,6 +15,9 @@ first among the photos.
 
 Raw cards in 3x4 toploaders only for now. Slabs will need their own aspect ratio.
 
+Every slide gets a small translucent "@shotime_cards" along the bottom
+(--watermark "" to leave it off).
+
 Writes NN.jpg slides plus preview.jpg (a contact sheet) into a new
 instagram-<timestamp>/ folder next to the photos. Deps: opencv-python-headless,
 pillow, pillow-heif, numpy.
@@ -27,7 +30,7 @@ from datetime import datetime
 
 import cv2
 import numpy as np
-from PIL import Image, ImageOps
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 try:
     from pillow_heif import register_heif_opener
@@ -41,6 +44,9 @@ TOPLOADER_RATIO = 4 / 3  # height / width of a 3"x4" toploader
 GROUP_MARGIN = 70  # px each side when several cards are shrunk to fit
 WORK = 1000  # detection runs on a copy this many px on the long side
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"}
+WATERMARK = "@shotime_cards"
+WATERMARK_SIZE, WATERMARK_BOTTOM = 34, 70  # font px; px from the text's top to the slide's bottom
+FONTS = ["/System/Library/Fonts/Helvetica.ttc", "arial.ttf", "DejaVuSans.ttf"]
 
 
 def load(path):
@@ -206,6 +212,25 @@ def cover_slide(rgb, fill=0.85):
     return crop(rgb, cx, cy, crop_w)[0], None
 
 
+def font():
+    for path in FONTS:
+        try:
+            return ImageFont.truetype(path, WATERMARK_SIZE)
+        except OSError:
+            continue
+    return ImageFont.load_default(WATERMARK_SIZE)
+
+
+def watermark(slide, text):
+    """`text` in translucent white, centred near the bottom of the slide."""
+    f = font()
+    layer = Image.new("RGBA", slide.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    x = (CANVAS_W - draw.textlength(text, font=f)) / 2
+    draw.text((x, CANVAS_H - WATERMARK_BOTTOM), text, font=f, fill=(255, 255, 255, 180))
+    return Image.alpha_composite(slide.convert("RGBA"), layer).convert("RGB")
+
+
 def contact_sheet(slides):
     cols, tw, gap = min(5, len(slides)), 216, 8
     th = tw * CANVAS_H // CANVAS_W
@@ -234,6 +259,8 @@ def main():
     ap.add_argument("--cover", help="box/pack photo for slide 1 (cropped around the product)")
     ap.add_argument("--toploader-width", type=int, default=680,
                     help="toploader width in px on the 1080px canvas (default 680)")
+    ap.add_argument("--watermark", default=WATERMARK,
+                    help=f'text along the bottom of every slide (default "{WATERMARK}"; "" for none)')
     ap.add_argument("--out", help="output folder (default: instagram-<timestamp> beside the photos)")
     args = ap.parse_args()
 
@@ -256,6 +283,8 @@ def main():
             print(f"SKIP  {name}: {warn}")
             continue
         n = len(slides) + 1
+        if args.watermark:
+            slide = watermark(slide, args.watermark)
         slide.save(os.path.join(out, f"{n:02d}.jpg"), quality=95, icc_profile=icc)
         slides.append(slide)
         problems += bool(warn)

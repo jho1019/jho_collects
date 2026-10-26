@@ -54,6 +54,10 @@ python3 scripts/insta_post.py <card photos in order...> --cover <box photo>
 - `--toploader-width` (default 680 of 1080 px) sets how big the card is.
   Change it only if the user asks for bigger or smaller cards, and keep it
   the same across posts so the grid looks consistent.
+- Every slide gets a small translucent white `@shotime_cards` centred
+  near the bottom. That's the user's chosen watermark, so leave it on unless
+  they ask otherwise (`--watermark ""` turns it off, `--watermark TEXT`
+  changes it).
 - `--out DIR` overrides the folder.
 
 ## Step 3: Check before handing over
@@ -83,8 +87,9 @@ player name), and anything flagged. Offer to `open` the folder in Finder.
 
 ## Later
 
-- Watermark: the brand mark is `web/public/logo-mark.webp`. The user wants it
-  eventually, placed in the same corner on every slide. Not built yet.
+- Logo badge watermark: considered and passed over in favour of the subtle
+  handle text. The logo (`web/public/logo.webp`, on the logo branch) has a
+  square navy background, so it needs a circle crop if this is revisited.
 - Slabs: see above.
 - **Magnetic one-touches (most single-card feature posts).** Not supported
   yet. A one-touch is a different size than a toploader, so anchoring on the
