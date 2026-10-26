@@ -68,9 +68,9 @@ Output lines that need attention:
 - `SKIP ... no toploader found`: no slide was made for that photo.
   Usually the toploader was cut off at the frame edge, or it's a slab.
 - `WARNING: extended the backdrop past the photo edge`: the card was shot
-  close, so the crop ran past the photo and the edge pixels were repeated
-  to fill it. Usually invisible on the smooth backdrop. Glance at the top
-  and sides of that slide.
+  close, so the crop ran past the photo and the photo was mirrored at its
+  edge to fill it. Usually invisible on the smooth backdrop. Glance at the
+  top and sides of that slide.
 
 Don't hand-patch a bad slide by cropping it some other way. That breaks the
 alignment the whole tool exists for. Report it instead, and suggest a reshoot
