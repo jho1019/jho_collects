@@ -8,7 +8,8 @@ Each card photo is cropped to 1080x1350 (4:5) so the toploader is the same size
 and in the same spot on every slide, so the card never moves as the viewer
 swipes. The toploader is the anchor because it is a fixed 3"x4" object; its
 sides and top edge give scale and position even though the stand hides the
-bottom. The optional --cover (boxes or packs) is cropped around the product
+bottom. Two or more cards in one photo are centred as a group, shrunk evenly
+only if they would not otherwise fit. The optional --cover (boxes or packs) is cropped around the product
 instead, since it is not card-shaped. A card used as the cover is just passed
 first among the photos.
 
@@ -37,6 +38,7 @@ except ImportError:  # HEIC unsupported, JPEG/PNG still fine
 
 CANVAS_W, CANVAS_H = 1080, 1350
 TOPLOADER_RATIO = 4 / 3  # height / width of a 3"x4" toploader
+GROUP_MARGIN = 70  # px each side when several cards are shrunk to fit
 WORK = 1000  # detection runs on a copy this many px on the long side
 PHOTO_EXTS = {".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"}
 
@@ -48,14 +50,17 @@ def load(path):
     return np.asarray(ImageOps.exif_transpose(img).convert("RGB")), icc
 
 
-def subject(rgb):
+def subjects(rgb):
     """
-    Bounding box (x, y, w, h) of the busiest region, at working resolution.
+    Bounding boxes (x, y, w, h) of the busy regions, largest first, at working
+    resolution. A card with big plain areas can break into overlapping pieces,
+    so overlapping boxes are merged back into one. Boxes under a third the
+    size of the largest (stray glare) are dropped.
 
     The backdrop is a smooth gradient and the subject (printed card, product
     box) is dense with edges, so blurred gradient magnitude separates them
-    regardless of backdrop colour or lighting. Returns the box, the gray image
-    and the scale back to full resolution.
+    regardless of backdrop colour or lighting. Returns the boxes, the gray
+    image and the scale back to full resolution.
     """
     scale = WORK / max(rgb.shape[:2])
     small = cv2.resize(rgb, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
@@ -66,9 +71,28 @@ def subject(rgb):
     _, mask = cv2.threshold(busy, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, np.ones((15, 15), np.uint8))
     contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    if not contours:
-        return None, gray, scale
-    return cv2.boundingRect(max(contours, key=cv2.contourArea)), gray, scale
+    boxes = merge_overlapping([cv2.boundingRect(c) for c in contours])
+    boxes.sort(key=lambda b: b[2] * b[3], reverse=True)
+    return [b for b in boxes if b[2] * b[3] >= boxes[0][2] * boxes[0][3] / 3], gray, scale
+
+
+def merge_overlapping(boxes):
+    boxes = list(boxes)
+    merged = True
+    while merged:
+        merged = False
+        for i in range(len(boxes)):
+            for j in range(i + 1, len(boxes)):
+                (ax, ay, aw, ah), (bx, by, bw, bh) = boxes[i], boxes[j]
+                if ax < bx + bw and bx < ax + aw and ay < by + bh and by < ay + ah:
+                    x, y = min(ax, bx), min(ay, by)
+                    boxes[i] = (x, y, max(ax + aw, bx + bw) - x, max(ay + ah, by + bh) - y)
+                    del boxes[j]
+                    merged = True
+                    break
+            if merged:
+                break
+    return boxes
 
 
 def peaks(profile, frac):
@@ -78,24 +102,37 @@ def peaks(profile, frac):
     return [i for i in range(1, len(p) - 1) if p[i] >= thr and p[i] >= p[i - 1] and p[i] >= p[i + 1]]
 
 
-def find_toploader(rgb):
+def find_toploaders(rgb):
     """
-    Toploader (left, top, width) in full-resolution pixels, or None.
+    Each toploader as (left, top, width) in full-resolution pixels, left to
+    right. Empty when none is found.
 
-    Sides are the outermost strong vertical edges across the middle of the
+    Toploaders standing nearly touching read as one subject, so a subject
+    about n toploader-widths wide (a toploader is 3/4 as wide as tall) is
+    split into n equal columns, each searched on its own. Within a column,
+    sides are the outermost strong vertical edges across the middle of the
     subject. The toploader's clear plastic edge is often fainter than the
     card's printed border just inside it, so a second, weaker pass looks a
     little further out for it. The top is the first strong horizontal edge
     between the sides.
     """
-    box, gray, scale = subject(rgb)
-    if box is None:
-        return None
-    x, y, w, h = box
+    boxes, gray, scale = subjects(rgb)
     gx = np.abs(cv2.Sobel(gray, cv2.CV_32F, 1, 0))
     gy = np.abs(cv2.Sobel(gray, cv2.CV_32F, 0, 1))
+    found = []
+    for x, y, w, h in boxes:
+        n = max(1, round(w / (h / TOPLOADER_RATIO)))
+        step = w / n
+        pad = int(0.15 * step)  # outer sides only: never reach into a neighbour
+        for i in range(n):
+            x0 = int(x + i * step) - (pad if i == 0 else 0)
+            x1 = int(x + (i + 1) * step) + (pad if i == n - 1 else 0)
+            found.append(toploader_in(max(0, x0), min(gx.shape[1], x1), y, h, gx, gy))
+    return sorted(tuple(v / scale for v in f) for f in found if f is not None)
 
-    x0, x1 = max(0, x - int(0.15 * w)), min(gray.shape[1], x + w + int(0.15 * w))
+
+def toploader_in(x0, x1, y, h, gx, gy):
+    """(left, top, width) of the toploader between columns x0 and x1, or None."""
     col = gx[y + h // 4:y + h // 2, x0:x1].sum(0)
     strong, weak = peaks(col, 0.35), peaks(col, 0.12)
     if len(strong) < 2:
@@ -111,7 +148,7 @@ def find_toploader(rgb):
     top_peaks = peaks(row, 0.35)
     if not top_peaks:
         return None
-    return left / scale, (y0 + top_peaks[0]) / scale, width / scale
+    return left, y0 + top_peaks[0], width
 
 
 def crop(rgb, cx, cy, crop_w):
@@ -119,7 +156,7 @@ def crop(rgb, cx, cy, crop_w):
     4:5 window of width crop_w centred on (cx, cy), resized to the canvas.
 
     When the window runs past the photo (subject shot close or near an edge)
-    the border pixels are repeated outward. The backdrop is a smooth gradient,
+    the photo is mirrored outward at its edge. The backdrop is a smooth gradient,
     so this reads as more backdrop rather than a visible band.
     """
     crop_h = crop_w * CANVAS_H / CANVAS_W
@@ -128,29 +165,39 @@ def crop(rgb, cx, cy, crop_w):
     H, W = rgb.shape[:2]
     pad = max(0, -left, -top, right - W, bottom - H)
     if pad:
-        rgb = np.pad(rgb, ((pad, pad), (pad, pad), (0, 0)), mode="edge")
+        rgb = np.pad(rgb, ((pad, pad), (pad, pad), (0, 0)), mode="reflect")
     window = rgb[top + pad:bottom + pad, left + pad:right + pad]
     return Image.fromarray(window).resize((CANVAS_W, CANVAS_H), Image.LANCZOS), pad > 0
 
 
 def card_slide(rgb, toploader_width):
-    """Slide with the toploader `toploader_width` px wide, centred on the canvas."""
-    found = find_toploader(rgb)
-    if found is None:
+    """
+    Slide with each toploader `toploader_width` px wide, the group centred.
+
+    Several cards in one photo are framed as one group: centred together, at
+    the single-card size when they fit, otherwise shrunk evenly until the
+    group spans the canvas less GROUP_MARGIN a side. The vertical centre is
+    the same as a single card's, so the eye line holds across slides.
+    """
+    found = find_toploaders(rgb)
+    if not found:
         return None, "no toploader found"
-    left, top, width = found
-    cx, cy = left + width / 2, top + width * TOPLOADER_RATIO / 2
-    slide, padded = crop(rgb, cx, cy, width * CANVAS_W / toploader_width)
+    lefts, tops, widths = np.array(found).T
+    group_w = (lefts + widths).max() - lefts.min()
+    px = min(toploader_width / widths.mean(), (CANVAS_W - 2 * GROUP_MARGIN) / group_w)
+    cx = (lefts.min() + (lefts + widths).max()) / 2
+    cy = (tops + widths * TOPLOADER_RATIO / 2).mean()
+    slide, padded = crop(rgb, cx, cy, CANVAS_W / px)
     return slide, "extended the backdrop past the photo edge" if padded else None
 
 
 def cover_slide(rgb, fill=0.85):
     """Slide centred on the product, which fills `fill` of the frame."""
-    box, _, scale = subject(rgb)
-    if box is None:
+    boxes, _, scale = subjects(rgb)
+    if not boxes:
         H, W = rgb.shape[:2]
         return crop(rgb, W / 2, H / 2, min(W, H * CANVAS_W / CANVAS_H))[0], "no product found"
-    x, y, w, h = (np.array(box) / scale)
+    x, y, w, h = (np.array(boxes[0]) / scale)
     crop_w = max(w, h * CANVAS_W / CANVAS_H) / fill
     H, W = rgb.shape[:2]
     crop_w = min(crop_w, W, H * CANVAS_W / CANVAS_H)  # cover never needs padding

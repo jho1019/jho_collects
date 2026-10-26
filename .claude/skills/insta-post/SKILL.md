@@ -16,6 +16,13 @@ not the card: the toploader is a fixed 3x4 size, and its sides and top edge
 give scale and position even though the stand hides its bottom. Each slide is
 a crop of the original photo, so the backdrop, stand and reflections stay real.
 
+**Two (or more) cards in one photo** are handled automatically. The
+toploaders are found individually, then framed as a group centred on the
+slide, with the same vertical centre as single-card slides. They keep the
+single-card size if they fit; otherwise they shrink evenly until the group
+spans the slide with a small margin on each side. A pair therefore looks
+smaller than a single card. That's expected, so don't "fix" it.
+
 Slabs are not supported yet. They have a different shape (taller, with a label)
 and will need their own ratio in the script. If the user sends slab photos, say
 so instead of running the script.
