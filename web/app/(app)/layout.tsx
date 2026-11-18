@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { logout } from "@/app/login/actions";
 import Sidebar from "@/components/Sidebar";
+import ThemeToggle from "@/components/ThemeToggle";
 
 // The sidebar lives HERE, not in the root layout, so /login stays outside it.
 // Putting nav in app/layout.tsx would wrap a signed-out user in chrome for a
@@ -29,7 +30,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen flex-col md:pl-56">
         {/* Sign-out lives in Sidebar's own drawer/rail below md — this bar
             would otherwise double up with its sticky mobile top bar. */}
-        <header className="hidden items-center justify-end border-b border-on-page/20 px-6 py-3 md:flex">
+        <header className="hidden items-center justify-end gap-3 border-b border-on-page/20 px-6 py-3 md:flex">
+          <ThemeToggle />
           <form action={logout}>
             <button
               type="submit"

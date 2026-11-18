@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { brandFont } from "@/lib/fonts";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type NavItem = {
   href: string;
@@ -128,6 +129,10 @@ export default function Sidebar({
           Sign out
         </button>
       </form>
+      {/* The desktop header carries the theme toggle; below md it lives here. */}
+      <div className="px-2.5 pt-2 md:hidden">
+        <ThemeToggle tone="surface" />
+      </div>
     </div>
   );
 

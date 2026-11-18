@@ -78,8 +78,32 @@
  * Off-white rather than pure white text, and navy rather than black, to cut
  * glare. text-surface on a brand fill (buttons) is 6.6; on accent-ink 7.0.
  */
+/*
+ * The header toggle can override the device: it sets data-theme="light" or
+ * "dark" on <html> (an inline script in app/layout.tsx applies the saved
+ * choice before first paint). No attribute means "system" — the media query
+ * below keeps following the device. The dark token values appear twice
+ * (forced + system); keep the two blocks in sync.
+ */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-page:        #0f1420;
+  --color-surface:     #182032;
+  --color-brand:       #7ea6e8;
+  --color-brand-soft:  #4a5b7d;
+  --color-accent:      #b8566f;
+  --color-accent-ink:  #f08ca5;
+  --color-ink:         #e3e8f0;
+  --color-ink-muted:   #9aa6ba;
+  --color-on-page:     #e3e8f0;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     color-scheme: dark;
     --color-page:        #0f1420;
     --color-surface:     #182032;
