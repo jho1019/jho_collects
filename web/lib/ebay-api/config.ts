@@ -72,6 +72,16 @@ export interface EbayConfig {
   extraScopesByDefault: boolean;
 }
 
+/**
+ * Marketplace Insights (sold comps) is an opt-in upgrade: the production
+ * keyset was refused the scope (invalid_scope, 2026-11-21). Off unless
+ * EBAY_INSIGHTS_ENABLED=true; while off, comps never mint an insights token or
+ * call the API. The probe route ignores this so access can be re-tested.
+ */
+export function insightsEnabled(env: Env = process.env): boolean {
+  return env.EBAY_INSIGHTS_ENABLED?.trim().toLowerCase() === "true";
+}
+
 export function getEbayEnvironment(env: Env = process.env): EbayEnvironment {
   const v = (env.EBAY_ENV ?? "production").trim().toLowerCase();
   if (v === "production" || v === "sandbox") return v;

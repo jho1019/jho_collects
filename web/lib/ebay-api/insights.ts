@@ -1,11 +1,14 @@
-import { INSIGHTS_SCOPE, SCOPE_BASE, type EbayConfig } from "./config";
+import { INSIGHTS_SCOPE, insightsEnabled, SCOPE_BASE, type EbayConfig, type Env } from "./config";
 import { ApiError, EbayApiError } from "./errors";
 import { EbayRest, type Amount, type FetchLike } from "./http";
 import { getAppToken, OAuthError } from "./oauth";
 import { browseParams, type CompQuery } from "./browse";
+import { boolParam } from "./respond";
 
 // Marketplace Insights API — SOLD items, last 90 days. Restricted: eBay
 // grants it per application on request, and most sellers do not have it.
+// Johnny's production keyset does not (invalid_scope), so comps use it only
+// when EBAY_INSIGHTS_ENABLED=true. probeInsights runs regardless.
 //
 //   GET /buy/marketplace_insights/v1_beta/item_sales/search
 //   app token (client credentials) with scope .../buy.marketplace.insights
@@ -44,6 +47,15 @@ export function classifyInsightsError(err: unknown): never {
     throw new InsightsUnavailable(`Marketplace Insights denied: ${msg}`, err.upstreamStatus, true);
   }
   throw err;
+}
+
+/**
+ * Should this comps request call Marketplace Insights? Only when the env flag
+ * is on; then `?insights=0` skips it for one request. `?insights=1` cannot
+ * turn it on while the flag is off.
+ */
+export function insightsForRequest(sp: URLSearchParams, env: Env = process.env): boolean {
+  return insightsEnabled(env) && boolParam(sp, "insights", true);
 }
 
 export function insightsRest(cfg: EbayConfig, fetchImpl: FetchLike): EbayRest {

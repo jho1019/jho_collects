@@ -3,7 +3,7 @@ import { browseParams, clearBrowseCache, parseCompQuery, searchActive, type Comp
 import { getComps, matchOwnSales, priceStats, titleMatches, queryWords } from "../comps";
 import { ApiError } from "../errors";
 import { EbayRest } from "../http";
-import { insightsRest, probeInsights, searchSold } from "../insights";
+import { insightsForRequest, insightsRest, probeInsights, searchSold } from "../insights";
 import { normaliseOrder, type SaleOrder } from "../fulfillment";
 import { clearAppTokenCache } from "../oauth";
 import { jsonRes, mockFetch, testConfig } from "./helpers";
@@ -33,7 +33,7 @@ function order(id: string, title: string, price: string, extra: Partial<Paramete
   });
 }
 
-function wire() {
+function wire(insights = true) {
   const m = mockFetch();
   m.on("POST", "/identity/v1/oauth2/token", { access_token: "app-token", expires_in: 7200 });
   const browseRest = new EbayRest({ apiBase: "https://api.ebay.com", fetch: m.fetch, token: async () => "app-token", marketplaceId: "EBAY_US" });
@@ -45,7 +45,7 @@ function wire() {
   ];
   const deps = {
     browse: (q: CompQuery) => searchActive(browseRest, q),
-    sold: (q: CompQuery) => searchSold(insightsRest(testConfig, m.fetch), q),
+    sold: insights ? (q: CompQuery) => searchSold(insightsRest(testConfig, m.fetch), q) : null,
     ownOrders: async (days: number) => {
       expect(days).toBe(90);
       return ownOrders;
@@ -54,22 +54,36 @@ function wire() {
   return { m, deps };
 }
 
-describe("comps fallback", () => {
-  it("Marketplace Insights 403 -> sold_comps.available=false + own sales + Browse stats", async () => {
-    const { m, deps } = wire();
+describe("comps sold signal", () => {
+  it("insights disabled (default): own sales are primary, no insights token or call", async () => {
+    const { m, deps } = wire(false);
     m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["1.00", "1.50", "2.00", "2.50", "3.00", "250.00"]));
-    m.on("GET", "/buy/marketplace_insights/", () =>
-      jsonRes({ errors: [{ errorId: 1100, domain: "ACCESS", message: "Access denied", longMessage: "Insufficient permissions to fulfill the request." }] }, 403));
 
     const out = await getComps(deps, Q);
     expect(out.active.stats).toEqual({ count: 5, min: 1, max: 3, mean: 2, median: 2, p25: 1.5, p75: 2.5, outliers_excluded: 1 });
-    expect(out.sold_comps.available).toBe(false);
+    expect(out.sold_comps).toMatchObject({ available: false, reason: "marketplace_insights_not_enabled", primary_source: "own_sales" });
+    expect(out.sold_comps).not.toHaveProperty("detail");
     if (out.sold_comps.available) throw new Error("unreachable");
-    expect(out.sold_comps.reason).toMatch(/Insufficient permissions/);
     expect(out.sold_comps.fallback.source).toBe("own_sales");
     expect(out.sold_comps.fallback.items.map((s) => s.order_id)).toEqual(["o1", "o2"]);
     expect(out.sold_comps.fallback.stats).toMatchObject({ count: 2, median: 2.25 });
 
+    expect(m.calls.some((c) => c.url.includes("oauth2/token"))).toBe(false);
+    expect(m.calls.some((c) => c.url.includes("marketplace_insights"))).toBe(false);
+  });
+
+  it("insights enabled + 403 -> marketplace_insights_denied, own sales primary", async () => {
+    const { m, deps } = wire();
+    m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["5.00"]));
+    m.on("GET", "/buy/marketplace_insights/", () =>
+      jsonRes({ errors: [{ errorId: 1100, domain: "ACCESS", message: "Access denied", longMessage: "Insufficient permissions to fulfill the request." }] }, 403));
+
+    const out = await getComps(deps, Q);
+    expect(out.sold_comps).toMatchObject({
+      available: false, reason: "marketplace_insights_denied", primary_source: "own_sales",
+      detail: expect.stringMatching(/Insufficient permissions/),
+      fallback: { source: "own_sales", stats: { count: 2 } },
+    });
     // the insights call used an app token minted with the insights scope
     const mint = m.calls.find((c) => c.url.includes("oauth2/token"))!;
     expect(new URLSearchParams(mint.body).get("scope")).toContain("buy.marketplace.insights");
@@ -77,12 +91,24 @@ describe("comps fallback", () => {
     expect(JSON.stringify(out)).not.toContain("app-token");
   });
 
-  it("invalid_scope when minting the token is also a clean fallback", async () => {
+  it("insights enabled + invalid_scope on mint -> marketplace_insights_denied", async () => {
     const { m, deps } = wire();
     m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["5.00"]));
     m.on("POST", "/identity/v1/oauth2/token", () => jsonRes({ error: "invalid_scope", error_description: "The requested scope is invalid" }, 400));
     const out = await getComps(deps, Q);
-    expect(out.sold_comps).toMatchObject({ available: false, reason: expect.stringMatching(/invalid_scope/) });
+    expect(out.sold_comps).toMatchObject({
+      available: false, reason: "marketplace_insights_denied", primary_source: "own_sales",
+      detail: expect.stringMatching(/invalid_scope/),
+    });
+    expect(m.calls.some((c) => c.url.includes("marketplace_insights"))).toBe(false);
+  });
+
+  it("insights enabled + other eBay failure -> marketplace_insights_failed", async () => {
+    const { m, deps } = wire();
+    m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["5.00"]));
+    m.on("GET", "/buy/marketplace_insights/", () => jsonRes({ errors: [] }, 500));
+    const out = await getComps(deps, Q);
+    expect(out.sold_comps).toMatchObject({ available: false, reason: "marketplace_insights_failed", primary_source: "own_sales" });
   });
 
   it("uses sold comps when Marketplace Insights answers", async () => {
@@ -95,22 +121,30 @@ describe("comps fallback", () => {
       ],
     });
     const out = await getComps(deps, Q);
-    expect(out.sold_comps).toMatchObject({ available: true, source: "marketplace_insights", stats: { count: 2, median: 5 } });
+    expect(out.sold_comps).toMatchObject({ available: true, source: "marketplace_insights", primary_source: "marketplace_insights", stats: { count: 2, median: 5 } });
   });
 
-  it("own-sales failure does not sink the response", async () => {
-    const { m, deps } = wire();
+  it("own-sales failure (no user token yet) does not sink the response", async () => {
+    const { m, deps } = wire(false);
     m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["5.00"]));
-    m.on("GET", "/buy/marketplace_insights/", () => jsonRes({ errors: [{ errorId: 1100 }] }, 403));
     deps.ownOrders = async () => { throw new ApiError(503, "ebay_not_connected", "No eBay account is connected."); };
     const out = await getComps(deps, Q);
-    expect(out.sold_comps).toMatchObject({ available: false, fallback: { error: expect.stringMatching(/No eBay account is connected/), items: [] } });
+    expect(out.sold_comps).toMatchObject({ available: false, primary_source: "own_sales", fallback: { error: expect.stringMatching(/No eBay account is connected/), items: [] } });
+  });
+
+  it("EBAY_INSIGHTS_ENABLED gates insights; ?insights=0 skips, ?insights=1 cannot force it", () => {
+    const sp = (s: string) => new URLSearchParams(s);
+    expect(insightsForRequest(sp(""), {})).toBe(false);
+    expect(insightsForRequest(sp("insights=1"), {})).toBe(false);
+    expect(insightsForRequest(sp("insights=1"), { EBAY_INSIGHTS_ENABLED: "1" })).toBe(false);
+    expect(insightsForRequest(sp(""), { EBAY_INSIGHTS_ENABLED: "true" })).toBe(true);
+    expect(insightsForRequest(sp("insights=1"), { EBAY_INSIGHTS_ENABLED: "TRUE" })).toBe(true);
+    expect(insightsForRequest(sp("insights=0"), { EBAY_INSIGHTS_ENABLED: "true" })).toBe(false);
   });
 
   it("caches Browse results for repeated identical queries", async () => {
-    const { m, deps } = wire();
+    const { m, deps } = wire(false);
     m.on("GET", "/buy/browse/v1/item_summary/search", browseFixture(["5.00"]));
-    m.on("GET", "/buy/marketplace_insights/", () => jsonRes({ errors: [] }, 403));
     await getComps(deps, Q);
     await getComps(deps, Q);
     expect(m.calls.filter((c) => c.url.includes("/buy/browse/"))).toHaveLength(1);

@@ -6,12 +6,19 @@ import { round2 } from "./money";
 
 // Comps = active asking prices (Browse) + sold prices.
 //
-// Sold prices come from Marketplace Insights when the keyset has it. When it
-// does not (the expected case), the response says so explicitly —
-// `sold_comps.available: false` with the reason — and falls back to the
-// seller's OWN eBay sales over the last 90 days whose titles contain every
-// query word. Own sales are a thin sample; they are labelled as such, never
-// presented as market data.
+// The primary, supported sold signal is the seller's OWN eBay sales over the
+// last 90 days whose titles contain every query word
+// (`sold_comps.primary_source: "own_sales"`, data under `fallback` — the key
+// predates this and is kept for API stability). Own sales are a thin sample
+// and labelled as such, never presented as market data.
+//
+// Marketplace Insights is an optional upgrade, used only when the caller
+// passes a `sold` function (route: EBAY_INSIGHTS_ENABLED=true). Without one,
+// no insights token is minted and no insights call is made; the response says
+// `available: false, reason: "marketplace_insights_not_enabled"`. With one,
+// a denial reports `marketplace_insights_denied` (with eBay's `detail`) and
+// any other eBay failure `marketplace_insights_failed`; both fall back to own
+// sales.
 //
 // Statistics are over item price only (shipping excluded), floats rounded to
 // cents. Outliers are dropped with Tukey fences (1.5 x IQR) when
@@ -97,46 +104,68 @@ export function matchOwnSales(orders: SaleOrder[], q: CompQuery): OwnSale[] {
 
 export interface CompsDeps {
   browse: (q: CompQuery) => Promise<BrowseResult>;
-  /** Throws InsightsUnavailable when there is no access. */
-  sold: (q: CompQuery) => Promise<SoldComp[]>;
+  /**
+   * Marketplace Insights sold search, or null when not enabled (the default).
+   * Throws InsightsUnavailable when there is no access.
+   */
+  sold: ((q: CompQuery) => Promise<SoldComp[]>) | null;
   /** Seller's own orders created in the last `days` days. */
   ownOrders: (days: number) => Promise<SaleOrder[]>;
 }
 
 export const OWN_SALES_DAYS = 90;
 
+export type SoldUnavailableReason =
+  | "marketplace_insights_not_enabled"
+  | "marketplace_insights_denied"
+  | "marketplace_insights_failed";
+
+async function ownSales(deps: CompsDeps, q: CompQuery, excludeOutliers: boolean) {
+  try {
+    const own = matchOwnSales(await deps.ownOrders(OWN_SALES_DAYS), q);
+    return {
+      source: "own_sales" as const,
+      days: OWN_SALES_DAYS,
+      note: "Your own eBay sales whose titles contain every query word. A small sample, not market data.",
+      stats: priceStats(own.map((s) => toNum(s.unit_price)), excludeOutliers),
+      items: own,
+    };
+  } catch (fe) {
+    if (!(fe instanceof ApiError)) throw fe;
+    return { source: "own_sales" as const, days: OWN_SALES_DAYS, error: fe.message, stats: priceStats([], false), items: [] as OwnSale[] };
+  }
+}
+
 export async function getComps(deps: CompsDeps, q: CompQuery, excludeOutliers = true) {
   const active = await deps.browse(q);
   const activeStats = priceStats(active.items.map((i) => toNum(i.price)), excludeOutliers);
 
+  let reason: SoldUnavailableReason = "marketplace_insights_not_enabled";
+  let detail: string | undefined;
   let sold_comps;
-  try {
-    const items = await deps.sold(q);
-    sold_comps = {
-      available: true as const,
-      source: "marketplace_insights" as const,
-      stats: priceStats(items.map((i) => toNum(i.price)), excludeOutliers),
-      items,
-    };
-  } catch (e) {
-    if (!(e instanceof InsightsUnavailable) && !(e instanceof ApiError)) throw e;
-    const reason = e instanceof InsightsUnavailable ? e.reason : `Marketplace Insights failed: ${e.message}`;
-    let fallback;
+  if (deps.sold) {
     try {
-      const own = matchOwnSales(await deps.ownOrders(OWN_SALES_DAYS), q);
-      fallback = {
-        source: "own_sales" as const,
-        days: OWN_SALES_DAYS,
-        note: "Your own eBay sales whose titles contain every query word. A small sample, not market data.",
-        stats: priceStats(own.map((s) => toNum(s.unit_price)), excludeOutliers),
-        items: own,
+      const items = await deps.sold(q);
+      sold_comps = {
+        available: true as const,
+        source: "marketplace_insights" as const,
+        primary_source: "marketplace_insights" as const,
+        stats: priceStats(items.map((i) => toNum(i.price)), excludeOutliers),
+        items,
       };
-    } catch (fe) {
-      if (!(fe instanceof ApiError)) throw fe;
-      fallback = { source: "own_sales" as const, days: OWN_SALES_DAYS, error: fe.message, stats: priceStats([], false), items: [] };
+    } catch (e) {
+      if (!(e instanceof InsightsUnavailable) && !(e instanceof ApiError)) throw e;
+      reason = e instanceof InsightsUnavailable ? "marketplace_insights_denied" : "marketplace_insights_failed";
+      detail = e instanceof InsightsUnavailable ? e.reason : e.message;
     }
-    sold_comps = { available: false as const, reason, fallback };
   }
+  sold_comps ??= {
+    available: false as const,
+    reason,
+    ...(detail ? { detail } : {}),
+    primary_source: "own_sales" as const,
+    fallback: await ownSales(deps, q, excludeOutliers),
+  };
 
   return {
     query: { q: q.q, category_id: q.categoryId, grader: q.grader ?? null, grade: q.grade ?? null, graded: q.graded ?? null, limit: q.limit, exclude_outliers: excludeOutliers },
