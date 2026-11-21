@@ -6,7 +6,13 @@ import { exchangeCode, hashState } from "@/lib/ebay-api/oauth";
 import { consumeOAuthState } from "@/lib/ebay-api/store";
 
 // GET /api/ebay/oauth/callback?code=...&state=...      (eBay "auth accepted URL")
-// GET /api/ebay/oauth/callback?declined=1               (eBay "auth declined URL")
+// GET /api/ebay/oauth/callback[?state=...]              (eBay "auth declined URL")
+//
+// The RuName's accepted AND declined URLs are both exactly
+// https://jho-collects.vercel.app/api/ebay/oauth/callback. eBay's decline
+// redirect carries no `code` (it may carry `state`, or `error=access_denied`),
+// so "no code" is treated as a decline: a friendly page, nothing stored, the
+// state left to expire. `?declined=1` is still honoured for old RuNames.
 //
 // No x-api-key: eBay redirects the owner's browser here. The CSRF guard is
 // the `state`: its hash must exist in ebay_oauth_states, unexpired and unused,
@@ -15,12 +21,13 @@ import { consumeOAuthState } from "@/lib/ebay-api/store";
 
 export async function GET(req: NextRequest): Promise<Response> {
   const sp = req.nextUrl.searchParams;
-  if (sp.get("declined") || sp.get("error")) {
-    return htmlPage("eBay authorization declined", "No changes were made. You can start again from /api/ebay/oauth/start.", false);
-  }
   const code = sp.get("code");
   const state = sp.get("state");
-  if (!code || !state || state.length > 200 || code.length > 2000) {
+  if (sp.get("declined") || sp.get("error") || !code) {
+    return htmlPage("eBay authorization declined",
+      "eBay was not connected, and nothing was saved. If that was a mistake, start again from /api/ebay/oauth/start.", false, 200);
+  }
+  if (!state || state.length > 200 || code.length > 2000) {
     return htmlPage("eBay authorization failed", "The callback was missing its code or state.", false);
   }
 
