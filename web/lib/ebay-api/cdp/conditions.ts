@@ -61,15 +61,48 @@ export const GRADER_IDS: Record<string, string> = {
 };
 
 /**
- * Full aspect value for Browse `aspect_filter` (comps), keyed by value ID.
- * UNVERIFIED — eBay's aspect value strings.
+ * Full "Professional Grader" aspect value for Browse `aspect_filter` (comps),
+ * keyed by value ID. The STRINGS were verified live against production Browse
+ * on 2026-11-21 (refinement.aspectDistributions, category 261328); the value
+ * IDs they hang off are still the unverified ones above. Graders absent here
+ * (PCA, ACE, ARK, other) did not appear in eBay's distribution.
+ *
+ * Exact strings matter: eBay silently IGNORES an aspect_filter value it does
+ * not recognise (e.g. "PSA") and returns unfiltered results, so comps refuse a
+ * grader with no entry here rather than send a raw value.
  */
 export const GRADER_ASPECT_NAMES: Record<string, string> = {
   "275010": "Professional Sports Authenticator (PSA)",
+  "275011": "Beckett Collectors Club Grading (BCCG)",
+  "275012": "Beckett Vintage Grading (BVG)",
   "275013": "Beckett Grading Services (BGS)",
+  "275014": "Certified Sports Guaranty (CSG)",
   "275015": "Certified Guaranty Company (CGC)",
   "275016": "Sportscard Guaranty Corporation (SGC)",
+  "275017": "K Sportscard Authentication (KSA)",
+  "275018": "Gem Mint Authentication (GMA)",
+  "275019": "Hybrid Grading Approach (HGA)",
+  "2750110": "International Sports Authentication (ISA)",
+  "2750112": "Gold Standard Grading (GSG)",
+  "2750113": "Platin Grading Service (PGS)",
+  "2750114": "MNT Grading (MNT)",
   "2750115": "Technical Authentication & Grading (TAG)",
+  "2750116": "Rare Edition (Rare)",
+  "2750117": "Revolution Card Grading (RCG)",
+  "2750120": "Card Grading Australia (CGA)",
+  "2750121": "Trading Card Grading (TCG)",
+};
+
+/**
+ * "Grade" aspect values for Browse, keyed by lower-case input. Verified live
+ * 2026-11-21: "1".."10" in half steps, "Authentic", "Authentic Altered",
+ * "Authentic - Trimmed". Same silent-ignore hazard as graders.
+ */
+export const GRADE_ASPECT_VALUES: Record<string, string> = {
+  ...Object.fromEntries(Array.from({ length: 19 }, (_, i) => String(1 + i / 2)).map((g) => [g, g])),
+  authentic: "Authentic",
+  "authentic altered": "Authentic Altered",
+  "authentic - trimmed": "Authentic - Trimmed",
 };
 
 /** Grade string -> value ID. UNVERIFIED. */

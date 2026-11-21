@@ -1,7 +1,7 @@
 import { TtlCache } from "./cache";
 import { ApiError } from "./errors";
 import type { Amount, EbayRest } from "./http";
-import { CONDITION_GRADED, CONDITION_UNGRADED, GRADER_ASPECT_NAMES, GRADER_IDS } from "./cdp/conditions";
+import { CONDITION_GRADED, CONDITION_UNGRADED, GRADE_ASPECT_VALUES, GRADER_ASPECT_NAMES, GRADER_IDS } from "./cdp/conditions";
 import { DEFAULT_CATEGORY_ID } from "./cdp/payloads";
 
 // Browse API item_summary/search — ACTIVE listings (asking prices, not sales).
@@ -45,6 +45,14 @@ export function parseCompQuery(sp: URLSearchParams): CompQuery {
   for (const [k, v] of [["grader", grader], ["grade", grade]] as const) {
     if (v && !SAFE_ASPECT.test(v)) throw new ApiError(400, "invalid_param", `${k} contains unsupported characters`);
   }
+  // eBay ignores an aspect value it does not know and returns UNFILTERED
+  // results, so an unmapped grader/grade is a 400, never passed through raw.
+  if (grader && !graderAspectValue(grader)) {
+    throw new ApiError(400, "invalid_param", "grader is not one eBay recognises as a Professional Grader (try PSA, BGS, SGC, CGC, TAG)");
+  }
+  if (grade && !gradeAspectValue(grade)) {
+    throw new ApiError(400, "invalid_param", "grade must be 1-10 in half steps, or Authentic / Authentic Altered / Authentic - Trimmed");
+  }
   const gradedRaw = sp.get("graded");
   const graded = gradedRaw === null || gradedRaw === "" ? (grader || grade ? true : undefined) : /^(1|true|yes)$/i.test(gradedRaw);
   const limitRaw = sp.get("limit");
@@ -53,10 +61,21 @@ export function parseCompQuery(sp: URLSearchParams): CompQuery {
   return { q, categoryId, grader, grade, graded, limit };
 }
 
-/** Full eBay aspect value for a grader ("PSA" -> "Professional Sports Authenticator (PSA)"). UNVERIFIED names. */
-export function graderAspectValue(grader: string): string {
-  const id = GRADER_IDS[grader.toLowerCase()];
-  return (id && GRADER_ASPECT_NAMES[id]) || grader;
+/** Exact eBay aspect value for a grader ("PSA" -> "Professional Sports Authenticator (PSA)"), or null. Verified live. */
+export function graderAspectValue(grader: string): string | null {
+  const id = GRADER_IDS[grader.trim().toLowerCase()];
+  return (id && GRADER_ASPECT_NAMES[id]) || null;
+}
+
+/** Exact eBay "Grade" aspect value ("10", "9.5", "Authentic"), or null. Verified live. */
+export function gradeAspectValue(grade: string): string | null {
+  const g = grade.trim().toLowerCase().replace(/^(\d+(?:\.5)?)\.0$/, "$1");
+  return GRADE_ASPECT_VALUES[g] ?? null;
+}
+
+function aspect(name: string, value: string | null, raw: string): string {
+  if (!value) throw new ApiError(400, "invalid_param", `${name} "${raw}" has no eBay aspect value`);
+  return `${name}:{${value}}`;
 }
 
 export function browseParams(q: CompQuery): Record<string, string | number> {
@@ -64,8 +83,8 @@ export function browseParams(q: CompQuery): Record<string, string | number> {
   if (q.graded === true) filters.push(`conditionIds:{${CONDITION_GRADED}}`);
   if (q.graded === false) filters.push(`conditionIds:{${CONDITION_UNGRADED}}`);
   const aspects: string[] = [];
-  if (q.grader) aspects.push(`Professional Grader:{${graderAspectValue(q.grader)}}`);
-  if (q.grade) aspects.push(`Grade:{${q.grade}}`);
+  if (q.grader) aspects.push(aspect("Professional Grader", graderAspectValue(q.grader), q.grader));
+  if (q.grade) aspects.push(aspect("Grade", gradeAspectValue(q.grade), q.grade));
   return {
     q: q.q,
     category_ids: q.categoryId,

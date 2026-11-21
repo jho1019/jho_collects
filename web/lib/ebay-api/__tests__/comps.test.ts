@@ -134,6 +134,20 @@ describe("browse query", () => {
     expect(() => parseCompQuery(new URLSearchParams("q=ab&limit=500"))).toThrow(/limit/);
     expect(() => parseCompQuery(new URLSearchParams("q=ab&grader={x}"))).toThrow(/unsupported/);
   });
+
+  // eBay silently ignores unknown aspect values (verified live), so these must
+  // be refused rather than sent raw and come back unfiltered.
+  it("maps graders and grades to the exact live aspect values, refusing unknowns", () => {
+    const p = (qs: string) => browseParams(parseCompQuery(new URLSearchParams(qs))).aspect_filter;
+    expect(p("q=x1&grader=bgs&grade=9.5")).toBe("categoryId:261328,Professional Grader:{Beckett Grading Services (BGS)},Grade:{9.5}");
+    expect(p("q=x1&grader=TAG")).toBe("categoryId:261328,Professional Grader:{Technical Authentication & Grading (TAG)}");
+    expect(p("q=x1&grader=Sportscard Guaranty&grade=10.0")).toBe("categoryId:261328,Professional Grader:{Sportscard Guaranty Corporation (SGC)},Grade:{10}");
+    expect(p("q=x1&grade=authentic altered")).toBe("categoryId:261328,Grade:{Authentic Altered}");
+    expect(() => parseCompQuery(new URLSearchParams("q=x1&grader=Acme Grading"))).toThrow(/grader is not one eBay recognises/);
+    expect(() => parseCompQuery(new URLSearchParams("q=x1&grader=ARK"))).toThrow(/grader/); // no live aspect value seen
+    expect(() => parseCompQuery(new URLSearchParams("q=x1&grade=11"))).toThrow(/grade must be/);
+    expect(() => parseCompQuery(new URLSearchParams("q=x1&grade=9.7"))).toThrow(/grade must be/);
+  });
 });
 
 describe("stats + matching", () => {
