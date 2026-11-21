@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:live": "EBAY_LIVE=1 vitest run live --silent=false",
     "test:watch": "vitest"
   },
   "dependencies": {
