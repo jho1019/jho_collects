@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { parseEbayReport, splitCents, type EbayRow } from "@/lib/ebay/parse";
+import { parseEbayReport, splitCents } from "@/lib/ebay/parse";
 
 // Port of importers/load_ebay.py. Idempotent: sale/refund rows dedupe on
 // source_ref, buyers upsert on (user_id, platform, platform_username),
