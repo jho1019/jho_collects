@@ -22,6 +22,8 @@ build/
 backups/
 *.csv
 !docs/**/*.csv
+# De-identified test fixtures only (scrubbed: no seller location, emails or photo hosts)
+!web/lib/ebay-api/__tests__/fixtures/*.csv
 tmp/
 scratch/
 
