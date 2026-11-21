@@ -13,12 +13,14 @@ web dashboard (local now, Vercel later).
 CLAUDE.md              project instructions for Claude Code — read first
 docs/
   DECISIONS.md         architecture + rationale — read before changing the data model
+  ebay-api.md          eBay API service: setup, endpoints, CDP mapping, sync
   PHASES.md            six-phase build plan, each with an exit check
   HANDOFF.md           original handoff notes
   reference/           real-world findings (eBay report quirks, known-good figures)
 schema/                *.sql migrations, applied in order (Phase 1, 3.5)
 importers/             parse_ebay.py — transaction report parser (tested)
 .claude/skills/card-entry/   natural-language entry routing skill (auto-loaded)
+web/                   Next.js dashboard + eBay API routes (app/api/ebay/*)
 scripts/
   check_connection.py  Phase 0 connectivity check
   backup.py            dated CSV dump of every table -> ./backups (gitignored)
@@ -36,3 +38,10 @@ scripts/
 
 `.env.local` is gitignored. The secret key and `DATABASE_URL` never reach the
 browser.
+
+## eBay API
+
+Listings (Card Dealer Pro CSV → eBay), repricing, comps, sales and the
+sold-order → card sync run as Next.js routes under `web/app/api/ebay/*`.
+Setup, endpoints and limitations: **docs/ebay-api.md**. Needs
+`schema/024_ebay_api.sql` run in the Supabase SQL editor first.
