@@ -5,9 +5,11 @@ Vercel project, state in the existing Supabase. Built for Yoshi (the agent
 that reprices and reports) and for importing Card Dealer Pro (CDP) exports
 straight into eBay listings.
 
-> **NOT YET VERIFIED AGAINST LIVE eBAY.** No real keyset existed when this
-> was written. Every eBay request and response shape here is from eBay's
-> public documentation and is exercised only by mocked tests. Read
+> **PARTLY VERIFIED AGAINST LIVE eBAY.** The production keyset now exists.
+> App-token reads (Browse, the Insights probe) were checked live on
+> 2026-11-21 — see [Verified live](#verified-live). Everything that needs a
+> user token (Sell, Inventory, Fulfillment, Trading) is still from eBay's
+> docs and mocked tests only: read
 > [Not yet verified](#not-yet-verified-against-live-ebay) before the first
 > real call.
 
@@ -30,6 +32,7 @@ straight into eBay listings.
 - [Sold-order sync](#sold-order-sync)
 - [Marketplace Insights (sold comps)](#marketplace-insights-sold-comps)
 - [Known limitations](#known-limitations)
+- [Verified live](#verified-live)
 - [Not yet verified against live eBay](#not-yet-verified-against-live-ebay)
 
 ## Architecture
@@ -99,13 +102,23 @@ policies. The dashboard itself still uses only the anon key.
 4. **Deploy**, then [connect the eBay account](#connecting-the-ebay-account).
 5. **Create the new shipping policy** in Seller Hub, then
    `GET /api/ebay/policies` and `POST /api/ebay/policies` to save defaults.
-6. **Probe** Marketplace Insights: `GET /api/ebay/insights/probe`.
+6. *(Optional)* **Probe** Marketplace Insights: `GET /api/ebay/insights/probe`.
+   Today's keyset answers `invalid_scope`; comps don't need it.
 7. **Dry-run** a CDP export, then a real import with `publish=false`, check
    Seller Hub, then `publish=true`.
 
 Local dev: `cp web/.env.example web/.env.local`, fill in, `npm run dev`.
 
-Tests: `cd web && npm run test` (vitest, all eBay and Supabase calls mocked).
+Tests: `cd web && npm run test` (vitest, all eBay and Supabase calls mocked;
+the live suite is skipped).
+
+Live checks: `cd web && npm run test:live` with the `EBAY_*` keyset vars in
+the environment. Read-only against **production**: mints an app token, runs
+the real comps code for an ungraded and a PSA 10 query, reads Browse
+refinements and runs the Insights probe. No user token, no Sell / Inventory /
+Fulfillment / Trading call, nothing listed, edited or ended. Prints counts and
+medians, never a key or token. Source:
+`web/lib/ebay-api/__tests__/live/browse.live.test.ts`.
 
 ## Environment variables
 
@@ -124,6 +137,7 @@ All read at request time. `web/.env.example` has the same list with comments.
 | `EBAY_ENV` | no | `production` (default) or `sandbox` |
 | `EBAY_MARKETPLACE_ID` | no | default `EBAY_US` |
 | `EBAY_EXTRA_SCOPES` | no | `1` to request the extra scopes on every consent |
+| `EBAY_INSIGHTS_ENABLED` | no | exactly `true` to let comps call Marketplace Insights. Leave unset until the probe says `available: true` |
 | `EBAY_FULFILLMENT_POLICY_ID` | for real imports | **new** shipping policy; never auto-picked |
 | `EBAY_PAYMENT_POLICY_ID` | no | else ebay_config, else the account's only payment policy |
 | `EBAY_RETURN_POLICY_ID` | no | likewise |
@@ -163,7 +177,12 @@ At <https://developer.ebay.com/my/keys>:
    - *Privacy policy URL*: required by the form; any page you control that
      states how data is used
    - *Your auth accepted URL*: `https://jho-collects.vercel.app/api/ebay/oauth/callback`
-   - *Your auth declined URL*: `https://jho-collects.vercel.app/api/ebay/oauth/callback?declined=1`
+   - *Your auth declined URL*: `https://jho-collects.vercel.app/api/ebay/oauth/callback`
+     (the same URL). eBay's decline redirect carries **no `code`** (possibly
+     `state`, possibly `error=access_denied`); the callback treats any
+     request without a code as a decline: a friendly "nothing was saved"
+     page, no database or eBay call, the unused state just expires. An old
+     `?declined=1` URL still works.
    - choose **OAuth** (not Auth'n'Auth)
 
    Copy the RuName string (looks like `Johnny_Ho-JohnnyHo-Shotim-abcdefg`)
@@ -191,9 +210,11 @@ https://api.ebay.com/oauth/api_scope/commerce.catalog.readonly
 https://api.ebay.com/oauth/api_scope/buy.marketplace.insights
 ```
 
-Uncertainty: `buy.marketplace.insights` is documented by eBay as an
-**application** (client-credentials) scope, which is how this service uses it
-(see `insights.ts`). Whether it can also be granted on a user token is
+`buy.marketplace.insights` is documented by eBay as an **application**
+(client-credentials) scope, which is how this service uses it (see
+`insights.ts`). Verified live: this keyset's client-credentials request for
+it returns 400 `invalid_scope`, so do **not** set `EBAY_EXTRA_SCOPES` — the
+whole consent would fail. Whether it can also be granted on a user token is
 unclear; it is listed as an extra only so a keyset that does carry it can opt
 in. `commerce.catalog.readonly` is requested for future catalog lookups; no
 code uses it yet. Browse uses an app token with only the base scope.
@@ -336,7 +357,23 @@ NULL).
 
 `q` (required), `grader`, `grade`, `graded=true|false`, `category_id`
 (default 261328), `limit` (1–200, default 50), `exclude_outliers` (default
-true).
+true), `insights=0` (skip Marketplace Insights for one request; only
+meaningful when `EBAY_INSIGHTS_ENABLED=true`).
+
+Two signals:
+
+- **Active** — Browse asking prices of fixed-price listings (app token). This
+  is market data and always present.
+- **Sold** — the primary, supported source is **your own eBay sales** over
+  the last 90 days whose titles contain every query word
+  (`sold_comps.primary_source: "own_sales"`, data under `fallback`; the key
+  name predates this and is kept so callers don't break). It is a thin,
+  biased sample and labelled as such. It needs the connected user token;
+  until the account is connected, `fallback.error` says so and the response
+  still returns.
+- **Marketplace Insights** (market sold prices) is an optional upgrade, off
+  by default — see [Marketplace Insights](#marketplace-insights-sold-comps).
+  While off, comps mint no insights token and make no insights call.
 
 ```bash
 curl -H "x-api-key: $KEY" "$B/comps?q=shohei+ohtani+2018+topps+update&grader=PSA&grade=10"
@@ -349,21 +386,38 @@ curl -H "x-api-key: $KEY" "$B/comps?q=shohei+ohtani+2018+topps+update&grader=PSA
               "items": [ { "itemId": "v1|…|0", "title": "…", "price": "185.00", "currency": "USD", "shipping": "5.00",
                            "condition": "Graded", "url": "…" } ] },
   "sold_comps": { "available": false,
-                  "reason": "Marketplace Insights denied: Insufficient permissions to fulfill the request.",
+                  "reason": "marketplace_insights_not_enabled",
+                  "primary_source": "own_sales",
                   "fallback": { "source": "own_sales", "days": 90,
                                 "note": "Your own eBay sales whose titles contain every query word. A small sample, not market data.",
                                 "stats": { "count": 1, "median": 180, "…": "…" },
                                 "items": [ { "order_id": "07-…", "sold_at": "…", "title": "…", "sku": "…", "quantity": 1, "unit_price": "180.00" } ] } } }
 ```
 
-When Marketplace Insights is available: `"sold_comps": {"available": true,
-"source": "marketplace_insights", "stats": {…}, "items": [{"itemId", "title",
-"price", "currency", "soldDate", "quantitySold", "url"}]}`.
+`sold_comps.reason` (when `available: false`):
 
-Active comps are **asking prices** of fixed-price listings, item price only
-(shipping reported, not included). Graded filters use `conditionIds:{2750}`
-plus `aspect_filter` "Professional Grader" / "Grade". Browse results are
-cached 5 minutes per server instance.
+| reason | meaning |
+|---|---|
+| `marketplace_insights_not_enabled` | `EBAY_INSIGHTS_ENABLED` is not `true` (the default), or `?insights=0`. Nothing was asked of eBay |
+| `marketplace_insights_denied` | flag on, eBay refused: `invalid_scope` on the token, or 401/403 on the call. `detail` has eBay's message |
+| `marketplace_insights_failed` | flag on, some other eBay error (5xx, timeout…). `detail` has the message |
+
+When Marketplace Insights is enabled and answers: `"sold_comps": {"available":
+true, "source": "marketplace_insights", "primary_source":
+"marketplace_insights", "stats": {…}, "items": [{"itemId", "title", "price",
+"currency", "soldDate", "quantitySold", "url"}]}`.
+
+Active comps are item price only (shipping reported, not included). Graded
+searches use `conditionIds:{2750}` (ungraded `{4000}`) plus `aspect_filter`
+`Professional Grader:{<full name>}` / `Grade:{<value>}` — names, values and
+the filters all [verified live](#verified-live). `grader` accepts the
+abbreviation or full name (PSA, BGS, SGC, CGC, CSG, TAG, BCCG, BVG, KSA, GMA,
+HGA, ISA, GSG, PGS, MNT, Rare, RCG, CGA, TCG); `grade` is 1–10 in half steps
+or `Authentic` / `Authentic Altered` / `Authentic - Trimmed`. **Anything else
+is a 400**: eBay silently ignores an aspect value it doesn't recognise and
+returns unfiltered results (raw `PSA` gave 2,294 Jordan results, the full name
+79), so the service refuses rather than return quietly wrong comps. Browse
+results are cached 5 minutes per server instance.
 
 ### GET /insights/probe
 
@@ -371,9 +425,13 @@ cached 5 minutes per server instance.
 curl -H "x-api-key: $KEY" $B/insights/probe
 ```
 ```json
-{ "available": false, "status": 403, "reason": "Marketplace Insights denied: Insufficient permissions …",
-  "scopeGranted": true, "userTokenHasScope": false }
+{ "available": false, "status": 400,
+  "reason": "keyset is not granted the buy.marketplace.insights scope (invalid_scope)",
+  "scopeGranted": false, "userTokenHasScope": null }
 ```
+
+That is the real answer for the production keyset (2026-11-21). The probe
+ignores `EBAY_INSIGHTS_ENABLED`, so it always works for re-testing.
 
 ### GET /sales
 
@@ -587,22 +645,34 @@ cards against report rows, which arrive weekly. On Pro, a tighter schedule
 
 ## Marketplace Insights (sold comps)
 
-Restricted API; most sellers do not have it. To find out and to request it:
+Restricted API; most sellers do not have it, and **this keyset does not**:
+the probe returns 400 `invalid_scope` (the keyset is not entitled to the
+`buy.marketplace.insights` scope at all). So it is an opt-in upgrade, off by
+default, and the documented sold signal is your own sales (see
+[GET /comps](#get-comps)).
 
-1. Once the keyset exists and env is set, run
-   `curl -H "x-api-key: $KEY" $B/insights/probe`.
-   - `available: true` → sold comps work; nothing else to do.
-   - `scopeGranted: false` (OAuth `invalid_scope`) → the keyset is not
-     entitled to the scope.
-   - `scopeGranted: true`, `status: 403` → scope ok, API access not granted.
-2. To request access: developer.ebay.com → Application Keys → the keyset →
-   request access to **Marketplace Insights** (a Buy API). The request form's
-   exact name and location in the portal are not verified here; eBay asks for
-   the use case, and approval is discretionary and can take weeks.
-3. Re-run the probe after approval. No code or config change is needed —
-   comps switch from `own_sales` fallback to `marketplace_insights`
-   automatically. (If eBay grants it as a user scope instead, reconnect with
-   `/oauth/start?extra_scopes=1`.)
+To get it later:
+
+1. **Request access**: developer.ebay.com → Application Keys → the
+   production keyset → request access to **Marketplace Insights** (a Buy
+   API). The form's exact name and location in the portal are not verified
+   here; eBay asks for the use case, and approval is discretionary and can
+   take weeks.
+2. **Re-test** — no env change needed, the probe ignores the flag:
+   `curl -H "x-api-key: $KEY" $B/insights/probe`, or locally
+   `cd web && npm run test:live` (its probe check *expects* `invalid_scope`
+   and will fail once access is granted — that failure is the good news;
+   update the assertion).
+   - `scopeGranted: false`, `status: 400` (`invalid_scope`) → still no
+     entitlement. Today's answer.
+   - `scopeGranted: true`, `status: 403` → scope granted, API access not.
+   - `available: true` → go to step 3.
+3. **Enable**: set `EBAY_INSIGHTS_ENABLED=true` in Vercel and redeploy.
+   Comps then report `sold_comps.available: true`, `primary_source:
+   "marketplace_insights"`; `?insights=0` skips it per request. If the call
+   later fails, comps fall back to own sales with
+   `marketplace_insights_denied` / `_failed`. (If eBay grants it as a user
+   scope instead, reconnect with `/oauth/start?extra_scopes=1`.)
 
 ## Known limitations
 
@@ -614,8 +684,9 @@ Restricted API; most sellers do not have it. To find out and to request it:
   possible but not built.
 - **Trading API fallback** is legacy XML, parsed minimally, isolated in
   `trading.ts`. It reads ActiveList only.
-- **Sold comps are restricted** (see above); the own-sales fallback is a thin,
-  biased sample and labelled as such.
+- **No market sold comps** without Marketplace Insights (which this keyset
+  lacks); own sales are a thin, biased sample and labelled as such, and need
+  the account connected.
 - **Condition descriptor IDs are unverified** except `400010`.
 - **Vercel cron** is daily on Hobby and may fire late in the hour.
 - **In-memory caches are per instance** (app token, Browse 5 min, policy
@@ -630,13 +701,48 @@ Restricted API; most sellers do not have it. To find out and to request it:
   `ebay_close_card_for_sale` does (like `sell_card`). Pre-existing gap,
   untouched here.
 
+## Verified live
+
+Checked against **production** on 2026-11-21 with the real keyset, app token
+only (`npm run test:live`, plus ad-hoc read-only Browse calls):
+
+- **Client-credentials app token** with the base `api_scope`: 200, through the
+  real `getAppToken` code path.
+- **Marketplace Insights scope**: 400 `invalid_scope` on the token request;
+  `probeInsights` reports `available: false, status: 400, scopeGranted:
+  false`. The keyset is not entitled.
+- **Browse `item_summary/search`** with the real `searchActive`/`getComps`:
+  200, response parses, every item has a numeric `price.value`, stats
+  compute. Ungraded Wembanyama Prizm: ~7,200 results, median ask ~$80;
+  Jordan 1986 Fleer PSA 10: 79 results, median ask ~$300.
+- **Category 261328** accepted; eBay names it *Trading Card Singles*.
+- **`filter=conditionIds:{2750}` / `{4000}`** accepted; every returned item
+  is `condition: "Graded"` / `"Ungraded"` respectively.
+- **`aspect_filter` names** `Professional Grader` and `Grade` (from
+  `refinement.aspectDistributions`), and it is **applied**: PSA + 10 cut
+  graded Jordan results from 2,293 to 79.
+- **Grader aspect strings**: all 19 in `GRADER_ASPECT_NAMES` (e.g.
+  `Professional Sports Authenticator (PSA)`, `Beckett Grading Services (BGS)`,
+  `Sportscard Guaranty Corporation (SGC)`, `Certified Guaranty Company (CGC)`,
+  `Technical Authentication & Grading (TAG)`). PCA, ACE and ARK did not
+  appear and are refused by comps.
+- **Grade aspect values**: `1`–`10` in half steps, `Authentic`,
+  `Authentic Altered`, `Authentic - Trimmed`.
+- **Unknown aspect values are silently ignored** (no error, no warning,
+  unfiltered results) — hence the 400 on unmapped graders/grades.
+
+Not yet re-run live: Browse `buyingOptions:{FIXED_PRICE}` was sent on every
+check above and accepted, but its effect was not separately measured.
+
 ## Not yet verified against live eBay
 
 Everything below is from eBay's public docs (as known at writing), covered
 only by mocked tests. Check each on first real use:
 
-1. OAuth: consent URL params, token responses, `refresh_token_expires_in`,
-   scope list on refresh, whether `invalid_scope` is the exact error.
+1. OAuth user flow: consent URL params, authorization-code and refresh token
+   responses, `refresh_token_expires_in`, scope list on refresh, what exactly
+   eBay appends to the declined redirect (handled either way: no `code` =
+   declined).
 2. Condition mapping 2750→`LIKE_NEW`, 4000→`USED_VERY_GOOD`, and all graded
    value IDs (`GRADER_IDS`, `GRADE_IDS`) and non-NM card-condition IDs. Verify
    with `GET /sell/metadata/v1/marketplace/EBAY_US/get_item_condition_policies?filter=categoryIds:{261328}`
@@ -653,9 +759,10 @@ only by mocked tests. Check each on first real use:
    `legacyItemId` equals its "Item ID".** The sync's ledger join depends on
    it. First check: run `POST /sync` (dry run) after an import and confirm
    recent orders show `close`/`already_closed`, not `pending_ledger`.
-8. Browse `aspect_filter` names/values ("Professional Grader",
-   "Professional Sports Authenticator (PSA)", "Grade").
-9. Marketplace Insights path `v1_beta`, response field names, denial codes.
+8. Marketplace Insights path `v1_beta`, response field names, and the 403
+   denial shape (unreachable without access; `invalid_scope` is verified).
+9. Grader **value IDs** (`GRADER_IDS`) behind the verified aspect strings —
+   the same item as 2; only the strings are verified.
 10. Trading: compatibility level 1193 with IAF token, ActiveList field names,
     Ack/Errors format.
 11. Account-deletion challenge hash and the portal's verification flow.
