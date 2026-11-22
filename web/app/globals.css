@@ -223,6 +223,13 @@ body {
   font-variation-settings: "opsz" 72;
 }
 
+/* 12-13px chrome labels (pills, Menu, text links, sheet cells, segmented
+ * theme) use the text optical size so they read slightly fatter; headings and
+ * numerals keep 72 (SPEC_E_SCOREBOARD.md section 15, decision 5). */
+.font-display.opsz-chrome {
+  font-variation-settings: "opsz" 18;
+}
+
 /* Spec 8: visible 2px amber ring, 2px offset, on every interactive element.
  * Never remove an outline without a replacement. */
 :focus-visible {

@@ -8,8 +8,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 // Midnight Scoreboard shell (SPEC_E_SCOREBOARD.md sections 0.2, 2, 6.1, 12.1).
 // Replaces the old left Sidebar and the separate masthead/sign-out header.
 //
-//   >= lg (1180)  full top bar: logo + wordmark, 8 pills, theme / Data / Sign out
-//   md..lg        pills tighten; Data + Sign out fold into an account menu
+//   >= lg (1180)  full top bar: logo + wordmark, 8 pills (13px), theme / Data /
+//                 Sign out; pill padding/gap tighten until xl (1440)
+//   md..lg        wordmark stays; pills drop to 12px; theme, Data and Sign out
+//                 fold into the account menu (spec 15, decisions 1 and 3)
 //   sm..md        pills hide behind a Menu button that opens the sheet
 //   < sm (700)    top bar is logo + wordmark only; bottom tab bar + More sheet
 //
@@ -47,12 +49,14 @@ const MORE: Dest[] = [
   { href: "/data", label: "Data import / export" },
 ];
 
+// opsz-chrome pins the text optical size on 12-13px chrome labels; headings
+// and numerals keep the Display cut from .font-display (spec 15, decision 5).
 const pillBase =
-  "inline-flex items-center whitespace-nowrap rounded-[3px] border font-display font-bold uppercase leading-[1.45] tracking-[0.13em] transition-colors";
+  "inline-flex items-center whitespace-nowrap rounded-[3px] border font-display opsz-chrome font-bold uppercase leading-[1.45] tracking-[0.13em] transition-colors";
 const pillIdle = "border-line bg-chip-bg text-ink-muted hover:text-ink";
 const pillOn = "border-amber bg-amber text-on-amber";
 const textLink =
-  "whitespace-nowrap px-1 py-[5px] font-display text-[13px] font-bold uppercase tracking-[0.13em] transition-colors";
+  "whitespace-nowrap px-1 py-[5px] font-display opsz-chrome text-[13px] font-bold uppercase tracking-[0.13em] transition-colors";
 
 function DealsBadge({ count, className = "" }: { count: number; className?: string }) {
   if (count <= 0) return null;
@@ -88,7 +92,7 @@ export default function AppShell({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="relative z-30 flex items-center gap-2.5 border-b-[3px] border-shadow bg-bar px-3.5 py-2.5 shadow-[inset_0_-1px_0_var(--color-line)] sm:gap-4 sm:px-5 xl:px-7">
+      <header className="relative z-30 flex items-center gap-2.5 border-b-[3px] border-shadow bg-bar px-3.5 py-2.5 shadow-[inset_0_-1px_0_var(--color-line)] sm:gap-4 sm:px-5 md:max-[960px]:gap-3 xl:px-7">
         <Link
           href="/"
           className="flex min-w-0 shrink-0 items-center gap-2.5 hover:opacity-90 sm:gap-3"
@@ -99,20 +103,21 @@ export default function AppShell({
             alt=""
             className="size-[38px] shrink-0 rounded-full border-2 border-amber object-cover sm:size-[46px]"
           />
-          {/* 900-1179 shows the logo only: wordmark + 8 pills + theme + menu
-              need ~1060px. It stays the link's accessible name. */}
-          <span className="min-w-0 font-wordmark text-[17px] leading-tight tracking-[0.02em] whitespace-nowrap text-ink sm:text-[21px] md:max-lg:sr-only">
+          {/* Wordmark shows at every width (spec 15, decision 1). Just above
+              the Menu breakpoint (900-959) the 8 pills only fit beside it with
+              the 17px wordmark, no tagline and 12px bar gaps (spec 15 fallback). */}
+          <span className="min-w-0 font-wordmark text-[17px] leading-tight tracking-[0.02em] whitespace-nowrap text-ink sm:text-[21px] md:max-[960px]:text-[17px]">
             Shotime Ledger
-            <small className="block font-mono text-[9.5px] font-medium leading-normal tracking-[0.24em] text-amber">
+            <small className="block font-mono md:max-[960px]:hidden text-[9.5px] font-medium leading-normal tracking-[0.24em] text-amber">
               BOX SCORE · SEASON 2026
             </small>
           </span>
         </Link>
 
-        {/* Pills: md and up. Tight (5px 8px, 12px) below xl: the spec's
-            full-size pills plus Data / Sign out need ~1210px, so at 1180 they
-            would collide with the right cluster. Full size from 1440. */}
-        <nav aria-label="Primary" className="ml-1 hidden min-w-0 gap-1.5 md:flex xl:ml-3.5">
+        {/* Pills: md and up. 12px at md..lg so the wordmark fits beside them.
+            Full-size 13px type from lg (1180); only padding (5px 8px) and gap
+            (4px) stay tight until xl (spec 15, decision 2). */}
+        <nav aria-label="Primary" className="ml-1 hidden min-w-0 gap-1 md:flex md:max-[960px]:ml-0 xl:ml-3.5 xl:gap-1.5">
           {NAV.map((d) => {
             const active = isActive(d.href);
             return (
@@ -120,7 +125,7 @@ export default function AppShell({
                 key={d.href}
                 href={d.href}
                 aria-current={active ? "page" : undefined}
-                className={`${pillBase} px-2 py-[5px] text-[12px] xl:px-2.5 xl:text-[13px] ${
+                className={`${pillBase} px-2 py-[5px] text-[12px] lg:text-[13px] xl:px-2.5 ${
                   active ? pillOn : pillIdle
                 }`}
               >
@@ -134,8 +139,9 @@ export default function AppShell({
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          {/* Theme stays in the bar from md up; below md it is in the sheet. */}
-          <div className="hidden md:block">
+          {/* Theme sits in the bar from lg up; at md..lg it is in the account
+              menu, below md in the sheet. */}
+          <div className="hidden lg:block">
             <ThemeToggle />
           </div>
 
@@ -155,7 +161,7 @@ export default function AppShell({
             </button>
           </form>
 
-          {/* md..lg: Data and Sign out fold into this menu. */}
+          {/* md..lg: Data, Sign out and Theme fold into this menu. */}
           <AccountMenu
             className="hidden md:block lg:hidden"
             logout={logout}
@@ -169,7 +175,9 @@ export default function AppShell({
               onClick={() => setSheet("menu")}
               aria-haspopup="dialog"
               aria-expanded={sheet === "menu"}
-              className={`${pillBase} ${pillIdle} min-h-9 px-3 py-[5px] text-[13px]`}
+              className={`${pillBase} ${
+                sheet === "menu" ? pillOn : pillIdle
+              } min-h-9 px-3 py-[5px] text-[13px]`}
             >
               Menu
               {dealsNeedingReview > 0 && (
@@ -198,7 +206,7 @@ export default function AppShell({
               key={d.href}
               href={d.href}
               aria-current={active ? "page" : undefined}
-              className={`inline-flex min-h-11 items-center rounded-[3px] px-2.5 font-display text-[12px] font-bold uppercase tracking-[0.12em] ${
+              className={`inline-flex min-h-11 items-center rounded-[3px] px-2.5 font-display opsz-chrome text-[12px] font-bold uppercase tracking-[0.12em] ${
                 active ? "bg-amber text-on-amber" : "text-ink-muted"
               }`}
             >
@@ -211,7 +219,7 @@ export default function AppShell({
           onClick={() => setSheet("more")}
           aria-haspopup="dialog"
           aria-expanded={sheet === "more"}
-          className={`relative inline-flex min-h-11 items-center rounded-[3px] px-2.5 font-display text-[12px] font-bold uppercase tracking-[0.12em] ${
+          className={`relative inline-flex min-h-11 items-center rounded-[3px] px-2.5 font-display opsz-chrome text-[12px] font-bold uppercase tracking-[0.12em] ${
             moreActive ? "bg-amber text-on-amber" : "text-ink-muted"
           }`}
         >
@@ -276,7 +284,10 @@ function Sheet({
   }, [onClose]);
 
   const cell =
-    "flex min-h-11 items-center justify-between rounded-[3px] border border-line bg-chip-bg px-3 py-2.5 font-display text-[13px] font-bold uppercase tracking-[0.12em] text-ink";
+    "flex min-h-11 items-center justify-between rounded-[3px] border px-3 py-2.5 font-display opsz-chrome text-[13px] font-bold uppercase tracking-[0.12em]";
+  const cellIdle = "border-line bg-chip-bg text-ink";
+  // Active destination matches the active pill (spec 15, must-fix 4).
+  const cellOn = "border-amber bg-amber text-on-amber";
 
   return (
     <div className="fixed inset-0 z-40 md:hidden">
@@ -321,11 +332,15 @@ function Sheet({
                     href={d.href}
                     onClick={onClose}
                     aria-current={active ? "page" : undefined}
-                    className={`${cell} ${active ? "border-amber text-amber" : ""}`}
+                    className={`${cell} ${active ? cellOn : cellIdle}`}
                   >
                     <span className="truncate">{d.label}</span>
                     {d.href === "/deals" && dealsNeedingReview > 0 && (
-                      <span className="font-mono text-[13px] tracking-normal text-neg">
+                      <span
+                        className={`font-mono text-[13px] tracking-normal ${
+                          active ? "text-on-amber" : "text-neg"
+                        }`}
+                      >
                         {dealsNeedingReview}
                         <span className="sr-only"> need review</span>
                       </span>
@@ -336,7 +351,7 @@ function Sheet({
             })}
             <li className="min-w-0">
               <form action={logout}>
-                <button type="submit" className={`${cell} w-full text-left`}>
+                <button type="submit" className={`${cell} ${cellIdle} w-full text-left`}>
                   Sign out
                 </button>
               </form>
@@ -353,8 +368,9 @@ function Sheet({
   );
 }
 
-// 900-1179: Data and Sign out live behind this button. A disclosure (button +
-// list), not an ARIA menu: two items do not need roving focus.
+// 900-1179: Data, Sign out and Theme live behind this button (mock:
+// final_E/shell_account_menu.png). A disclosure (button + panel), not an ARIA
+// menu: two links and a radiogroup do not need roving focus.
 function AccountMenu({
   className,
   logout,
@@ -385,10 +401,13 @@ function AccountMenu({
   }, [open]);
 
   const item =
-    "block w-full px-3.5 py-2 text-left font-display text-[13px] font-bold uppercase tracking-[0.13em] hover:text-amber";
+    "block w-full px-1 py-2 text-left font-display opsz-chrome text-[13px] font-bold uppercase tracking-[0.13em] transition-colors hover:text-amber";
+  const lit = open || dataActive;
 
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
+      {/* 44px hit area around a 36px ring; the negative margin keeps the
+          layout box at 36px so the popover lines up with the ring. */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -396,33 +415,42 @@ function AccountMenu({
         aria-controls={listId}
         aria-label="Account menu"
         title="Account"
-        className={`grid size-[30px] place-items-center rounded-full border-2 bg-chip-bg ${
-          open || dataActive ? "border-amber text-amber" : "border-line text-ink-muted hover:text-ink"
-        }`}
+        className="group -m-1 grid size-11 place-items-center rounded-full"
       >
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <circle cx="8" cy="5.5" r="2.75" stroke="currentColor" strokeWidth="1.5" />
-          <path d="M2.5 14.5c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        </svg>
+        <span
+          className={`grid size-9 place-items-center rounded-full border-2 bg-chip-bg transition-colors ${
+            lit ? "border-amber text-amber" : "border-line text-ink-muted group-hover:text-ink"
+          }`}
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="5.5" r="2.75" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M2.5 14.5c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </span>
       </button>
       {open && (
         <div
           id={listId}
-          className="absolute top-full right-0 z-40 mt-2 min-w-36 rounded-[4px] border border-line bg-tip py-1 shadow-[0_12px_30px_rgb(0_0_0/0.6)]"
+          className="absolute top-full right-0 z-40 mt-2 w-[220px] rounded-[6px] border border-line bg-board px-3 pt-2 pb-3 shadow-[0_12px_30px_rgb(0_0_0/0.6)]"
         >
           <Link
             href="/data"
             onClick={() => setOpen(false)}
             aria-current={dataActive ? "page" : undefined}
-            className={`${item} ${dataActive ? "text-amber" : "text-ink"}`}
+            className={`${item} ${dataActive ? "text-amber" : "text-ink-muted"}`}
           >
             Data
           </Link>
           <form action={logout}>
-            <button type="submit" className={`${item} text-ink`}>
+            <button type="submit" className={`${item} text-ink-muted`}>
               Sign out
             </button>
           </form>
+          <div aria-hidden="true" className="my-2 h-px bg-line" />
+          <p className="mt-3 mb-2 px-1 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
+            Theme
+          </p>
+          <ThemeToggle variant="segmented" />
         </div>
       )}
     </div>
