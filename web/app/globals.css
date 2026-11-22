@@ -95,10 +95,13 @@
   --font-sans:     var(--font-plex-mono), ui-monospace, monospace; /* body default */
 
   /* breakpoints (spec 2): sm = mobile/desktop switch, md = nav pills
-   * collapse, lg = Data/Sign out fold into the overflow menu, xl = design width */
+   * collapse, lg = page layout grids, xl = design width. nav is shell-only:
+   * the top bar's full right cluster (theme / Data / Sign out) and 13px pills
+   * start there; below it they fold into the account menu (spec 16.1a). */
   --breakpoint-sm: 700px;
   --breakpoint-md: 900px;
   --breakpoint-lg: 1180px;
+  --breakpoint-nav: 1280px;
   --breakpoint-xl: 1440px;
 }
 

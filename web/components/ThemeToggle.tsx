@@ -40,14 +40,17 @@ function subscribe(onChange: () => void) {
 // Light / dark / system. The pre-paint script in app/layout.tsx sets the
 // attribute on hard loads; this keeps it in step after that.
 // variant="icons" is the 3-icon group in the top bar; "segmented" is the
-// LIGHT / DARK / SYSTEM control in the Menu / More sheets and the 900-1179
+// LIGHT / DARK / SYSTEM control in the Menu / More sheets and the 900-1279
 // account menu. Same OPTIONS, same storage, same radiogroup semantics either
-// way.
+// way. size="compact" (segmented only) is the 32px account-menu control;
+// the default is the 44px touch size used in the sheets (spec 16.1b).
 export default function ThemeToggle({
   variant = "icons",
+  size = "default",
   className = "",
 }: {
   variant?: "icons" | "segmented";
+  size?: "default" | "compact";
   className?: string;
 }) {
   const theme = useSyncExternalStore(subscribe, readTheme, () => "system" as Theme);
@@ -109,7 +112,9 @@ export default function ThemeToggle({
             onClick={() => choose(o.value)}
             className={
               segmented
-                ? `min-h-11 flex-1 border-r border-line font-display opsz-chrome text-[13px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
+                ? `${
+                    size === "compact" ? "min-h-8 py-1.5 text-[12px]" : "min-h-11 text-[13px]"
+                  } flex-1 border-r border-line font-display opsz-chrome font-bold uppercase tracking-[0.14em] last:border-r-0 ${
                     active ? "bg-amber text-on-amber" : "text-ink-muted hover:text-ink"
                   }`
                 : `grid h-[26px] w-7 place-items-center transition-colors ${

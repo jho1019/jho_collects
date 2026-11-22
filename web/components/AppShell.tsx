@@ -8,10 +8,12 @@ import ThemeToggle from "@/components/ThemeToggle";
 // Midnight Scoreboard shell (SPEC_E_SCOREBOARD.md sections 0.2, 2, 6.1, 12.1).
 // Replaces the old left Sidebar and the separate masthead/sign-out header.
 //
-//   >= lg (1180)  full top bar: logo + wordmark, 8 pills (13px), theme / Data /
+//   >= nav (1280) full top bar: logo + wordmark, 8 pills (13px), theme / Data /
 //                 Sign out; pill padding/gap tighten until xl (1440)
-//   md..lg        wordmark stays; pills drop to 12px; theme, Data and Sign out
-//                 fold into the account menu (spec 15, decisions 1 and 3)
+//   md..nav       wordmark stays; pills drop to 12px; theme, Data and Sign out
+//                 fold into the account menu (spec 15 decisions 1 and 3, spec
+//                 16.1a). nav is a shell-only breakpoint; lg (1180) still
+//                 drives page layout grids.
 //   sm..md        pills hide behind a Menu button that opens the sheet
 //   < sm (700)    top bar is logo + wordmark only; bottom tab bar + More sheet
 //
@@ -114,9 +116,9 @@ export default function AppShell({
           </span>
         </Link>
 
-        {/* Pills: md and up. 12px at md..lg so the wordmark fits beside them.
-            Full-size 13px type from lg (1180); only padding (5px 8px) and gap
-            (4px) stay tight until xl (spec 15, decision 2). */}
+        {/* Pills: md and up. 12px at md..nav so the wordmark fits beside them.
+            Full-size 13px type from nav (1280); only padding (5px 8px) and gap
+            (4px) stay tight until xl (spec 15 decision 2, spec 16.1a). */}
         <nav aria-label="Primary" className="ml-1 hidden min-w-0 gap-1 md:flex md:max-[960px]:ml-0 xl:ml-3.5 xl:gap-1.5">
           {NAV.map((d) => {
             const active = isActive(d.href);
@@ -125,7 +127,7 @@ export default function AppShell({
                 key={d.href}
                 href={d.href}
                 aria-current={active ? "page" : undefined}
-                className={`${pillBase} px-2 py-[5px] text-[12px] lg:text-[13px] xl:px-2.5 ${
+                className={`${pillBase} px-2 py-[5px] text-[12px] nav:text-[13px] xl:px-2.5 ${
                   active ? pillOn : pillIdle
                 }`}
               >
@@ -139,31 +141,31 @@ export default function AppShell({
         </nav>
 
         <div className="ml-auto flex items-center gap-3">
-          {/* Theme sits in the bar from lg up; at md..lg it is in the account
-              menu, below md in the sheet. */}
-          <div className="hidden lg:block">
+          {/* Theme sits in the bar from nav (1280) up; at md..nav it is in the
+              account menu, below md in the sheet. */}
+          <div className="hidden nav:block">
             <ThemeToggle />
           </div>
 
-          {/* lg+: Data and Sign out as text links. */}
+          {/* nav+: Data and Sign out as text links. */}
           <Link
             href="/data"
             aria-current={isActive("/data") ? "page" : undefined}
-            className={`${textLink} hidden lg:inline ${
+            className={`${textLink} hidden nav:inline ${
               isActive("/data") ? "text-amber" : "text-ink-muted hover:text-amber"
             }`}
           >
             Data
           </Link>
-          <form action={logout} className="hidden lg:block">
+          <form action={logout} className="hidden nav:block">
             <button type="submit" className={`${textLink} text-ink-muted hover:text-amber`}>
               Sign out
             </button>
           </form>
 
-          {/* md..lg: Data, Sign out and Theme fold into this menu. */}
+          {/* md..nav (900-1279): Data, Sign out and Theme fold into this menu. */}
           <AccountMenu
-            className="hidden md:block lg:hidden"
+            className="hidden md:block nav:hidden"
             logout={logout}
             dataActive={isActive("/data")}
           />
@@ -368,8 +370,8 @@ function Sheet({
   );
 }
 
-// 900-1179: Data, Sign out and Theme live behind this button (mock:
-// final_E/shell_account_menu.png). A disclosure (button + panel), not an ARIA
+// 900-1279: Data, Sign out and Theme live behind this button (mocks:
+// final_E/shell_account_menu.png, final_E/shell_1180_account_menu.png). A disclosure (button + panel), not an ARIA
 // menu: two links and a radiogroup do not need roving focus.
 function AccountMenu({
   className,
@@ -450,7 +452,9 @@ function AccountMenu({
           <p className="mt-3 mb-2 px-1 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
             Theme
           </p>
-          <ThemeToggle variant="segmented" />
+          {/* 32px compact control in this desktop dropdown (spec 16.1b);
+              the Menu / More sheets keep the 44px touch size. */}
+          <ThemeToggle variant="segmented" size="compact" />
         </div>
       )}
     </div>
