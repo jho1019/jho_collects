@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import type { Bucket } from "@/lib/dashboard/model";
-import { MINUS, fmtAxis, niceScale } from "@/lib/dashboard/format";
+import { MINUS, barScale, fmtAxis } from "@/lib/dashboard/format";
 import { useReducedMotion } from "./useReducedMotion";
 
 // Profit by period split by channel (spec 6.6). Same buckets as the line
@@ -43,7 +43,7 @@ export default function ProfitBars({ buckets, hasOther }: { buckets: Bucket[]; h
 
   const maxPos = Math.max(0, ...rows.map((r) => series.reduce((s, x) => s + Math.max(r[x.key], 0), 0)));
   const minNeg = Math.min(0, ...rows.map((r) => series.reduce((s, x) => s + Math.min(r[x.key], 0), 0)));
-  const scale = niceScale(minNeg, maxPos * 1.22, 3);
+  const scale = barScale(minNeg, maxPos);
 
   function totalLabel(key: Key) {
     function TotalLabel(props: { x?: number | string; y?: number | string; width?: number | string; height?: number | string; value?: unknown }) {

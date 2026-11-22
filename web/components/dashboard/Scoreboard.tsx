@@ -7,6 +7,7 @@ import type { Scoreboard as Model } from "@/lib/dashboard/model";
 import { RANGE_LABEL, type RangeKey } from "@/lib/dashboard/range";
 import { money, moneyAria, pct, tone } from "@/lib/dashboard/format";
 import { shortDate } from "@/lib/dashboard/dates";
+import { goalValue, informativeDelta } from "@/lib/dashboard/kpi";
 import BackOfCard from "./BackOfCard";
 import CumulativeChart from "./CumulativeChart";
 import GoalRing from "./GoalRing";
@@ -22,6 +23,7 @@ import Spark from "./Spark";
 
 const FIX_HREF = "/inventory?cost=missing";
 const STALE_KEY = "sb:last:";
+const STALE_ANY = "sb:last:any";
 const unsigned = (c: number) => money(c, { signed: false });
 const noopSubscribe = () => () => {};
 function readStorage(key: string): string | null {
@@ -50,18 +52,21 @@ export default function Scoreboard({
 
   // Last good numbers per range, so a failed refresh can keep them on screen
   // with a STALE chip (spec 7, errors). Written on every good render, read
-  // only after a failure.
+  // only after a failure. A range never loaded before falls back to the last
+  // good model of any range (labelled with its own range, not the clicked one).
   useEffect(() => {
     if (!model) return;
     try {
-      sessionStorage.setItem(STALE_KEY + model.range, JSON.stringify(model));
+      const json = JSON.stringify(model);
+      sessionStorage.setItem(STALE_KEY + model.range, json);
+      sessionStorage.setItem(STALE_ANY, json);
     } catch {
       // storage unavailable: no stale fallback, the error banner still shows
     }
   }, [model]);
   const staleRaw = useSyncExternalStore(
     noopSubscribe,
-    () => (failed ? readStorage(STALE_KEY + range) : null),
+    () => (failed ? (readStorage(STALE_KEY + range) ?? readStorage(STALE_ANY)) : null),
     () => null,
   );
   const stale = useMemo(() => (staleRaw ? (JSON.parse(staleRaw) as Model) : null), [staleRaw]);
@@ -126,6 +131,15 @@ export default function Scoreboard({
         </Link>,
       );
     }
+    // Range-level signal (spec 16.2 must-fix 2): the month chip alone misses a
+    // range whose sales all fall before this month.
+    if (m.totals.missingCost > 0) {
+      chips.push(
+        <Link key="mcr" href={FIX_HREF} className="sb-chip sb-warn">
+          {m.totals.missingCost} OF {m.totals.sales} SALES IN RANGE MISSING COST
+        </Link>,
+      );
+    }
   }
   chips.push(
     <span key="at" className={`sb-chip ${h.allTime === 0 ? "sb-mute" : "sb-ink"}`}>
@@ -169,8 +183,7 @@ export default function Scoreboard({
 
   // ------------------------------------------------------------------ KPIs
   const t = m.totals;
-  const revDelta =
-    t.priorRevenue != null && t.priorRevenue !== 0 ? (t.revenue - t.priorRevenue) / Math.abs(t.priorRevenue) : null;
+  const revDelta = informativeDelta(t.revenue, t.priorRevenue);
   const avg = t.sales ? Math.round(t.profit / t.sales) : 0;
   const margin = t.revenue !== 0 ? t.profit / t.revenue : null;
   const since = `since ${shortDate(m.window.start)}`;
@@ -187,6 +200,7 @@ export default function Scoreboard({
   const pitchEmpty = pitchTotal === 0;
 
   const inv = m.inventory;
+  const goal = goalValue(null, h.mtd, unsigned); // no goal storage yet (gap 7)
   const lit = m.sellThrough ? Math.round(m.sellThrough.ratio * 10) : 0;
   const rangeDays = m.range === "30d" ? "30 days" : m.range === "90d" ? "90 days" : m.range === "1y" ? "1 year" : "all time";
 
@@ -204,7 +218,7 @@ export default function Scoreboard({
             Profit for {h.monthName} is overstated until you add what you paid.
           </span>
           <Link href={FIX_HREF} className="sb-btn sb-pri">
-            Fix {missing} sale{missing === 1 ? "" : "s"}
+            Fix <span className="sb-cnt">{missing}</span> sale{missing === 1 ? "" : "s"}
           </Link>
         </div>
       )}
@@ -243,7 +257,7 @@ export default function Scoreboard({
         <div>
           <div className="sb-bl">
             <span>Line score · profit by {unit}</span>
-            <RangeControl value={selected} onChange={changeRange} />
+            <RangeControl value={isStale ? m.range : selected} onChange={changeRange} />
           </div>
           <LineScore buckets={m.buckets} unit={unit} hasOther={m.hasOther} missingCurrent={missing > 0} />
           {m.range === "1y" && m.window.clamped && m.firstSaleDay && (
@@ -356,8 +370,8 @@ export default function Scoreboard({
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 8 }}>
             <GoalRing pct={null} />
             <div>
-              <div className="sb-v" style={{ fontSize: 38, margin: "0 0 4px", ...(h.mtd > 0 ? {} : { color: "var(--color-ink-muted)" }) }}>
-                {h.mtd > 0 ? unsigned(h.mtd) : "$0.00"}
+              <div className={`sb-v ${goal.muted ? "sb-nil" : ""}`} style={{ fontSize: 38, margin: "0 0 4px" }}>
+                {goal.text}
               </div>
               <div className="sb-s">Monthly goal not set yet</div>
             </div>
@@ -384,6 +398,13 @@ export default function Scoreboard({
               return i === 0 ? [cell, <div key="dash" className="sb-dash" aria-hidden="true">–</div>] : cell;
             })}
           </div>
+          {m.vsOutside !== 0 && (
+            <p className="sb-sub" style={{ marginTop: 8 }}>
+              {m.vsOutside < 0
+                ? <>Doesn&rsquo;t include {unsigned(-m.vsOutside)} in unattributed expenses.</>
+                : <>Doesn&rsquo;t include {unsigned(m.vsOutside)} outside the Sports / Riftbound split.</>}
+            </p>
+          )}
         </div>
 
         <div className="board sb-board">

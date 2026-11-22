@@ -72,3 +72,21 @@ export function niceScale(
   for (let v = lo; v <= hi + step / 1e6; v += step) out.push(Math.round(v * 100) / 100);
   return { lo, hi, step, ticks: out };
 }
+
+/**
+ * Profit-bar Y scale (spec 16.2 nice-to-have 5): the top is nice(max × 1.22)
+ * from the positive stack alone, so a −$180 week no longer drags a $540 bar's
+ * axis up to $1,000. The negative side snaps down to the same step. When the
+ * negatives dominate (more than 6 steps), fall back to the full-span scale.
+ */
+export function barScale(minNeg: number, maxPos: number): ReturnType<typeof niceScale> {
+  const lo0 = Math.min(minNeg, 0);
+  const top = Math.max(maxPos, 0) * 1.22;
+  if (top === 0) return niceScale(lo0, 0, 3);
+  const pos = niceScale(0, top, 3);
+  const lo = Math.floor(lo0 / pos.step) * pos.step;
+  if ((pos.hi - lo) / pos.step > 6) return niceScale(lo0, top, 3);
+  const ticks: number[] = [];
+  for (let v = lo; v <= pos.hi + pos.step / 1e6; v += pos.step) ticks.push(Math.round(v * 100) / 100);
+  return { lo, hi: pos.hi, step: pos.step, ticks };
+}

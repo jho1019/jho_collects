@@ -26,6 +26,7 @@ import {
   rangeSpoken,
   rangeWindow,
 } from "./range";
+import { informativeDelta } from "./kpi";
 
 export type InventorySummary = {
   cards_on_hand: number;
@@ -74,7 +75,7 @@ export type Scoreboard = {
     mtd: number;
     mtdSales: number;
     missingCount: number; // sales this month with no card cost
-    vsPrevPct: number | null; // ratio; null when last month was $0
+    vsPrevPct: number | null; // ratio; null when last month was under $50 or the change is over 999%
     allTime: number;
     netCash: number;
     stock: number; // all-time profit − all-time net cash
@@ -108,6 +109,8 @@ export type Scoreboard = {
   inventory: InventorySummary | null;
 
   vs: Record<"sports" | "riftbound", { profit: number; sales: number }>;
+  /** Range profit outside the Sports / Riftbound split: expenses, refunds, PC sales. */
+  vsOutside: number;
 
   pitch: {
     cardCosts: number;
@@ -297,6 +300,8 @@ export function buildScoreboard(input: {
   const n = buckets.length;
   const announcement = `Showing ${rangeSpoken(range)}: ${n} ${unit}${n === 1 ? "" : "s"}, ${rangeSales.length} sale${rangeSales.length === 1 ? "" : "s"}.`;
 
+  const rangeProfit = netProfit(events, w.start, w.end);
+
   return {
     today,
     range,
@@ -310,7 +315,7 @@ export function buildScoreboard(input: {
       mtd,
       mtdSales: monthSales.length,
       missingCount: monthSales.filter((s) => s.missingCost).length,
-      vsPrevPct: prevTotal !== 0 ? (mtd - prevTotal) / Math.abs(prevTotal) : null,
+      vsPrevPct: informativeDelta(mtd, prevTotal),
       allTime,
       netCash: cash,
       stock: allTime - cash,
@@ -322,7 +327,7 @@ export function buildScoreboard(input: {
     totals: {
       sales: rangeSales.length,
       missingCost: rangeSales.filter((s) => s.missingCost).length,
-      profit: netProfit(events, w.start, w.end),
+      profit: rangeProfit,
       revenue: revenueIn(w.start, w.end),
       priorRevenue: prior ? revenueIn(prior.start, prior.end) : null,
       revenueSpark: cumulativeBy(revenueByBucket),
@@ -334,6 +339,7 @@ export function buildScoreboard(input: {
     bestFlipAllTime: bestFlip(sales),
     inventory,
     vs,
+    vsOutside: rangeProfit - vs.sports.profit - vs.riftbound.profit,
     pitch,
     daysToSell,
     sellThrough,
