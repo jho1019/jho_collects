@@ -604,3 +604,29 @@ one is eBay Standard Envelope, and "exactly one, so use it" would silently
 list $50 cards on the $0.78 envelope service meant for cards under $20. A real CDP
 import refuses until a fulfillment policy is configured; the dry run still
 works and shows `fulfillmentPolicyId: null`.
+
+## `cards.category` says what a card is for; `pc` is never business inventory
+
+`schema/025` adds `category` (`pc`, `business`, `riftbound`, `sealed`),
+not null, default `business`. It is a property of the **card**, set once,
+rather than a status: a PC card can still be held, listed or sold, so folding
+it into `card_status` would multiply every status by every category.
+
+`tracked_inventory` excludes `category = 'pc'`. A personal-collection card is
+not held for sale, so it is not inventory in the Schedule C sense, and counting
+its cost toward the year-end floor would prop up ending inventory (understating
+COGS) with cards the business does not own as stock. `riftbound` and `sealed`
+stay in: they are resale stock, just tracked as separate lines.
+
+Known asymmetry, not fixed here: a `[PC]` purchase is still an ordinary
+`purchase` row (see the card-entry skill), so its cash still lands in
+`tax_summary.purchases` and therefore COGS. COGS reads ending inventory from
+`inventory_counts`, not from this view, so nothing changes automatically — but
+a count that follows `tracked_inventory` and leaves PC out means PC spend is
+expensed in full. Taking PC buys out of purchases is a `tax_summary` decision,
+separate from this one.
+
+`search_text` was rebuilt to include `sport` and `serial_number` (a generated
+column cannot be altered, so it is dropped and re-added with its trigram
+index). That is safe because `find_cards` also scores with `word_similarity`
+(`008`), so a longer haystack does not push short phrases under the threshold.
