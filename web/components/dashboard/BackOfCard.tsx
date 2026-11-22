@@ -51,7 +51,7 @@ export default function BackOfCard({
   if (!hasAnySales) {
     return (
       <section className="sb-back" aria-label="Play ball">
-        <div className="sb-bl"><span>Play ball</span><span>NO. 00</span></div>
+        <div className="sb-bl"><span>Play ball</span><span>NO. —</span></div>
         <div className="sb-nm" style={{ fontSize: 30, marginTop: 8 }}>LOG YOUR FIRST SALE</div>
         <div className="sb-pm" style={{ fontSize: 12, marginBottom: 6 }}>Three ways to get on the board</div>
         <table>

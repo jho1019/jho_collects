@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { addDays, mondayOf, todayPT } from "../dates";
-import { bare, fmtAxis, money, moneyAria, niceScale, tone } from "../format";
+import { bare, barScale, fmtAxis, money, moneyAria, niceScale, tone } from "../format";
+import { DELTA_CAP, SMALL_PRIOR_CENTS, goalValue, informativeDelta } from "../kpi";
 import { buildScoreboard } from "../model";
 import {
   type Card,
@@ -451,5 +452,75 @@ describe("prior-period revenue", () => {
     expect(m.totals.priorRevenue).toBeNull(); // prior 90D starts May 27, ledger Aug 8
     const m30 = buildScoreboard({ txns: [early, later], cards: [], inventory: null, today: "2026-11-22", range: "30d" });
     expect(m30.totals.priorRevenue).toBe(2000); // Sep 24–Oct 23 is covered and holds Oct 4
+  });
+});
+
+// ------------------------------------------------------------- spec 16.2
+describe("informativeDelta (vs prior caption)", () => {
+  it("returns the ratio for a normal prior window", () => {
+    expect(informativeDelta(15000, 10000)).toBeCloseTo(0.5);
+    expect(informativeDelta(5000, 10000)).toBeCloseTo(-0.5);
+  });
+  it("falls back (null) with no prior, a $0 prior, or a prior under $50", () => {
+    expect(informativeDelta(10000, null)).toBeNull();
+    expect(informativeDelta(10000, 0)).toBeNull();
+    expect(informativeDelta(10000, SMALL_PRIOR_CENTS - 1)).toBeNull();
+    expect(informativeDelta(10000, -(SMALL_PRIOR_CENTS - 1))).toBeNull();
+    expect(informativeDelta(10000, SMALL_PRIOR_CENTS)).toBeCloseTo(1);
+  });
+  it("falls back above 999% and keeps exactly 999%", () => {
+    expect(DELTA_CAP).toBe(9.99);
+    expect(informativeDelta(10000 * 10.99, 10000)).toBeCloseTo(9.99); // +999.0%
+    expect(informativeDelta(10000 * 11, 10000)).toBeNull(); // +1000%
+    // the live 90D case: "▲ 4747.4% vs prior 90d"
+    expect(informativeDelta(Math.round(6000 * 48.474), 6000)).toBeNull();
+  });
+  it("applies to the hero vs-last-month chip", () => {
+    const tiny = txn({ type: "sale", occurred_on: "2026-10-04", net_cash: 1000 });
+    const big = txn({ type: "sale", occurred_on: "2026-11-10", net_cash: 90000 });
+    const m = buildScoreboard({ txns: [tiny, big], cards: [], inventory: null, today: "2026-11-22", range: "90d" });
+    expect(m.hero.vsPrevPct).toBeNull();
+  });
+});
+
+describe("goalValue", () => {
+  const fmt = (c: number) => money(c, { signed: false });
+  it("is an em dash when no goal is set, whatever MTD is", () => {
+    expect(goalValue(null, 9991, fmt)).toEqual({ text: "—", muted: true });
+    expect(goalValue(null, 0, fmt)).toEqual({ text: "—", muted: true });
+    expect(goalValue(null, -500, fmt)).toEqual({ text: "—", muted: true });
+  });
+  it("shows MTD profit once a goal exists", () => {
+    expect(goalValue(25000, 9991, fmt)).toEqual({ text: "$99.91", muted: false });
+    expect(goalValue(25000, -500, fmt)).toEqual({ text: "$0.00", muted: true });
+  });
+});
+
+describe("range-level missing cost and the split caption", () => {
+  it("counts every missing-cost sale in the range even when the month has none", () => {
+    const a = txn({ type: "sale", occurred_on: "2026-09-12", net_cash: 6000 });
+    const b = txn({ type: "sale", occurred_on: "2026-10-04", net_cash: 20000 });
+    const fee = txn({ type: "expense", platform: "na", occurred_on: "2026-09-05", net_cash: -18000 });
+    const m = buildScoreboard({ txns: [a, b, fee], cards: [], inventory: null, today: "2026-11-22", range: "90d" });
+    expect(m.hero.missingCount).toBe(0);
+    expect(m.totals).toMatchObject({ sales: 2, missingCost: 2 });
+    // sales with no card are Sports; the $180 fee sits outside the split
+    expect(m.vs.sports.profit).toBe(26000);
+    expect(m.vsOutside).toBe(-18000);
+    expect(m.vs.sports.profit + m.vs.riftbound.profit + m.vsOutside).toBe(m.totals.profit);
+  });
+});
+
+describe("barScale", () => {
+  it("tops out at nice(max × 1.22) rather than the full span", () => {
+    const s = barScale(-180, 540);
+    expect(s.hi).toBe(750);
+    expect(s.lo).toBe(-250);
+    expect(s.ticks).toEqual([-250, 0, 250, 500, 750]);
+  });
+  it("matches niceScale with no negatives and falls back when negatives dominate", () => {
+    expect(barScale(0, 540)).toEqual(niceScale(0, 540 * 1.22, 3));
+    expect(barScale(-900, 100)).toEqual(niceScale(-900, 122, 3));
+    expect(barScale(0, 0).ticks).toContain(0);
   });
 });
