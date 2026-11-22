@@ -55,6 +55,18 @@ describe("Trading GetMyeBaySelling", () => {
   });
 });
 
+describe("EbayRest headers", () => {
+  it("sends accept-language en-US by default, overridable per call", async () => {
+    const m = mockFetch().on("GET", "/sell/inventory/v1/inventory_item", { total: 0, inventoryItems: [] });
+    const rest = new EbayRest({ apiBase: "https://api.ebay.com", fetch: m.fetch, token: async () => "t", marketplaceId: "EBAY_US" });
+    await rest.call("GET", "/sell/inventory/v1/inventory_item", { context: "list inventory" });
+    expect(m.calls[0].headers["accept-language"]).toBe("en-US");
+
+    await rest.call("GET", "/sell/inventory/v1/inventory_item", { context: "list inventory", headers: { "accept-language": "en-GB" } });
+    expect(m.calls[1].headers["accept-language"]).toBe("en-GB");
+  });
+});
+
 describe("listings", () => {
   it("enumerates inventory items then offers per SKU, and merges with Trading", async () => {
     const m = mockFetch();

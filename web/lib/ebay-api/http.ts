@@ -42,6 +42,8 @@ export class EbayRest {
       authorization: `Bearer ${token}`,
       accept: "application/json",
       "x-ebay-c-marketplace-id": this.opts.marketplaceId,
+      // Without this, Node's fetch sends `accept-language: *`, which eBay rejects (errorId 25709).
+      "accept-language": "en-US",
       ...o.headers,
     };
     let body: string | undefined;
