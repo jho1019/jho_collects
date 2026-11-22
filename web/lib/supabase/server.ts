@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 
 // Server-side Supabase client, bound to the request's auth cookies. Uses the
 // publishable (anon) key only — RLS is the access model in every environment.
-// The service key is never referenced in this app.
+// The dashboard never uses the service key. The one exception is the machine-
+// facing /api/ebay/* routes (lib/supabase/admin.ts); see docs/DECISIONS.md,
+// "The service-role key exists only for /api/ebay/*".
 export async function createClient() {
   const cookieStore = await cookies();
 

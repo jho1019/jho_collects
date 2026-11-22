@@ -541,3 +541,66 @@ and a Dec 31 evening sale in the next tax year.
 
 A digest with nothing new is noise, and a muted channel also costs the
 Phase 10 release alerts. It ships in Phase 14 with the scanner.
+
+## The eBay API lives in this repo, for now
+
+Next.js route handlers under `web/app/api/ebay/*` on the existing Vercel
+project, state in the existing Supabase (`schema/024`). A separate service
+would mean a second deploy, a second secret store and a second copy of the
+Supabase client for one user's traffic, and the sync needs the ledger tables
+anyway. The cost of the choice is kept small instead: everything lives in
+`web/lib/ebay-api/` behind injected `fetch` and storage interfaces, with no
+Next.js imports outside the route files and `context.ts`, so it lifts out
+into its own service whenever that starts paying for itself. See
+`docs/ebay-api.md`.
+
+## The service-role key exists only for `/api/ebay/*`
+
+"Dashboard: local now, Vercel later" says anon key in every environment, and
+for the dashboard that still holds — no page or server action touches the
+service role. The eBay routes are the scoped exception: Yoshi, Vercel Cron
+and eBay's callbacks are machines with no Supabase session, so `auth.uid()`
+is null and the anon key sees nothing. Their tables (`schema/024`) are
+RLS-locked with no policies and revoked from `anon`/`authenticated`, so the
+refresh token cannot be read with the publishable key at all.
+`web/lib/supabase/admin.ts` imports `server-only`, and the key has no
+`NEXT_PUBLIC_` prefix, so it cannot reach a browser bundle. Never import it
+from a page.
+
+## The eBay API sync never writes ledger cash rows
+
+The Seller Hub transaction report is the only source that carries real fees
+and shipping-label costs, and both importers already load it idempotently on
+`source_ref`. A second writer of eBay sale rows would have to either invent
+fees (forbidden) or write fee-less rows the report later has to find and
+merge — an `UPDATE` path against tax records keyed on an id equivalence
+(Fulfillment `lineItemId` vs. the report's Transaction ID) nobody has
+verified. Not writing at all removes the double-count by construction: there
+is nothing to dedupe.
+
+So the sync's job is the part the report cannot do well — deciding which
+physical card sold — and it does it against the importer's row, joined on
+`order_ref` + `item_number` (order number + listing id, both of which the
+importers already store). `cards.status = 'sold'` requires a
+`sale_transaction_id`, so a card whose sale has not been imported yet waits
+as `pending_ledger` rather than being closed against nothing; the cost is
+that a sold card can show as held for up to a week, until the next report
+import. Matching follows the `CLAUDE.md` rules for a named card — SKU first,
+then a single unambiguous `find_cards` hit, otherwise `needs_review`, never a
+guess — because a cron run has nobody to ask.
+
+`find_cards` and `sell_card` are scoped to `auth.uid()`, which is null under
+the service role, so `schema/024` adds two service-role-only entry points:
+`ebay_find_cards` (sets the JWT `sub` for one transaction and calls the
+existing `find_cards`, keeping one definition of a match) and
+`ebay_close_card_for_sale` (closes against an existing sale row, re-checks
+everything under a lock, writes no transaction).
+
+## A fulfillment policy is never auto-selected
+
+Payment and return policies and the merchant location may be looked up when
+the account has exactly one. The shipping policy may not: the only existing
+one is eBay Standard Envelope, and "exactly one, so use it" would silently
+list $50 cards on the $0.78 envelope service meant for cards under $20. A real CDP
+import refuses until a fulfillment policy is configured; the dry run still
+works and shows `fulfillmentPolicyId: null`.

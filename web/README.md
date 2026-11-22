@@ -17,7 +17,9 @@ Sign in with the owner account created in Phase 0 (Supabase Auth).
 ## How it talks to the database
 
 - `@supabase/ssr` with the **publishable (anon) key** in every environment.
-  RLS is the access model; the service key is never referenced here.
+  RLS is the access model; no page uses the service key. The only exception
+  is the machine-facing eBay API under `app/api/ebay/*`
+  (`lib/supabase/admin.ts`, server-only) — see `../docs/ebay-api.md`.
 - `proxy.ts` (Next 16's rename of `middleware.ts`) refreshes the auth session
   on each request and redirects to `/login` when there is no session.
 - Pages are Server Components that query the SQL **views**
