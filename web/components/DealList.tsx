@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useState } from "react";
-import { usd } from "@/lib/format";
+import { signedUsd, toneClass, usd } from "@/lib/format";
 
 export type Deal = {
   deal_id: number;
@@ -35,17 +35,19 @@ export type DealCard = {
   disposed_deal_id: number | null;
 };
 
+// Kind pills reuse the 6.15 status palette: sale = amber (as on the
+// calendar's entries table), purchase = muted, trade = neg (as "traded"),
+// cash only = muted. The word is always printed.
 function kindBadge(kind: Deal["kind"]) {
   switch (kind) {
     case "sale":
-      return "bg-brand/10 text-brand";
-    case "purchase":
-      return "bg-accent/15 text-accent-ink";
+      return "pill pill-amber";
     case "trade":
-      return "bg-brand-soft/20 text-ink";
+      return "pill pill-traded";
+    case "purchase":
     case "cash_only":
     default:
-      return "bg-brand-soft/10 text-ink-muted";
+      return "pill pill-mute";
   }
 }
 
@@ -66,32 +68,34 @@ function DealDetail({
     <>
       <div className="grid gap-4 sm:grid-cols-3">
         <div>
-          <div className="mb-1 text-xs uppercase text-ink-muted">Transactions</div>
+          <h4 className="bl bl-mute mb-1">Transactions</h4>
           {dealTxns.length === 0 ? (
             <p className="text-xs text-ink-muted">No cash rows.</p>
           ) : (
-            <ul className="space-y-1 text-xs text-ink">
+            <ul className="space-y-1 text-[12px] text-ink">
               {dealTxns.map((t) => (
                 <li key={t.id} className="flex justify-between gap-2">
                   <span className="text-ink-muted">
                     {t.type} — {t.description}
                   </span>
-                  <span className="tabular-nums">{usd(t.net_cash)}</span>
+                  <span className={`shrink-0 tabular-nums ${toneClass(t.net_cash)}`}>
+                    {signedUsd(t.net_cash)}
+                  </span>
                 </li>
               ))}
             </ul>
           )}
         </div>
         <div>
-          <div className="mb-1 text-xs uppercase text-ink-muted">Cards in</div>
+          <h4 className="bl bl-mute mb-1">Cards in</h4>
           {cardsIn.length === 0 ? (
             <p className="text-xs text-ink-muted">None.</p>
           ) : (
-            <ul className="space-y-1 text-xs text-ink">
+            <ul className="space-y-1 text-[12px] text-ink">
               {cardsIn.map((c) => (
                 <li key={c.id} className="flex justify-between gap-2">
                   <span>{c.title}</span>
-                  <span className="tabular-nums text-ink-muted">
+                  <span className="shrink-0 tabular-nums text-ink-muted">
                     {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
                   </span>
                 </li>
@@ -100,15 +104,15 @@ function DealDetail({
           )}
         </div>
         <div>
-          <div className="mb-1 text-xs uppercase text-ink-muted">Cards out</div>
+          <h4 className="bl bl-mute mb-1">Cards out</h4>
           {cardsOut.length === 0 ? (
             <p className="text-xs text-ink-muted">None.</p>
           ) : (
-            <ul className="space-y-1 text-xs text-ink">
+            <ul className="space-y-1 text-[12px] text-ink">
               {cardsOut.map((c) => (
                 <li key={c.id} className="flex justify-between gap-2">
                   <span>{c.title}</span>
-                  <span className="tabular-nums text-ink-muted">
+                  <span className="shrink-0 tabular-nums text-ink-muted">
                     {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
                   </span>
                 </li>
@@ -117,7 +121,7 @@ function DealDetail({
           )}
         </div>
       </div>
-      {notes && <p className="mt-3 text-xs italic text-ink-muted">{notes}</p>}
+      {notes && <p className="sub mt-3 italic">{notes}</p>}
     </>
   );
 }
@@ -153,9 +157,9 @@ export default function DealList({
 
   return (
     <>
-      {/* Below md: one card per deal, same tap-to-expand behaviour as the
+      {/* Below 700px: one card per deal, same tap-to-expand behaviour as the
           table's row click — an 8-column table has no room on a phone. */}
-      <div className="space-y-2 md:hidden">
+      <div className="space-y-2 sm:hidden">
         {deals.map((d) => {
           const expanded = open.has(d.deal_id);
           const net = Number(d.net_cash);
@@ -163,33 +167,28 @@ export default function DealList({
           const cardsIn = cards.filter((c) => c.acquired_deal_id === d.deal_id);
           const cardsOut = cards.filter((c) => c.disposed_deal_id === d.deal_id);
           return (
-            <div key={d.deal_id} className="rounded-lg border border-brand-soft/25 bg-surface">
+            <div key={d.deal_id} className="cellrow !p-0">
               <button
                 type="button"
                 onClick={() => toggle(d.deal_id)}
                 aria-expanded={expanded}
-                className="flex w-full flex-col gap-1 px-3 py-2 text-left text-sm"
+                className="flex w-full flex-col gap-1 px-3 py-2.5 text-left text-[13px]"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="tabular-nums text-xs text-ink-muted">
                     {grouped ? "" : d.occurred_on}
                   </span>
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${kindBadge(d.kind)}`}
-                  >
-                    {d.kind.replace("_", " ")}
-                  </span>
+                  <span className={kindBadge(d.kind)}>{d.kind.replace("_", " ")}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-ink">
                     {grouped ? dealLabel(d, dealTxns) : (d.event_name ?? "—")}
-                    {d.needs_review && (
-                      <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
-                        needs review
-                      </span>
-                    )}
+                    {d.needs_review && <span className="pill pill-rev ml-2">needs review</span>}
                   </span>
-                  <span className={`shrink-0 text-ink-muted transition-transform ${expanded ? "rotate-180" : ""}`} aria-hidden>
+                  <span
+                    className={`shrink-0 text-ink-muted transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+                    aria-hidden
+                  >
                     ▾
                   </span>
                 </div>
@@ -199,16 +198,14 @@ export default function DealList({
                     <span>
                       {d.cards_in} in · {d.cards_out} out
                     </span>
-                    <span
-                      className={`tabular-nums font-medium ${net < 0 ? "text-accent-ink" : "text-brand"}`}
-                    >
-                      {usd(net)}
+                    <span className={`font-medium tabular-nums ${toneClass(net, "text-ink")}`}>
+                      {signedUsd(net)}
                     </span>
                   </span>
                 </div>
               </button>
               {expanded && (
-                <div className="border-t border-brand-soft/15 bg-page/60 px-3 py-3">
+                <div className="border-t border-line px-3 py-3">
                   <DealDetail
                     dealTxns={dealTxns}
                     cardsIn={cardsIn}
@@ -220,106 +217,94 @@ export default function DealList({
             </div>
           );
         })}
-        {deals.length === 0 && (
-          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
-            No deals yet.
-          </p>
-        )}
+        {deals.length === 0 && <p className="sub py-6 text-center">No deals yet.</p>}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
-      <table className="w-full text-sm">
-        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
-          <tr>
-            <th className="w-6 px-3 py-2" />
-            {grouped ? (
-              <th className="px-3 py-2 font-medium">Deal</th>
-            ) : (
-              <>
-                <th className="px-3 py-2 font-medium">Date</th>
-                <th className="px-3 py-2 font-medium">Event</th>
-              </>
-            )}
-            <th className="px-3 py-2 font-medium">Counterparty</th>
-            <th className="px-3 py-2 font-medium">Kind</th>
-            <th className="px-3 py-2 text-right font-medium">Net cash</th>
-            <th className="px-3 py-2 text-right font-medium">Cards in</th>
-            <th className="px-3 py-2 text-right font-medium">Cards out</th>
-          </tr>
-        </thead>
-        <tbody>
-          {deals.map((d) => {
-            const expanded = open.has(d.deal_id);
-            const net = Number(d.net_cash);
-            const dealTxns = txns.filter((t) => t.deal_id === d.deal_id);
-            const cardsIn = cards.filter((c) => c.acquired_deal_id === d.deal_id);
-            const cardsOut = cards.filter((c) => c.disposed_deal_id === d.deal_id);
-            return (
-              <Fragment key={d.deal_id}>
-                <tr
-                  onClick={() => toggle(d.deal_id)}
-                  className="cursor-pointer border-b border-brand-soft/15 last:border-0 hover:bg-brand-soft/5"
-                >
-                  <td className="px-3 py-2 text-ink-muted">{expanded ? "▾" : "▸"}</td>
-                  {!grouped && (
-                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink-muted">
-                      {d.occurred_on}
-                    </td>
-                  )}
-                  <td className="px-3 py-2 text-ink">
-                    {grouped ? dealLabel(d, dealTxns) : (d.event_name ?? "—")}
-                    {d.needs_review && (
-                      <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-medium text-accent-ink">
-                        needs review
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-ink-muted">{d.counterparty ?? "—"}</td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${kindBadge(d.kind)}`}
-                    >
-                      {d.kind.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td
-                    className={`px-3 py-2 text-right tabular-nums font-medium ${
-                      net < 0 ? "text-accent-ink" : "text-brand"
-                    }`}
-                  >
-                    {usd(net)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                    {d.cards_in}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                    {d.cards_out}
-                  </td>
-                </tr>
-                {expanded && (
-                  <tr className="border-b border-brand-soft/15 last:border-0">
-                    <td colSpan={cols} className="bg-page/60 px-6 py-3">
-                      <DealDetail
-                        dealTxns={dealTxns}
-                        cardsIn={cardsIn}
-                        cardsOut={cardsOut}
-                        notes={d.notes}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            );
-          })}
-          {deals.length === 0 && (
+      <div className="hidden overflow-x-auto sm:block">
+        <table className="tb">
+          <thead>
             <tr>
-              <td colSpan={cols} className="px-3 py-6 text-center text-ink-muted">
-                No deals yet.
-              </td>
+              <th className="w-6" aria-label="Expand" />
+              {grouped ? (
+                <th>Deal</th>
+              ) : (
+                <>
+                  <th>Date</th>
+                  <th>Event</th>
+                </>
+              )}
+              <th>Counterparty</th>
+              <th>Kind</th>
+              <th className="r">Net cash</th>
+              <th className="r">Cards in</th>
+              <th className="r">Cards out</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {deals.map((d) => {
+              const expanded = open.has(d.deal_id);
+              const net = Number(d.net_cash);
+              const dealTxns = txns.filter((t) => t.deal_id === d.deal_id);
+              const cardsIn = cards.filter((c) => c.acquired_deal_id === d.deal_id);
+              const cardsOut = cards.filter((c) => c.disposed_deal_id === d.deal_id);
+              return (
+                <Fragment key={d.deal_id}>
+                  <tr
+                    onClick={() => toggle(d.deal_id)}
+                    className="cursor-pointer hover:bg-cell"
+                  >
+                    <td className="mute">
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        aria-label={expanded ? "Collapse deal" : "Expand deal"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggle(d.deal_id);
+                        }}
+                      >
+                        {expanded ? "▾" : "▸"}
+                      </button>
+                    </td>
+                    {!grouped && (
+                      <td className="mute whitespace-nowrap tabular-nums">{d.occurred_on}</td>
+                    )}
+                    <td>
+                      {grouped ? dealLabel(d, dealTxns) : (d.event_name ?? "—")}
+                      {d.needs_review && <span className="pill pill-rev ml-2">needs review</span>}
+                    </td>
+                    <td className="mute">{d.counterparty ?? "—"}</td>
+                    <td>
+                      <span className={kindBadge(d.kind)}>{d.kind.replace("_", " ")}</span>
+                    </td>
+                    <td className={`r whitespace-nowrap ${toneClass(net)}`}>{signedUsd(net)}</td>
+                    <td className="r mute">{d.cards_in}</td>
+                    <td className="r mute">{d.cards_out}</td>
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={cols} className="bg-cell !px-6 !py-3">
+                        <DealDetail
+                          dealTxns={dealTxns}
+                          cardsIn={cardsIn}
+                          cardsOut={cardsOut}
+                          notes={d.notes}
+                        />
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              );
+            })}
+            {deals.length === 0 && (
+              <tr>
+                <td colSpan={cols} className="py-6 text-center text-ink-muted">
+                  No deals yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </>
   );

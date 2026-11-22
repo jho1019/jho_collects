@@ -75,7 +75,15 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
     const active = sort === key;
     return (
       <th
-        className={`cursor-pointer select-none px-3 py-2 font-medium ${right ? "text-right" : "text-left"}`}
+        className={`sortable ${right ? "r" : ""} ${active ? "!text-ink" : ""}`}
+        aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.currentTarget.click();
+          }
+        }}
         onClick={() => {
           if (active) setDir(dir === "asc" ? "desc" : "asc");
           else {
@@ -85,22 +93,24 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
         }}
       >
         {label}
-        {active ? (dir === "asc" ? " ▲" : " ▼") : ""}
+        {active && (
+          <span className="text-amber" aria-hidden>
+            {dir === "asc" ? " ▴" : " ▾"}
+          </span>
+        )}
       </th>
     );
   }
 
   return (
-    <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-on-page">
-          People{" "}
-          <span className="font-normal text-on-page/70">({rows.length})</span>
-        </h2>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <label className="flex items-center gap-1 text-xs text-on-page/80">
+    <section className="board bd">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="bl">People ({rows.length})</h2>
+        <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
+          <label className="flex items-center gap-2 text-xs text-ink-muted">
             <input
               type="checkbox"
+              className="chk"
               checked={repeatOnly}
               onChange={(e) => setRepeatOnly(e.target.checked)}
             />
@@ -110,20 +120,21 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter username / name / state"
-            className="w-full rounded border border-on-page/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
+            aria-label="Filter people"
+            className="field w-full sm:w-[270px]"
           />
         </div>
       </div>
 
-      {/* Below md: a sort <select> stands in for the table's clickable
-          headers, then one card per buyer. md+: the table, unchanged. */}
-      <div className="flex items-center gap-2 md:hidden">
-        <label className="flex items-center gap-1.5 text-xs text-ink-muted">
+      {/* Below 700px: a sort <select> stands in for the table's clickable
+          headers, then one card per buyer. */}
+      <div className="mt-3 flex items-center gap-2 sm:hidden">
+        <label className="flex items-center gap-2 text-xs text-ink-muted">
           Sort
           <select
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
-            className="rounded border border-brand-soft/40 bg-surface px-1.5 py-1 text-xs text-ink"
+            className="field field-sm"
           >
             {SORT_OPTIONS.map((o) => (
               <option key={o.key} value={o.key}>
@@ -135,61 +146,56 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
         <button
           type="button"
           onClick={() => setDir(dir === "asc" ? "desc" : "asc")}
-          className="rounded border border-brand-soft/40 px-2 py-1 text-xs text-ink-muted"
+          className="btn sm"
         >
           {dir === "asc" ? "▲ asc" : "▼ desc"}
         </button>
       </div>
 
-      <div className="space-y-2 md:hidden">
+      <div className="mt-3 grid gap-2.5 sm:hidden">
         {rows.map((b) => (
-          <div
-            key={b.platform_username}
-            className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
-          >
+          <div key={b.platform_username} className="cellrow text-[13px]">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <span className="text-ink">{b.platform_username}</span>
-                {b.is_repeat_buyer && (
-                  <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                    repeat
-                  </span>
-                )}
+                {b.is_repeat_buyer && <span className="pill pill-rep ml-2">repeat</span>}
                 {b.display_name && (
                   <div className="text-xs text-ink-muted">{b.display_name}</div>
                 )}
               </div>
               <span className="shrink-0 text-xs text-ink-muted">{b.last_state ?? "—"}</span>
             </div>
-            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-ink-muted">
+            <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px] text-ink-muted">
               <span>
-                Orders <span className="tabular-nums text-ink">{b.distinct_orders}</span>
+                Orders <b className="font-medium tabular-nums text-ink">{b.distinct_orders}</b>
               </span>
               <span>
-                Last order <span className="tabular-nums text-ink">{b.last_order_on ?? "—"}</span>
+                Last order{" "}
+                <b className="font-medium tabular-nums text-ink">{b.last_order_on ?? "—"}</b>
               </span>
               <span>
-                Gross <span className="tabular-nums text-ink">{usd(b.lifetime_gross)}</span>
+                Gross <b className="font-medium tabular-nums text-ink">{usd(b.lifetime_gross)}</b>
               </span>
               <span>
-                Net <span className="tabular-nums text-ink">{usd(b.lifetime_net)}</span>
+                Net <b className="font-medium tabular-nums text-ink">{usd(b.lifetime_net)}</b>
               </span>
               <span>
-                Avg price <span className="tabular-nums text-ink">{usd(b.avg_item_price)}</span>
+                Avg price{" "}
+                <b className="font-medium tabular-nums text-ink">{usd(b.avg_item_price)}</b>
               </span>
             </div>
           </div>
         ))}
         {rows.length === 0 && (
-          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
+          <p className="sub py-6 text-center">
             {buyers.length === 0 ? "No buyers yet." : "No matches."}
           </p>
         )}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
-        <table className="w-full text-sm">
-          <thead className="border-b border-brand-soft/25 text-xs uppercase tracking-wide text-ink-muted">
+      <div className="mt-3 hidden overflow-x-auto sm:block">
+        <table className="tb">
+          <thead>
             <tr>
               {header("platform_username", "Buyer")}
               {header("last_state", "State")}
@@ -202,44 +208,25 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
           </thead>
           <tbody>
             {rows.map((b) => (
-              <tr
-                key={b.platform_username}
-                className="border-b border-brand-soft/15 last:border-0"
-              >
-                <td className="px-3 py-2">
-                  <span className="text-ink">{b.platform_username}</span>
-                  {b.is_repeat_buyer && (
-                    <span className="ml-2 rounded bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand">
-                      repeat
-                    </span>
-                  )}
+              <tr key={b.platform_username}>
+                <td>
+                  {b.platform_username}
+                  {b.is_repeat_buyer && <span className="pill pill-rep ml-2">repeat</span>}
                   {b.display_name && (
                     <div className="text-xs text-ink-muted">{b.display_name}</div>
                   )}
                 </td>
-                <td className="px-3 py-2 text-ink-muted">
-                  {b.last_state ?? "—"}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                  {b.distinct_orders}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">
-                  {usd(b.lifetime_gross)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">
-                  {usd(b.lifetime_net)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">
-                  {usd(b.avg_item_price)}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                  {b.last_order_on ?? "—"}
-                </td>
+                <td className="mute">{b.last_state ?? "—"}</td>
+                <td className="r mute">{b.distinct_orders}</td>
+                <td className="r">{usd(b.lifetime_gross)}</td>
+                <td className="r">{usd(b.lifetime_net)}</td>
+                <td className="r">{usd(b.avg_item_price)}</td>
+                <td className="r mute whitespace-nowrap">{b.last_order_on ?? "—"}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-6 text-center text-ink-muted">
+                <td colSpan={7} className="py-6 text-center text-ink-muted">
                   {buyers.length === 0 ? "No buyers yet." : "No matches."}
                 </td>
               </tr>

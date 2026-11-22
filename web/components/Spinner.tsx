@@ -7,7 +7,7 @@ export default function Spinner({ className = "h-5 w-5" }: { className?: string 
     <div
       role="status"
       aria-label="Loading"
-      className={`${className} animate-spin rounded-full border-2 border-brand-soft/30 border-t-brand`}
+      className={`${className} animate-spin rounded-full border-2 border-line border-t-amber motion-reduce:animate-none`}
     />
   );
 }

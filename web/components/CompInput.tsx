@@ -19,10 +19,13 @@ export default function CompInput({
   itemId,
   current,
   ageLabel,
+  stale = false,
 }: {
   itemId: number;
   current: number | null;
   ageLabel: React.ReactNode;
+  /** Comp older than 30 days: the age line turns amber (spec B8). */
+  stale?: boolean;
 }) {
   const [value, setValue] = useState(current == null ? "" : current.toFixed(2));
   const [error, setError] = useState<string | null>(null);
@@ -95,7 +98,7 @@ export default function CompInput({
   return (
     <div className="flex flex-col items-end">
       <div className="relative">
-        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-ink-muted">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted">
           $
         </span>
         <input
@@ -110,17 +113,20 @@ export default function CompInput({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="w-24 rounded border border-brand-soft/40 bg-surface py-1 pl-5 pr-2 text-right tabular-nums text-ink disabled:opacity-50"
+          className="field r w-[112px] !pl-6"
         />
       </div>
-      {error && <span className="text-xs text-accent-ink">{error}</span>}
+      {error && <span className="text-[11.5px] text-neg">{error}</span>}
       {current != null && (
         <button
           ref={toggleRef}
           type="button"
           onClick={toggleOpen}
           aria-expanded={open}
-          className="flex items-center gap-0.5 text-xs text-ink-muted hover:text-ink"
+          aria-haspopup="dialog"
+          className={`mt-[3px] flex items-center gap-1 text-[11.5px] hover:underline ${
+            stale ? "text-amber" : "text-ink-muted"
+          }`}
         >
           {ageLabel}
           <span className={`transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
@@ -131,16 +137,18 @@ export default function CompInput({
         createPortal(
           <div
             ref={popupRef}
+            role="dialog"
+            aria-label="Comp history"
             style={{ top: pos.top, right: pos.right }}
-            className="fixed z-50 min-w-[9rem] rounded border border-brand-soft/30 bg-surface py-1 text-xs text-ink shadow-lg"
+            className="pop fixed z-50 min-w-[156px] py-1.5"
           >
-            {loadingHistory && <p className="px-2 py-1 text-ink-muted">Loading…</p>}
+            {loadingHistory && <p className="px-3 py-[3px] text-ink-muted">Loading…</p>}
             {!loadingHistory && history?.length === 0 && (
-              <p className="px-2 py-1 text-ink-muted">No history</p>
+              <p className="px-3 py-[3px] text-ink-muted">No history</p>
             )}
             {!loadingHistory &&
               history?.map((h) => (
-                <div key={h.id} className="flex justify-between gap-3 whitespace-nowrap px-2 py-1">
+                <div key={h.id} className="flex justify-between gap-4 whitespace-nowrap px-3 py-[3px]">
                   <span className="text-ink-muted">{h.observed_on}</span>
                   <span className="tabular-nums">{usd(h.price)}</span>
                 </div>

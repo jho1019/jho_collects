@@ -51,10 +51,11 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   }
 
   const body = (
-    <div className="space-y-6">
-      <section className="space-y-2">
-        <label className="text-sm font-medium text-on-page">Table</label>
+    <div className="grid gap-[22px]">
+      <section className="flex items-center gap-3">
+        <label htmlFor="data-table" className="bl">Table</label>
         <select
+          id="data-table"
           value={table}
           onChange={(e) => {
             setTable(e.target.value as TableName);
@@ -62,7 +63,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
             setCsv("");
             setFileName("");
           }}
-          className="ml-2 rounded border border-brand-soft/50 bg-surface px-2 py-1 text-sm"
+          className="field"
         >
           {TABLE_NAMES.map((t) => (
             <option key={t} value={t}>
@@ -72,23 +73,23 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
         </select>
       </section>
 
-      <section className="space-y-2 rounded-lg border border-brand-soft/25 bg-surface p-4">
-        <h2 className="text-sm font-medium text-ink">Export</h2>
-        <p className="text-xs text-ink-muted">
+      <section className="board bd space-y-3">
+        <h2 className="bl">Export</h2>
+        <p className="sub">
           Every row, all columns including <code>id</code> — the format{" "}
           <code>restore.py</code> and the import below expect.
         </p>
         <a
           href={`/data/export?table=${table}`}
-          className="inline-block rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90"
+          className="btn pri"
         >
           Download {table}.csv
         </a>
       </section>
 
-      <section className="space-y-3 rounded-lg border border-brand-soft/25 bg-surface p-4">
-        <h2 className="text-sm font-medium text-ink">Import</h2>
-        <p className="text-xs text-ink-muted">
+      <section className="board bd space-y-3">
+        <h2 className="bl">Import</h2>
+        <p className="sub">
           Preview first, then commit. Generated and unknown columns are dropped;
           rows are matched on{" "}
           <code>{table === "inventory_counts" ? "tax_year" : "id"}</code>.
@@ -98,40 +99,41 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
-          className="block text-sm text-ink-muted file:mr-3 file:rounded file:border file:border-brand-soft/50 file:bg-surface file:px-3 file:py-1.5 file:text-sm"
+          aria-label="CSV file to import"
+          className="field-file block"
         />
 
-        {busy && <p className="text-sm text-ink-muted">working…</p>}
+        {busy && <p className="sub" role="status">working…</p>}
 
         {preview && !preview.ok && (
-          <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-            {preview.error}
+          <p className="ban err" role="alert">
+            <span>{preview.error}</span>
           </p>
         )}
 
         {preview && preview.ok && (
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            <div className="flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-ink">
               <span>
                 <strong>{preview.total}</strong> rows in {fileName}
               </span>
-              <span className="text-green-700">{preview.newCount} new</span>
+              <span className="text-pos">{preview.newCount} new</span>
               <span className="text-ink-muted">
                 {preview.existingCount} already present
               </span>
             </div>
             {preview.warnings.map((w, i) => (
-              <p key={i} className="text-xs text-amber-700">
+              <p key={i} className="text-xs text-amber">
                 {w}
               </p>
             ))}
 
-            <div className="max-h-64 overflow-auto rounded border border-brand-soft/25">
-              <table className="w-full text-xs">
-                <thead className="bg-brand-soft/10 text-left text-ink-muted">
+            <div className="max-h-64 overflow-auto rounded-[4px] border border-line bg-cell">
+              <table className="tb !text-[12px]">
+                <thead>
                   <tr>
                     {Object.keys(preview.sample[0] ?? {}).map((c) => (
-                      <th key={c} className="px-2 py-1 font-medium">
+                      <th key={c}>
                         {c}
                       </th>
                     ))}
@@ -139,9 +141,9 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
                 </thead>
                 <tbody>
                   {preview.sample.map((r, i) => (
-                    <tr key={i} className="border-t border-brand-soft/15">
+                    <tr key={i}>
                       {Object.keys(preview.sample[0] ?? {}).map((c) => (
-                        <td key={c} className="whitespace-nowrap px-2 py-1 text-ink">
+                        <td key={c} className="whitespace-nowrap">
                           {r[c]}
                         </td>
                       ))}
@@ -157,17 +159,19 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
             )}
 
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1 text-sm text-ink">
+              <label className="flex items-center gap-1.5 text-[13px] text-ink">
                 <input
                   type="radio"
+                  className="accent-amber"
                   checked={mode === "insert"}
                   onChange={() => setMode("insert")}
                 />
                 insert new only
               </label>
-              <label className="flex items-center gap-1 text-sm text-ink">
+              <label className="flex items-center gap-1.5 text-[13px] text-ink">
                 <input
                   type="radio"
+                  className="accent-amber"
                   checked={mode === "update"}
                   onChange={() => setMode("update")}
                 />
@@ -175,7 +179,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
               </label>
             </div>
             {mode === "update" && (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-amber">
                 Updating rows bypasses the entry-path validation. CHECK
                 constraints still apply — a bad edit is rejected.
               </p>
@@ -184,7 +188,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
             <button
               onClick={onCommit}
               disabled={busy}
-              className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-50"
+              className="btn pri"
             >
               Commit {mode === "insert" ? preview.newCount : preview.total} rows
             </button>
@@ -192,13 +196,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
         )}
 
         {result && (
-          <p
-            className={`rounded px-3 py-2 text-sm ${
-              result.ok
-                ? "bg-green-50 text-green-800"
-                : "bg-red-50 text-red-700"
-            }`}
-          >
+          <p className={`ban ${result.ok ? "" : "err"}`} role={result.ok ? "status" : "alert"}>
             {result.ok
               ? `Done — ${result.affected} rows ${
                   result.mode === "insert" ? "inserted" : "upserted"
@@ -213,12 +211,10 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   if (embedded) return body;
 
   return (
-    <main className="mx-auto max-w-4xl space-y-8 p-4 md:p-6">
-      <header className="flex flex-wrap items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold text-on-page">
-          Data import / export
-        </h1>
-        <Link href="/" className="text-sm text-on-page/70 hover:text-on-page">
+    <main className="pg">
+      <header className="pg-head">
+        <h1 className="pg-h1">Data import / export</h1>
+        <Link href="/dashboard" className="lk text-[12.5px]">
           ← dashboard
         </Link>
       </header>

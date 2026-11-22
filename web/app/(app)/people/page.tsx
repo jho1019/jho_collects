@@ -15,17 +15,19 @@ export default async function PeoplePage() {
     );
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
+    <main className="pg">
       <header>
-        <h1 className="text-xl font-bold text-on-page">People</h1>
-        <p className="text-sm text-on-page/70">
+        <h1 className="pg-h1">People</h1>
+        <p className="pg-lead">
           Buyers, and card-show counterparties you&rsquo;ve bought from.
         </p>
       </header>
 
       {error && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {error.message}
+        <p className="ban err" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load people.</b> {error.message}
+          </span>
         </p>
       )}
 

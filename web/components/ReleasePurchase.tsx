@@ -47,7 +47,7 @@ export default function ReleasePurchase({
           if (!next) setQuantity("");
           save(next, next ? quantity : "");
         }}
-        className="h-4 w-4 accent-brand"
+        className="chk"
       />
       {purchased && (
         <input
@@ -66,10 +66,10 @@ export default function ReleasePurchase({
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
           }}
-          className="w-16 rounded border border-brand-soft/40 bg-surface px-2 py-1 text-sm tabular-nums text-ink placeholder:text-ink-muted"
+          className="field r w-16 !px-2 !py-1"
         />
       )}
-      {error && <span className="text-xs text-accent-ink">{error}</span>}
+      {error && <span className="text-[11.5px] text-neg">{error}</span>}
     </div>
   );
 }

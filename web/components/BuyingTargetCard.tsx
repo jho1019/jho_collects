@@ -42,7 +42,7 @@ export default function BuyingTargetCard({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded border border-brand-soft/15 bg-surface">
+    <div className="cellrow !p-0">
       <button
         type="button"
         onClick={() => setOpen((was) => !was)}
@@ -54,15 +54,15 @@ export default function BuyingTargetCard({
           <img
             src={img}
             alt=""
-            className="h-14 w-auto shrink-0 rounded border border-brand-soft/25"
+            className="h-14 w-auto shrink-0 rounded-[3px] border border-line"
           />
         ) : (
           <span
-            className="h-14 w-10 shrink-0 rounded border border-dashed border-brand-soft/30"
+            className="h-14 w-10 shrink-0 rounded-[3px] border border-dashed border-line"
             aria-hidden
           />
         )}
-        <span className="min-w-0 flex-1 truncate text-sm text-ink">{title}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{title}</span>
         <span
           className={`shrink-0 text-ink-muted transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden
@@ -72,7 +72,7 @@ export default function BuyingTargetCard({
       </button>
 
       {open && (
-        <div className="space-y-3 border-t border-brand-soft/15 px-3 py-3">
+        <div className="space-y-3 border-t border-line px-3 py-3">
           {img && (
             <div className="flex justify-center">
               <CardImageLightbox src={img} alt={title} />
@@ -80,16 +80,17 @@ export default function BuyingTargetCard({
           )}
 
           <CopyTitle title={title}>
-            <span className="text-sm text-ink">{title}</span>
+            <span className="text-[13px] text-ink">{title}</span>
           </CopyTitle>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber">
               Comp
             </span>
             <CompInput
               itemId={id}
               current={latestComp}
+              stale={isStale}
               ageLabel={
                 <>
                   {compAgeDays === 0 ? "today" : `${compAgeDays}d old`}
@@ -100,30 +101,30 @@ export default function BuyingTargetCard({
           </div>
 
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-medium uppercase tracking-wide text-ink-muted">
+            <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber">
               Target price
             </span>
             <span className="tabular-nums text-ink">
               {maxAllIn == null ? "—" : usd(maxAllIn)}
-              {isManual && <span className="ml-1 text-xs text-ink-muted">manual</span>}
+              {isManual && <span className="ml-1 text-[11.5px] text-ink-muted">manual</span>}
             </span>
           </div>
 
           <div>
-            <span className="mb-1 block text-xs font-medium uppercase tracking-wide text-ink-muted">
+            <span className="mb-1 block text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber">
               Notes
             </span>
             <RowNotes itemId={id} initialNotes={notes} />
           </div>
 
-          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-brand-soft/15 pt-2 text-sm">
-            <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="text-brand underline">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line pt-2 text-[13px]">
+            <a href={soldUrl} target="_blank" rel="noopener noreferrer" className="lk">
               Recent sales
             </a>
-            <a href={pointUrl} target="_blank" rel="noopener noreferrer" className="text-brand underline">
+            <a href={pointUrl} target="_blank" rel="noopener noreferrer" className="lk">
               130point
             </a>
-            <a href={searchUrl} target="_blank" rel="noopener noreferrer" className="text-brand underline">
+            <a href={searchUrl} target="_blank" rel="noopener noreferrer" className="lk">
               eBay listings
             </a>
           </div>
