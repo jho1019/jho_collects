@@ -39,31 +39,16 @@ function subscribe(onChange: () => void) {
 
 // Light / dark / system. The pre-paint script in app/layout.tsx sets the
 // attribute on hard loads; this keeps it in step after that.
-// tone="page" sits directly on the blue page (desktop header); "surface" sits
-// inside the grey sidebar/drawer — see the token notes in globals.css.
-const TONES = {
-  page: {
-    group: "border-on-page/40",
-    button: "text-on-page",
-    active: "bg-on-page/20",
-    idle: "opacity-70 hover:bg-on-page/10 hover:opacity-100",
-  },
-  surface: {
-    group: "border-brand-soft/40",
-    button: "",
-    active: "bg-brand/10 text-brand",
-    idle: "text-ink-muted hover:bg-brand-soft/10",
-  },
-};
-
+// variant="icons" is the 3-icon group in the top bar; "segmented" is the
+// LIGHT / DARK / SYSTEM control in the mobile More sheet. Same OPTIONS, same
+// storage, same radiogroup semantics either way.
 export default function ThemeToggle({
-  tone = "page",
+  variant = "icons",
   className = "",
 }: {
-  tone?: keyof typeof TONES;
+  variant?: "icons" | "segmented";
   className?: string;
 }) {
-  const t = TONES[tone];
   const theme = useSyncExternalStore(subscribe, readTheme, () => "system" as Theme);
 
   // Re-apply on mount (React's dev Strict Mode remount clears attributes the
@@ -83,11 +68,30 @@ export default function ThemeToggle({
     window.dispatchEvent(new Event(CHANGE_EVENT));
   }
 
+  // Arrow keys move the selection, as a radiogroup should (spec 8).
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1
+      : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const i = OPTIONS.findIndex((o) => o.value === theme);
+    const next = OPTIONS[(i + step + OPTIONS.length) % OPTIONS.length];
+    choose(next.value);
+    e.currentTarget
+      .querySelector<HTMLButtonElement>(`[data-value="${next.value}"]`)
+      ?.focus();
+  }
+
+  const segmented = variant === "segmented";
+
   return (
     <div
       role="radiogroup"
       aria-label="Theme"
-      className={`inline-flex items-center gap-0.5 rounded border p-0.5 ${t.group} ${className}`}
+      onKeyDown={onKeyDown}
+      className={`flex overflow-hidden rounded-[3px] border border-line ${
+        segmented ? "bg-cell" : "bg-chip-bg"
+      } ${className}`}
     >
       {OPTIONS.map((o) => {
         const active = theme === o.value;
@@ -96,13 +100,23 @@ export default function ThemeToggle({
             key={o.value}
             type="button"
             role="radio"
+            data-value={o.value}
             aria-checked={active}
-            aria-label={o.label}
-            title={o.label}
+            aria-label={segmented ? undefined : o.label}
+            title={segmented ? undefined : o.label}
+            tabIndex={active ? 0 : -1}
             onClick={() => choose(o.value)}
-            className={`rounded-sm p-1 transition-colors ${t.button} ${active ? t.active : t.idle}`}
+            className={
+              segmented
+                ? `min-h-11 flex-1 border-r border-line font-display text-[13px] font-bold uppercase tracking-[0.14em] last:border-r-0 ${
+                    active ? "bg-amber text-on-amber" : "text-ink-muted hover:text-ink"
+                  }`
+                : `grid h-[26px] w-7 place-items-center transition-colors ${
+                    active ? "bg-cell-tot text-ink" : "text-ink-muted hover:text-ink"
+                  }`
+            }
           >
-            {o.icon}
+            {segmented ? o.label : o.icon}
           </button>
         );
       })}

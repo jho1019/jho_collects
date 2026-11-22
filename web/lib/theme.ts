@@ -1,5 +1,5 @@
 // Theme override shared by the pre-paint script (app/layout.tsx) and the
-// header toggle (components/ThemeToggle.tsx). "system" is stored as the
+// top-bar / More-sheet toggle (components/ThemeToggle.tsx). "system" is stored as the
 // absence of the key, so the CSS media query in globals.css decides.
 export type Theme = "light" | "dark" | "system";
 
