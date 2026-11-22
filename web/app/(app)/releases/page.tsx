@@ -82,42 +82,42 @@ export default async function ReleasesPage() {
 
   function table(rows: Release[], empty: string) {
     if (rows.length === 0) {
-      return <p className="rounded bg-surface px-3 py-4 text-sm text-ink-muted">{empty}</p>;
+      return <p className="board bd text-sm text-ink-muted">{empty}</p>;
     }
     return (
-      <div className="overflow-x-auto rounded bg-surface">
-        <table className="w-full text-sm">
+      <div className="board bd-tight overflow-x-auto">
+        <table className="tb">
           <thead>
-            <tr className="text-left text-xs text-ink-muted">
-              <th className="px-3 py-1.5 font-medium tracking-wide">Image</th>
-              <th className="px-3 py-1.5 font-medium tracking-wide">Title</th>
-              <th className="px-3 py-1.5 font-medium tracking-wide">Release</th>
-              <th className="px-3 py-1.5 font-medium tracking-wide">Link</th>
-              <th className="px-3 py-1.5 font-medium tracking-wide">Purchased</th>
+            <tr>
+              <th>Image</th>
+              <th>Title</th>
+              <th>Release</th>
+              <th>Link</th>
+              <th>Purchased</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="border-t border-brand-soft/15 align-middle">
-                <td className="px-3 py-2">
+              <tr key={r.id}>
+                <td>
                   <ReleaseImage
                     releaseId={r.id}
                     title={r.title}
                     src={r.image_path ? imageUrls.get(r.image_path) : undefined}
                   />
                 </td>
-                <td className="min-w-48 px-3 py-2 text-ink">{r.title}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-ink">
+                <td className="min-w-48">{r.title}</td>
+                <td className="whitespace-nowrap tabular-nums">
                   {formatDay(r.release_on)}
-                  <span className="block text-xs text-ink-muted">{formatTime(r)}</span>
+                  <span className="block text-[11.5px] text-ink-muted">{formatTime(r)}</span>
                 </td>
-                <td className="px-3 py-2">
+                <td>
                   {safeUrl(r.url) ? (
                     <a
                       href={safeUrl(r.url)!}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-brand underline"
+                      className="lk"
                     >
                       Open
                     </a>
@@ -125,7 +125,7 @@ export default async function ReleasesPage() {
                     <span className="text-ink-muted">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2">
+                <td>
                   <ReleasePurchase
                     releaseId={r.id}
                     initialPurchased={r.purchased}
@@ -141,17 +141,19 @@ export default async function ReleasesPage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
+    <main className="pg">
       <header>
-        <h1 className="text-xl font-bold text-on-page">Releases</h1>
-        <p className="text-sm text-on-page/70">
+        <h1 className="pg-h1">Releases</h1>
+        <p className="pg-lead">
           Dates and times are Pacific. Add releases by pasting a schedule to Claude.
         </p>
       </header>
 
       {error && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {error.message}
+        <p className="ban err" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load releases.</b> {error.message}
+          </span>
         </p>
       )}
 

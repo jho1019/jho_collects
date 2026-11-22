@@ -1,5 +1,14 @@
-import { usd } from "@/lib/format";
+import { signedUsd, toneClass } from "@/lib/format";
 import type { LedgerEntry } from "@/lib/ledgerTypes";
+
+// Type pill colours follow the calendar mock (page_calendar_desktop_full.png):
+// sale = amber outline, refund = neg, everything else muted. The text is
+// always there, so colour is never the only signal.
+function typePill(type: string) {
+  if (type === "sale") return "pill pill-amber";
+  if (type === "refund") return "pill pill-neg";
+  return "pill pill-mute";
+}
 
 // One day's ledger entries, in the row shape a day-detail panel uses — no
 // running_total, since a single day carries no cumulative meaning of its own.
@@ -7,26 +16,28 @@ import type { LedgerEntry } from "@/lib/ledgerTypes";
 // click-a-day panel (Phase 9), so a fix here fixes both instead of just one.
 export default function DayEntryTable({ entries }: { entries: LedgerEntry[] }) {
   if (entries.length === 0) {
-    return <p className="text-sm text-ink-muted">No activity.</p>;
+    return <p className="sub">No activity.</p>;
   }
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
+      <table className="tb">
+        <thead>
           <tr>
-            <th className="py-1 pr-3 font-medium">Type</th>
-            <th className="py-1 pr-3 font-medium">Description</th>
-            <th className="py-1 text-right font-medium">Net cash</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th className="r">Net cash</th>
           </tr>
         </thead>
         <tbody>
           {entries.map((e) => (
-            <tr key={e.id} className="border-b border-brand-soft/15 last:border-0">
-              <td className="py-1 pr-3 text-ink-muted">{e.type}</td>
-              <td className="py-1 pr-3 text-ink">{e.description}</td>
-              <td className="py-1 text-right tabular-nums text-ink">
-                {usd(e.net_cash)}
+            <tr key={e.id}>
+              <td>
+                <span className={typePill(e.type)}>{e.type}</span>
+              </td>
+              <td>{e.description}</td>
+              <td className={`r whitespace-nowrap ${toneClass(e.net_cash)}`}>
+                {signedUsd(e.net_cash)}
               </td>
             </tr>
           ))}

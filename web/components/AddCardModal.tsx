@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { addBuyingListItem } from "@/app/(app)/buying/actions";
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-const FIELD =
-  "rounded border border-brand-soft/40 bg-surface px-2 py-1.5 text-sm text-ink placeholder:text-ink-muted";
+const FIELD = "field";
 
 function extractImageFile(items: DataTransferItemList | null): File | null {
   if (!items) return null;
@@ -41,6 +40,18 @@ export default function AddCardModal() {
     formRef.current?.reset();
   }
 
+  // Escape closes, as listed in spec B3 (the modal only had the X and
+  // scrim click before). Same handler pattern as CardImageLightbox.
+  useEffect(() => {
+    if (!open) return;
+    function onEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") close();
+    }
+    document.addEventListener("keydown", onEscape);
+    return () => document.removeEventListener("keydown", onEscape);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   function submit(formData: FormData) {
     setError(null);
     if (image) formData.set("image", image);
@@ -60,26 +71,36 @@ export default function AddCardModal() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90"
+        className="btn pri"
       >
-        Add card
+        <span aria-hidden>+</span> Add card
       </button>
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 sm:p-8"
           onClick={(e) => {
             if (e.target === e.currentTarget) close();
           }}
         >
-          <div className="w-full max-w-lg rounded-lg bg-surface p-5 shadow-xl">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-ink">Add card</h2>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-card-title"
+            className="board bd my-2 w-full max-w-lg"
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h2
+                id="add-card-title"
+                className="num text-[28px] font-black uppercase leading-none tracking-[0.02em] text-ink"
+              >
+                Add card
+              </h2>
               <button
                 type="button"
                 onClick={close}
                 aria-label="Close"
-                className="text-ink-muted hover:text-ink"
+                className="btn sm"
               >
                 ✕
               </button>
@@ -103,18 +124,18 @@ export default function AddCardModal() {
                   if (file) setImageFile(file);
                 }}
                 tabIndex={0}
-                className={`flex min-h-24 items-center justify-center rounded border-2 border-dashed px-3 py-3 text-center text-sm outline-none ${
-                  dragOver ? "border-brand bg-brand/10 text-brand" : "border-brand-soft/50 text-ink-muted"
+                className={`flex min-h-24 items-center justify-center rounded-[4px] border border-dashed bg-cell px-3 py-3 text-center text-[12.5px] ${
+                  dragOver ? "border-amber text-amber" : "border-line text-ink-muted"
                 }`}
               >
                 {preview ? (
                   <div className="flex items-center gap-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={preview} alt="Card preview" className="h-20 w-auto rounded" />
+                    <img src={preview} alt="Card preview" className="h-20 w-auto rounded-[3px] border border-line" />
                     <button
                       type="button"
                       onClick={() => setImageFile(null)}
-                      className="text-xs text-ink-muted underline hover:text-ink"
+                      className="lk text-xs"
                     >
                       Remove image
                     </button>
@@ -168,20 +189,24 @@ export default function AddCardModal() {
                 />
               </div>
 
-              {error && <p className="text-sm text-accent-ink">{error}</p>}
+              {error && (
+                <p className="ban err" role="alert">
+                  <span>{error}</span>
+                </p>
+              )}
 
               <div className="flex justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={close}
-                  className="rounded border border-brand-soft/40 px-3 py-1.5 text-sm text-ink"
+                  className="btn"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={pending}
-                  className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface disabled:opacity-50"
+                  className="btn pri"
                 >
                   {pending ? "Adding…" : "Add card"}
                 </button>

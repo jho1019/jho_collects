@@ -6,7 +6,16 @@ import { useEffect, useState } from "react";
 // image over the page. Plain `position: fixed` (no portal) is enough here —
 // unlike CompInput's small anchored popup, a full-viewport overlay isn't
 // clipped by the table's overflow-x-auto ancestor.
-export default function CardImageLightbox({ src, alt }: { src: string; alt: string }) {
+export default function CardImageLightbox({
+  src,
+  alt,
+  size = "md",
+}: {
+  src: string;
+  alt: string;
+  /** "sm" = 54px row thumbnail (Buying table, spec B5); "md" = 112px. */
+  size?: "sm" | "md";
+}) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -27,8 +36,12 @@ export default function CardImageLightbox({ src, alt }: { src: string; alt: stri
         className="group relative block shrink-0 cursor-zoom-in"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt={alt} className="h-28 w-auto rounded border border-brand-soft/25" />
-        <span className="absolute inset-0 flex items-center justify-center rounded bg-black/0 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100">
+        <img
+          src={src}
+          alt={alt}
+          className={`${size === "sm" ? "h-[54px]" : "h-28"} w-auto rounded-[3px] border border-line`}
+        />
+        <span className="absolute inset-0 flex items-center justify-center rounded-[3px] bg-black/0 opacity-0 transition-opacity group-hover:bg-black/40 group-hover:opacity-100">
           <MagnifierIcon />
         </span>
       </button>
@@ -36,19 +49,21 @@ export default function CardImageLightbox({ src, alt }: { src: string; alt: stri
       {open && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-6"
+          role="dialog"
+          aria-label={alt}
           onClick={() => setOpen(false)}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={src}
             alt={alt}
-            className="max-h-[85vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
+            className="max-h-[85vh] max-w-[90vw] rounded-md border-2 border-line object-contain shadow-2xl"
           />
           <button
             type="button"
             onClick={() => setOpen(false)}
             aria-label="Close"
-            className="absolute right-6 top-6 text-2xl leading-none text-on-page hover:opacity-80"
+            className="btn absolute right-6 top-6"
           >
             ✕
           </button>

@@ -7,56 +7,55 @@ export default async function LoginPage({
 }) {
   const { error } = await searchParams;
 
+  // G10: same fields and server action as before, no sign-up / forgot.
+  // Midnight look: logo with an amber ring, a board card on the page, amber
+  // "Sign in" (btn pri), errors in a neg banner.
   return (
-    <main className="flex min-h-screen items-center justify-center bg-page p-6">
-      <div className="w-full max-w-sm space-y-6">
+    <main className="flex min-h-screen items-center justify-center px-3.5 py-10 sm:px-8">
+      <div className="grid w-full max-w-sm gap-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo.webp"
           alt=""
-          className="mx-auto aspect-square w-52 rounded-2xl shadow-md ring-1 ring-brand-soft/25"
+          className="login-logo mx-auto aspect-square w-44 sm:w-52"
         />
-        <form
-          action={login}
-          className="space-y-4 rounded-lg border border-brand-soft/25 bg-surface p-6 shadow-sm"
-        >
+        <form action={login} className="board bd grid gap-4">
           <div>
-            <h1 className="text-lg font-semibold text-ink">shotime_cards</h1>
-            <p className="text-sm text-ink-muted">Sign in to view the dashboard.</p>
+            <h1 className="num text-[32px] font-black uppercase leading-none tracking-[0.02em] text-ink">
+              shotime_cards
+            </h1>
+            <p className="sub mt-1.5">Sign in to view the dashboard.</p>
           </div>
 
           {error && (
-            <p className="rounded bg-accent/10 px-3 py-2 text-sm text-accent-ink">
-              {error}
+            <p className="ban err" role="alert">
+              <span>{error}</span>
             </p>
           )}
 
-          <label className="block text-sm">
-            <span className="text-ink-muted">Email</span>
+          <label className="grid gap-1.5">
+            <span className="bl">Email</span>
             <input
               name="email"
               type="email"
               required
               autoComplete="email"
-              className="mt-1 w-full rounded border border-brand-soft/40 px-3 py-2 text-sm text-ink"
+              className="field w-full !py-2"
             />
           </label>
 
-          <label className="block text-sm">
-            <span className="text-ink-muted">Password</span>
+          <label className="grid gap-1.5">
+            <span className="bl">Password</span>
             <input
               name="password"
               type="password"
               required
               autoComplete="current-password"
-              className="mt-1 w-full rounded border border-brand-soft/40 px-3 py-2 text-sm text-ink"
+              className="field w-full !py-2"
             />
           </label>
 
-          <button
-            type="submit"
-            className="w-full rounded bg-brand px-3 py-2 text-sm font-medium text-surface hover:opacity-90"
-          >
+          <button type="submit" className="btn pri mt-1 w-full !py-2 !text-[15px]">
             Sign in
           </button>
         </form>

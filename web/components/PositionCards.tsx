@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import { usd } from "@/lib/format";
+import { signedUsd, toneClass } from "@/lib/format";
 
 const KEY = "estimatedInventoryValue";
 // `storage` only fires in *other* tabs; this one notifies the current tab.
@@ -54,40 +54,41 @@ export default function PositionCards({ netCash }: { netCash: number }) {
   const adjusted = estimate === null ? null : netCash + estimate;
 
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <section className="grid grid-cols-1 gap-[18px] sm:grid-cols-3">
       <Card
         label="Net cash"
-        value={usd(netCash)}
+        value={signedUsd(netCash)}
         sub="cash in − cash out"
-        negative={netCash < 0}
+        tone={toneClass(netCash, "text-ink")}
       />
 
-      <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-        <div className="text-xs uppercase tracking-wide text-ink-muted">
-          Est. inventory value
+      <div className="board bd">
+        <div className="bl">
+          <label htmlFor="est-inventory-value">Est. inventory value</label>
         </div>
-        <div className="mt-1 flex items-center gap-1">
+        <div className="mb-1.5 mt-2.5 flex items-center gap-2">
           <span className="text-ink-muted">$</span>
           <input
+            id="est-inventory-value"
             inputMode="decimal"
             value={draft ?? stored ?? ""}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={save}
             onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
             placeholder="0.00"
-            className="w-full rounded border border-brand-soft/40 px-2 py-1 text-lg font-semibold tabular-nums text-ink outline-none focus:border-brand"
+            className="field r w-full !text-[18px]"
           />
         </div>
-        <div className="mt-1 text-xs text-ink-muted">manual, this browser</div>
+        <div className="sub">manual, this browser</div>
       </div>
 
       <Card
         label="Adjusted position"
-        value={adjusted === null ? "—" : usd(adjusted)}
+        value={adjusted === null ? "—" : signedUsd(adjusted)}
         sub={adjusted === null ? "enter an estimate" : "net cash + inventory"}
-        negative={adjusted !== null && adjusted < 0}
+        tone={adjusted === null ? "text-ink-muted" : toneClass(adjusted, "text-ink")}
       />
-    </div>
+    </section>
   );
 }
 
@@ -95,24 +96,22 @@ function Card({
   label,
   value,
   sub,
-  negative,
+  tone,
 }: {
   label: string;
   value: string;
   sub: string;
-  negative: boolean;
+  tone: string;
 }) {
   return (
-    <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-      <div className="text-xs uppercase tracking-wide text-ink-muted">{label}</div>
+    <div className="board bd">
+      <div className="bl">{label}</div>
       <div
-        className={`mt-1 text-lg font-semibold tabular-nums ${
-          negative ? "text-accent-ink" : "text-brand"
-        }`}
+        className={`num mb-1.5 mt-2.5 text-[44px] font-extrabold leading-none sm:text-[52px] ${tone}`}
       >
         {value}
       </div>
-      <div className="mt-1 text-xs text-ink-muted">{sub}</div>
+      <div className="sub">{sub}</div>
     </div>
   );
 }

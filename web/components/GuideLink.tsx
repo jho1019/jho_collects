@@ -20,11 +20,11 @@ export default function GuideLink({ guide }: { guide: keyof typeof GUIDES }) {
       target="_blank"
       rel="noopener noreferrer"
       title={g.note}
-      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-on-page/40 px-3 py-1 text-sm text-on-page hover:bg-on-page/10"
+      className="btn guide"
     >
       {g.label}
       <span aria-hidden>↗</span>
-      {g.note && <span className="text-xs text-on-page/60">· {g.note}</span>}
+      {g.note && <span className="text-ink-muted">· {g.note}</span>}
     </a>
   );
 }
