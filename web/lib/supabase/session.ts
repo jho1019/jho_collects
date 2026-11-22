@@ -42,8 +42,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   if (user && pathname.startsWith("/login")) {
+    // Already signed in: same landing page as a fresh login (the scoreboard).
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/dashboard";
     return NextResponse.redirect(url);
   }
 

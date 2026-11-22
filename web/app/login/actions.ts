@@ -15,7 +15,8 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
   revalidatePath("/", "layout");
-  redirect("/");
+  // Land on the scoreboard (Johnny, Nov 22). "/" is still the calendar.
+  redirect("/dashboard");
 }
 
 export async function logout() {
