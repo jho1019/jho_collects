@@ -129,7 +129,10 @@ export default async function BuyingPage() {
             {/* Below 700px: image + title only, rest behind "See more" — a
                 five-column table is unreadable at phone width, and at a show
                 the only question is "is this the card I'm hunting". */}
-            <div className="board bd grid gap-2.5 sm:hidden">
+            {/* grid-cols-1 = minmax(0, 1fr): an implicit `auto` track
+                grows to the nowrap title's max-content and pushed rows past
+                the board at 390 (spec 17.3 #2). */}
+            <div className="board bd grid min-w-0 grid-cols-1 gap-2.5 sm:hidden">
               {rows.map((t) => {
                 const url = safeUrl(t.search_url) ?? ebaySearchUrl(t.title);
                 const img = t.image_path ? imageUrls.get(t.image_path) : undefined;

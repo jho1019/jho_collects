@@ -171,7 +171,7 @@ export default function BuyerList({ buyers }: { buyers: Buyer[] }) {
               </span>
               <span>
                 Last order{" "}
-                <b className="font-medium tabular-nums text-ink">{b.last_order_on ?? "—"}</b>
+                <b className="whitespace-nowrap font-medium tabular-nums text-ink">{b.last_order_on ?? "—"}</b>
               </span>
               <span>
                 Gross <b className="font-medium tabular-nums text-ink">{usd(b.lifetime_gross)}</b>

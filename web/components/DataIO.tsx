@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   previewImport,
@@ -18,11 +18,21 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
   const [mode, setMode] = useState<"insert" | "update">("insert");
   const [result, setResult] = useState<CommitResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   function reset() {
     setPreview(null);
     setResult(null);
     setMode("insert");
+  }
+
+  // X4 (spec 17.1 Q5): back to "Choose file / No file chosen". Clearing the
+  // input's value also means re-picking the same file fires onChange again.
+  function cancel() {
+    reset();
+    setCsv("");
+    setFileName("");
+    if (fileRef.current) fileRef.current.value = "";
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -59,9 +69,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
           value={table}
           onChange={(e) => {
             setTable(e.target.value as TableName);
-            reset();
-            setCsv("");
-            setFileName("");
+            cancel();
           }}
           className="field"
         >
@@ -96,6 +104,7 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
         </p>
 
         <input
+          ref={fileRef}
           type="file"
           accept=".csv,text/csv"
           onChange={onFile}
@@ -185,13 +194,19 @@ export default function DataIO({ embedded = false }: { embedded?: boolean }) {
               </p>
             )}
 
-            <button
-              onClick={onCommit}
-              disabled={busy}
-              className="btn pri"
-            >
-              Commit {mode === "insert" ? preview.newCount : preview.total} rows
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <button
+                type="button"
+                onClick={onCommit}
+                disabled={busy}
+                className="btn pri"
+              >
+                Commit {mode === "insert" ? preview.newCount : preview.total} rows
+              </button>
+              <button type="button" onClick={cancel} disabled={busy} className="btn">
+                Cancel
+              </button>
+            </div>
           </div>
         )}
 
