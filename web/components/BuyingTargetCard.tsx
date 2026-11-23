@@ -42,7 +42,7 @@ export default function BuyingTargetCard({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="cellrow !p-0">
+    <div className="cellrow min-w-0 !p-0">
       <button
         type="button"
         onClick={() => setOpen((was) => !was)}
@@ -79,12 +79,14 @@ export default function BuyingTargetCard({
             </div>
           )}
 
-          <CopyTitle title={title}>
-            <span className="text-[13px] text-ink">{title}</span>
-          </CopyTitle>
+          <div className="min-w-0 wrap-anywhere">
+            <CopyTitle title={title}>
+              <span className="text-[13px] text-ink">{title}</span>
+            </CopyTitle>
+          </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber">
+          <div className="flex min-w-0 items-center justify-between gap-3">
+            <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-amber">
               Comp
             </span>
             <CompInput

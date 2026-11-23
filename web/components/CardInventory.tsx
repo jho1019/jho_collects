@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usd } from "@/lib/format";
+import { inventoryStats, isFiltered } from "@/lib/inventoryStats";
 
 export type Card = {
   id: number;
@@ -14,6 +15,8 @@ export type Card = {
   grader: string | null;
   grade: string | null;
   status: "held" | "listed" | "sold" | "traded";
+  /** pc | business | riftbound | sealed (025); pc is not business inventory. */
+  category?: string | null;
   sku: string | null;
   acquisition_cost: string | number | null;
   acquired_on: string | null;
@@ -65,6 +68,13 @@ export default function CardInventory({
     });
   }, [cards, filter, q]);
 
+  // Spec 17.3 #3: the strip follows the filters so it matches the table.
+  // Unfiltered it is the tracked_inventory view, unchanged.
+  const filtered = isFiltered(filter, q, missingCost);
+  const stats = filtered
+    ? inventoryStats(rows, filter, missingCost)
+    : summary && { label: "On hand", ...summary };
+
   const emptyText =
     cards.length === 0
       ? missingCost
@@ -106,37 +116,40 @@ export default function CardInventory({
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
             aria-label="Filter cards"
-            className="field w-full sm:w-[270px]"
+            // 17.3 #1: 33 chars of 13px Plex Mono (7.8px advance) is ~258px of
+            // text (264px measured); 270px border-box minus padding clipped "sku". 296px
+            // fits it with room for the caret; shrink-0 stops the flex row eating it.
+            className="field w-full sm:w-[296px] sm:shrink-0"
           />
         </div>
       </div>
 
-      {summary && (
+      {stats && (
         <div className="strip my-3.5">
           <div>
-            <small>On hand</small>
-            <b>{summary.cards_on_hand}</b>
+            <small>{stats.label}</small>
+            <b>{stats.cards_on_hand}</b>
           </div>
           <div>
             <small>Without a cost</small>
-            <b className={summary.cards_without_cost > 0 ? "text-amber" : undefined}>
-              {summary.cards_without_cost}
+            <b className={stats.cards_without_cost > 0 ? "text-amber" : undefined}>
+              {stats.cards_without_cost}
             </b>
           </div>
           <div>
             <small>Opening stock</small>
             <b>
-              {summary.opening_stock_cards} · {usd(summary.opening_cost_basis)}
+              {stats.opening_stock_cards} · {usd(stats.opening_cost_basis)}
             </b>
           </div>
           <div>
             <small>Known cost basis</small>
-            <b>{usd(summary.known_cost_basis)}</b>
+            <b>{usd(stats.known_cost_basis)}</b>
           </div>
           <div>
             <small>Acquired since start</small>
             <b>
-              {summary.acquired_since_start} · {usd(summary.acquired_cost_basis)}
+              {stats.acquired_since_start} · {usd(stats.acquired_cost_basis)}
             </b>
           </div>
         </div>

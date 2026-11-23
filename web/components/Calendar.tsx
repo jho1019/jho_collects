@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import DayEntryTable from "@/components/DayEntryTable";
 import Spinner from "@/components/Spinner";
@@ -99,12 +99,28 @@ function nextMonth(year: number, month: number) {
   return month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
 }
 
+// Below sm (700px) the day detail is a bottom sheet (C10, spec 17.1 Q4);
+// from sm up it stays the panel under the grid.
+const MOBILE_QUERY = "(max-width: 699.98px)";
+function subscribeMobile(cb: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function useIsMobile() {
+  return useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+}
+
 // Home, as of Phase 9. Opens on the current month; the indicator is the
 // day's net movement (not the running position), and a day with nothing in
 // it gets no indicator at all, never a zero. Clicking a day fetches just
 // that day's entries (see app/(app)/actions.ts) and pins a detail panel
-// below the grid, reusing DayEntryTable from Phase 8 rather than a second
-// row renderer.
+// below the grid (a bottom sheet below 700px, C10), reusing DayEntryTable
+// from Phase 8 rather than a second row renderer.
 export default function Calendar({
   year,
   month,
@@ -125,6 +141,8 @@ export default function Calendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dayEntries, setDayEntries] = useState<LedgerEntry[]>([]);
   const [isPending, startTransition] = useTransition();
+  const isMobile = useIsMobile();
+  const closeDay = useCallback(() => setSelectedDay(null), []);
 
   const netByDay = new Map<string, number>();
   const countByDay = new Map<string, number>();
@@ -175,8 +193,16 @@ export default function Calendar({
   const { year: py, month: pm } = prevMonth(year, month);
   const { year: ny, month: nm } = nextMonth(year, month);
 
-  function selectDay(day: string) {
+  function selectDay(day: string, cell?: HTMLElement) {
     setSelectedDay(day);
+    // Keep the chosen day peekable above the sheet: if it would sit under
+    // the sheet (lower ~55% of the viewport), scroll it up near the top.
+    if (cell && window.matchMedia(MOBILE_QUERY).matches) {
+      const r = cell.getBoundingClientRect();
+      if (r.bottom > window.innerHeight * 0.42) {
+        window.scrollBy({ top: r.top - 72, behavior: "smooth" });
+      }
+    }
     startTransition(async () => {
       setDayEntries(await getDayEntries(day));
     });
@@ -184,6 +210,91 @@ export default function Calendar({
 
   const selectedReleases = selectedDay ? (releasesByDay.get(selectedDay) ?? []) : [];
   const selectedShows = selectedDay ? (showsByDay.get(selectedDay) ?? []) : [];
+
+  const detail = selectedDay && (
+    <>
+      {selectedShows.length > 0 && (
+        <div className="mt-3">
+          <h3 className="bl bl-mute">Shows</h3>
+          <div className="mt-1 space-y-2">
+            {selectedShows.map((s) => {
+              const summary = summaryByShowId.get(s.id);
+              const unresolved = isUnresolvedPastShow(s);
+              return (
+                <div key={s.id} className="text-[13px] text-ink">
+                  <b className="font-semibold">{s.name}</b>{" "}
+                  <span className="text-ink-muted">
+                    {[s.venue, s.city].filter(Boolean).join(", ") || "venue unknown"}
+                    {s.doors_at && <> · doors {formatPacificTime(s.doors_at)}</>}
+                    {s.admission_cost != null && (
+                      <> · admission ${Number(s.admission_cost).toFixed(2)} (expected)</>
+                    )}
+                  </span>
+                  {unresolved && <span className="pill pill-amber ml-2">▲ unresolved</span>}
+                  {s.needs_review && <span className="pill pill-rev ml-2">needs review</span>}
+                  {s.status === "attended" && summary && (
+                    <div className="sub">
+                      {summary.deal_count} {summary.deal_count === 1 ? "deal" : "deals"} · net{" "}
+                      <span className={toneClass(summary.net_cash)}>
+                        {signedAmount(Number(summary.net_cash))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3">
+        <h3 className="bl bl-mute">Entries</h3>
+        {isPending ? (
+          <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            Loading…
+          </div>
+        ) : (
+          <div className="mt-1">
+            <DayEntryTable entries={dayEntries} />
+          </div>
+        )}
+      </div>
+
+      {selectedReleases.length > 0 && (
+        <div className="mt-3">
+          <h3 className="bl bl-mute">Releases</h3>
+          <div className="mt-1 space-y-1.5">
+            {selectedReleases.map((r) => (
+              <div key={r.id} className="text-[13px] text-ink">
+                <b className="font-semibold">{r.title}</b>{" "}
+                <span className="text-ink-muted">
+                  {r.time_unconfirmed || !r.release_at
+                    ? "time unconfirmed"
+                    : formatPacificTime(r.release_at)}
+                  {r.drop_type && (
+                    <>
+                      {" · "}
+                      {r.drop_type}
+                      {r.drop_type_uncertain ? "?" : ""}
+                    </>
+                  )}
+                </span>
+                {r.url && (
+                  <>
+                    {" · "}
+                    <a href={r.url} target="_blank" rel="noreferrer" className="lk">
+                      link
+                    </a>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="grid min-w-0 gap-[18px]">
@@ -275,7 +386,7 @@ export default function Calendar({
               <button
                 key={i}
                 type="button"
-                onClick={() => selectDay(iso)}
+                onClick={(e) => selectDay(iso, e.currentTarget)}
                 aria-label={aria}
                 aria-pressed={isSelected}
                 aria-current={isToday ? "date" : undefined}
@@ -351,97 +462,85 @@ export default function Calendar({
         </div>
       </section>
 
-      {selectedDay && (
+      {selectedDay && !isMobile && (
         <section className="board bd" aria-live="polite">
           <div className="bl">
             <h2>{selectedDay} · day detail</h2>
-            <button type="button" onClick={() => setSelectedDay(null)} className="btn sm">
+            <button type="button" onClick={closeDay} className="btn sm">
               Dismiss
             </button>
           </div>
-
-          {selectedShows.length > 0 && (
-            <div className="mt-3">
-              <h3 className="bl bl-mute">Shows</h3>
-              <div className="mt-1 space-y-2">
-                {selectedShows.map((s) => {
-                  const summary = summaryByShowId.get(s.id);
-                  const unresolved = isUnresolvedPastShow(s);
-                  return (
-                    <div key={s.id} className="text-[13px] text-ink">
-                      <b className="font-semibold">{s.name}</b>{" "}
-                      <span className="text-ink-muted">
-                        {[s.venue, s.city].filter(Boolean).join(", ") || "venue unknown"}
-                        {s.doors_at && <> · doors {formatPacificTime(s.doors_at)}</>}
-                        {s.admission_cost != null && (
-                          <> · admission ${Number(s.admission_cost).toFixed(2)} (expected)</>
-                        )}
-                      </span>
-                      {unresolved && <span className="pill pill-amber ml-2">▲ unresolved</span>}
-                      {s.needs_review && <span className="pill pill-rev ml-2">needs review</span>}
-                      {s.status === "attended" && summary && (
-                        <div className="sub">
-                          {summary.deal_count} {summary.deal_count === 1 ? "deal" : "deals"} · net{" "}
-                          <span className={toneClass(summary.net_cash)}>
-                            {signedAmount(Number(summary.net_cash))}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="mt-3">
-            <h3 className="bl bl-mute">Entries</h3>
-            {isPending ? (
-              <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
-                <Spinner />
-                Loading…
-              </div>
-            ) : (
-              <div className="mt-1">
-                <DayEntryTable entries={dayEntries} />
-              </div>
-            )}
-          </div>
-
-          {selectedReleases.length > 0 && (
-            <div className="mt-3">
-              <h3 className="bl bl-mute">Releases</h3>
-              <div className="mt-1 space-y-1.5">
-                {selectedReleases.map((r) => (
-                  <div key={r.id} className="text-[13px] text-ink">
-                    <b className="font-semibold">{r.title}</b>{" "}
-                    <span className="text-ink-muted">
-                      {r.time_unconfirmed || !r.release_at
-                        ? "time unconfirmed"
-                        : formatPacificTime(r.release_at)}
-                      {r.drop_type && (
-                        <>
-                          {" · "}
-                          {r.drop_type}
-                          {r.drop_type_uncertain ? "?" : ""}
-                        </>
-                      )}
-                    </span>
-                    {r.url && (
-                      <>
-                        {" · "}
-                        <a href={r.url} target="_blank" rel="noreferrer" className="lk">
-                          link
-                        </a>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {detail}
         </section>
       )}
+
+      {selectedDay && isMobile && (
+        <DaySheet day={selectedDay} onClose={closeDay}>
+          {detail}
+        </DaySheet>
+      )}
+    </div>
+  );
+}
+
+// C10: mobile day detail as a bottom sheet, the More-sheet pattern from
+// AppShell (scrim, rounded top, 3px amber top border; Escape, Dismiss or a
+// scrim tap closes). Docked above the fixed tab bar so CAL stays visible:
+// the bar is 3px border + 8px top pad + 44px tab + max(14px, safe area).
+// Capped at 55vh so the month grid, and the selected day, still peek out.
+const ABOVE_TABS = "calc(55px + max(14px, env(safe-area-inset-bottom)))";
+
+function DaySheet({
+  day,
+  onClose,
+  children,
+}: {
+  day: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus({ preventScroll: true });
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus?.({ preventScroll: true });
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-x-0 top-0 z-40 sm:hidden" style={{ bottom: ABOVE_TABS }}>
+      <button
+        type="button"
+        aria-label="Close day detail"
+        tabIndex={-1}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/55"
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        aria-live="polite"
+        className="absolute inset-x-0 bottom-0 max-h-[55vh] overflow-y-auto rounded-t-xl border-t-[3px] border-amber bg-board px-4 pt-3.5 pb-5 shadow-[0_-20px_60px_rgb(0_0_0/0.6)] focus:outline-none"
+      >
+        <div className="bl">
+          <h2 id={titleId}>{day} · day detail</h2>
+          <button type="button" onClick={onClose} className="btn sm min-h-11">
+            Dismiss
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }
