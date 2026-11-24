@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { usd } from "@/lib/format";
+import { inventoryStats, isFiltered } from "@/lib/inventoryStats";
 
 export type Card = {
   id: number;
@@ -13,6 +15,8 @@ export type Card = {
   grader: string | null;
   grade: string | null;
   status: "held" | "listed" | "sold" | "traded";
+  /** pc | business | riftbound | sealed (025); pc is not business inventory. */
+  category?: string | null;
   sku: string | null;
   acquisition_cost: string | number | null;
   acquired_on: string | null;
@@ -43,9 +47,12 @@ function setLine(c: Card) {
 export default function CardInventory({
   cards,
   summary,
+  missingCost = false,
 }: {
   cards: Card[];
   summary: TrackedInventory;
+  /** ?cost=missing is active (spec I6); the chip links in and out of it. */
+  missingCost?: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
@@ -61,152 +68,137 @@ export default function CardInventory({
     });
   }, [cards, filter, q]);
 
+  // Spec 17.3 #3: the strip follows the filters so it matches the table.
+  // Unfiltered it is the tracked_inventory view, unchanged.
+  const filtered = isFiltered(filter, q, missingCost);
+  const stats = filtered
+    ? inventoryStats(rows, filter, missingCost)
+    : summary && { label: "On hand", ...summary };
+
+  const emptyText =
+    cards.length === 0
+      ? missingCost
+        ? "No sold cards are missing a cost."
+        : "No tracked cards yet — bulk lots stay as cash rows."
+      : "No matches.";
+
   return (
-    <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-on-page">
-          Card inventory <span className="font-normal text-on-page/70">({rows.length})</span>
-        </h2>
-        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-          <div className="flex overflow-x-auto rounded border border-on-page/40 text-xs">
+    <section className="board bd">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="bl">Card inventory ({rows.length})</h2>
+        <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
+          <div className="seg" role="group" aria-label="Status">
             {STATUSES.map((s) => (
               <button
                 key={s}
+                type="button"
+                aria-pressed={filter === s}
                 onClick={() => setFilter(s)}
-                className={`whitespace-nowrap px-2 py-1 capitalize ${
-                  filter === s
-                    ? "bg-surface text-brand"
-                    : "text-on-page/80 hover:bg-on-page/10"
-                }`}
               >
                 {s}
               </button>
             ))}
           </div>
+          {/* I6: the dashboard's "Fix N sales" target as a filter chip. A
+              link, because the filter lives in the URL (server-side). */}
+          <div className="seg" role="group" aria-label="Cost filter">
+            <Link
+              href={missingCost ? "/inventory" : "/inventory?cost=missing"}
+              aria-pressed={missingCost}
+              className={missingCost ? "on" : undefined}
+              title={missingCost ? "Show all cards" : "Sold cards with no cost"}
+            >
+              No cost
+            </Link>
+          </div>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="filter title / player / set / sku"
-            className="w-full rounded border border-on-page/40 bg-surface px-2 py-1 text-xs text-ink sm:w-56"
+            aria-label="Filter cards"
+            // 17.3 #1: 33 chars of 13px Plex Mono (7.8px advance) is ~258px of
+            // text (264px measured); 270px border-box minus padding clipped "sku". 296px
+            // fits it with room for the caret; shrink-0 stops the flex row eating it.
+            className="field w-full sm:w-[296px] sm:shrink-0"
           />
         </div>
       </div>
 
-      {summary && (
-        <div className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-xs text-ink-muted sm:grid-cols-3">
-          <Stat label="On hand" value={String(summary.cards_on_hand)} />
-          <Stat
-            label="Opening stock"
-            value={`${summary.opening_stock_cards} · ${usd(summary.opening_cost_basis)}`}
-          />
-          <Stat
-            label="Acquired since start"
-            value={`${summary.acquired_since_start} · ${usd(summary.acquired_cost_basis)}`}
-          />
-          <Stat
-            label="Without a cost"
-            value={String(summary.cards_without_cost)}
-          />
-          <Stat
-            label="Known cost basis"
-            value={usd(summary.known_cost_basis)}
-          />
+      {stats && (
+        <div className="strip my-3.5">
+          <div>
+            <small>{stats.label}</small>
+            <b>{stats.cards_on_hand}</b>
+          </div>
+          <div>
+            <small>Without a cost</small>
+            <b className={stats.cards_without_cost > 0 ? "text-amber" : undefined}>
+              {stats.cards_without_cost}
+            </b>
+          </div>
+          <div>
+            <small>Opening stock</small>
+            <b>
+              {stats.opening_stock_cards} · {usd(stats.opening_cost_basis)}
+            </b>
+          </div>
+          <div>
+            <small>Known cost basis</small>
+            <b>{usd(stats.known_cost_basis)}</b>
+          </div>
+          <div>
+            <small>Acquired since start</small>
+            <b>
+              {stats.acquired_since_start} · {usd(stats.acquired_cost_basis)}
+            </b>
+          </div>
         </div>
       )}
 
-      {/* Below md: one card per row — a 6-column table has no room on a
-          phone. md+: the table, unchanged. */}
-      <div className="space-y-2 md:hidden">
-        {rows.map((c) => (
-          <div key={c.id} className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <span className="text-ink">{c.title}</span>
-                <span className="ml-2 text-xs text-ink-muted">{grade(c)}</span>
-              </div>
-              <span
-                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadge(c.status)}`}
-              >
-                {c.status}
-              </span>
-            </div>
-            <div className="mt-0.5 text-xs text-ink-muted">
-              {setLine(c)}
-              {c.is_opening_stock && (
-                <span className="ml-2 rounded bg-brand-soft/10 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
-                  opening
-                </span>
-              )}
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-ink-muted">
-              <span>
-                {c.acquired_on ?? "—"}
-                {c.exited_on && <> → {c.exited_on}</>}
-              </span>
-              <span className="tabular-nums text-ink">
-                {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
-              </span>
-            </div>
-          </div>
-        ))}
-        {rows.length === 0 && (
-          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
-            {cards.length === 0
-              ? "No tracked cards yet — bulk lots stay as cash rows."
-              : "No matches."}
-          </p>
-        )}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
-        <table className="w-full text-sm">
-          <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
+      {/* Same table at every width; Set / Acquired / Exited fold away below
+          700px and the set line moves under the card name. */}
+      <div className="overflow-x-auto">
+        <table className="tb">
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">Card</th>
-              <th className="px-3 py-2 font-medium">Set</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 text-right font-medium">Cost</th>
-              <th className="px-3 py-2 text-right font-medium">Acquired</th>
-              <th className="px-3 py-2 text-right font-medium">Exited</th>
+              <th>Card</th>
+              <th className="hm">Set</th>
+              <th>Status</th>
+              <th className="r">Cost</th>
+              <th className="r hm">Acquired</th>
+              <th className="r hm">Exited</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((c) => (
-              <tr key={c.id} className="border-b border-brand-soft/15 last:border-0">
-                <td className="px-3 py-2">
-                  <span className="text-ink">{c.title}</span>
-                  <span className="ml-2 text-xs text-ink-muted">{grade(c)}</span>
-                  {c.is_opening_stock && (
-                    <span className="ml-2 rounded bg-brand-soft/10 px-1.5 py-0.5 text-[10px] font-medium text-ink-muted">
-                      opening
-                    </span>
+              <tr key={c.id}>
+                <td>
+                  {c.title}
+                  <span className="tg">{grade(c)}</span>
+                  {c.is_opening_stock && <span className="tg">opening</span>}
+                  {c.acquisition_cost == null && (
+                    <span className="tg tg-amber">no cost</span>
                   )}
-                </td>
-                <td className="px-3 py-2 text-ink-muted">{setLine(c)}</td>
-                <td className="px-3 py-2">
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${statusBadge(c.status)}`}
-                  >
-                    {c.status}
+                  <span className="sm-only mt-0.5 block text-[11px] text-ink-muted">
+                    {setLine(c)} · {c.acquired_on ?? "—"}
+                    {c.exited_on && <> → {c.exited_on}</>}
                   </span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
+                <td className="hm mute">{setLine(c)}</td>
+                <td>
+                  <span className={statusPill(c.status)}>{c.status}</span>
+                </td>
+                <td className="r whitespace-nowrap">
                   {c.acquisition_cost == null ? "—" : usd(c.acquisition_cost)}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                  {c.acquired_on ?? "—"}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                  {c.exited_on ?? "—"}
-                </td>
+                <td className="r hm mute whitespace-nowrap">{c.acquired_on ?? "—"}</td>
+                <td className="r hm mute whitespace-nowrap">{c.exited_on ?? "—"}</td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-3 py-6 text-center text-ink-muted">
-                  {cards.length === 0
-                    ? "No tracked cards yet — bulk lots stay as cash rows."
-                    : "No matches."}
+                <td colSpan={6} className="py-6 text-center text-ink-muted">
+                  {emptyText}
                 </td>
               </tr>
             )}
@@ -217,28 +209,17 @@ export default function CardInventory({
   );
 }
 
-// held/listed are on hand (brand, the "active" state); sold/traded have left
-// inventory (muted ink, distinguished by an accent fill on traded since it's
-// the one that moved for something other than a receipt).
-function statusBadge(status: Card["status"]) {
+// Spec 6.15: held = blue, listed = amber, sold = muted, traded = neg.
+function statusPill(status: Card["status"]) {
   switch (status) {
     case "held":
-      return "bg-brand/10 text-brand";
+      return "pill pill-held";
     case "listed":
-      return "bg-brand/15 text-brand";
+      return "pill pill-listed";
     case "traded":
-      return "bg-accent/15 text-accent-ink";
+      return "pill pill-traded";
     case "sold":
     default:
-      return "bg-brand-soft/10 text-ink-muted";
+      return "pill pill-sold";
   }
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-ink-muted">{label}: </span>
-      <span className="tabular-nums text-ink-muted">{value}</span>
-    </div>
-  );
 }

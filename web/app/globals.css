@@ -283,3 +283,379 @@ body {
 td, th {
   line-height: 1.4;
 }
+
+/*
+ * Everything below sits in @layer components so Tailwind utilities (text-pos,
+ * text-neg, px-4, sm:hidden...) still override a primitive where a page
+ * needs it. Unlayered CSS would beat every utility regardless of specificity.
+ */
+@layer components {
+/* ======================================================================
+ * Secondary-page primitives (SPEC_E_SCOREBOARD.md 2, 5, 6.13, 6.15).
+ * Phase 3 restyle of Calendar, Ledger, Buying, Releases, Deals, Inventory,
+ * Buyers, Data and Login. Token-driven only: no new colours, no breakpoint
+ * changes. 700px is the sm (mobile/desktop) switch from @theme.
+ * ==================================================================== */
+
+/* Page wrapper: 1100px max, 32px / 14px side padding, 22px between blocks. */
+.pg {
+  width: 100%;
+  max-width: calc(1100px + 64px);
+  margin: 0 auto;
+  padding: 22px 32px 56px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 22px;
+  align-content: start;
+}
+.pg > * { min-width: 0; }
+@media (max-width: 699.98px) {
+  .pg { padding: 16px 14px 32px; gap: 16px; }
+}
+
+/* Page header: H1 Big Shoulders 44px caps (38px mobile), 12.5px muted lead. */
+.pg-h1 {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 72;
+  font-weight: 900;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-on-page);
+}
+.pg-lead { margin-top: 4px; font-size: 12.5px; line-height: 1.5; color: var(--color-ink-muted); }
+@media (max-width: 699.98px) { .pg-h1 { font-size: 38px; } }
+.pg-head {
+  display: flex; flex-wrap: wrap; align-items: flex-end;
+  justify-content: space-between; gap: 12px;
+}
+
+/* Board padding (chrome is .board above). */
+.bd { padding: 20px 24px; position: relative; min-width: 0; }
+.bd-tight { padding: 8px 18px; }
+@media (max-width: 699.98px) { .bd { padding: 16px 14px; } .bd-tight { padding: 6px 12px; } }
+
+/* Label row: 11px amber caps. */
+.bl {
+  font: 600 11px var(--font-mono);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-amber);
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 8px 10px;
+}
+.bl-mute { color: var(--color-ink-muted); }
+.sub { font-size: 12px; line-height: 1.5; color: var(--color-ink-muted); }
+
+/* Scoreboard numerals used on secondary pages (position cards, tiles). */
+.num {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 72;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Table (.tb): 10.5px amber caps header over a 2px line, 1px grid rows. */
+table.tb { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tb th {
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-amber);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--color-line);
+  white-space: nowrap;
+}
+.tb td { padding: 8px 10px; border-bottom: 1px solid var(--color-grid); vertical-align: middle; }
+.tb td { color: var(--color-ink); }
+.tb td.mute, .tb .mute { color: var(--color-ink-muted); }
+.tb tbody tr:last-child td { border-bottom: 0; }
+.tb .r { text-align: right; font-variant-numeric: tabular-nums; }
+.tb th.sortable { cursor: pointer; user-select: none; }
+.tb th.sortable:hover { color: var(--color-ink); }
+@media (max-width: 699.98px) { .tb th, .tb td { padding: 8px 6px; } }
+
+/* Status pills: 10.5px caps, 1px currentColor border, 2px radius. */
+.pill {
+  display: inline-block;
+  font: 600 10.5px var(--font-mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.45;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.pill-held { color: var(--color-blue); }
+.pill-listed, .pill-amber { color: var(--color-amber); }
+.pill-sold, .pill-mute { color: var(--color-ink-muted); }
+.pill-traded, .pill-rev, .pill-neg { color: var(--color-neg); }
+.pill-rep, .pill-pos { color: var(--color-pos); }
+
+/* Small tag (grade chip, opening, no cost). */
+.tg {
+  display: inline-block;
+  font: 600 10px var(--font-mono);
+  color: var(--color-ink-muted);
+  border: 1px solid var(--color-line);
+  padding: 0 6px;
+  border-radius: 2px;
+  margin-left: 6px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.tg-amber { color: var(--color-amber); border-color: var(--color-amber); }
+
+/* Inputs: input fill, 1px line, 3px radius, 13px Plex Mono. */
+.field {
+  background: var(--color-input);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  border-radius: 3px;
+  padding: 6px 10px;
+  font: 500 13px var(--font-mono);
+  min-width: 0;
+}
+.field::placeholder { color: var(--color-ink-muted); opacity: 1; }
+.field.r { text-align: right; font-variant-numeric: tabular-nums; }
+.field:disabled { opacity: 0.5; }
+.field:focus-visible { outline: 2px solid var(--color-amber); outline-offset: 2px; }
+.field-sm { padding: 2px 6px; font-size: 12px; }
+select.field { padding-right: 6px; }
+input[type="file"].field-file { font: 500 12.5px var(--font-mono); color: var(--color-ink-muted); max-width: 100%; }
+input[type="file"].field-file::file-selector-button {
+  font: 700 13px var(--font-display);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  border: 1px solid var(--color-line); background: var(--color-chip-bg); color: var(--color-ink);
+  padding: 5px 14px; border-radius: 3px; margin-right: 12px; cursor: pointer;
+}
+
+/* Buttons: chip-bg + 1px line, Big Shoulders 13px caps; .pri = amber fill. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 18;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  border: 1px solid var(--color-line);
+  background: var(--color-chip-bg);
+  color: var(--color-ink);
+  padding: 5px 14px;
+  border-radius: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--color-amber); }
+.btn.pri { background: var(--color-amber); color: var(--color-on-amber); border-color: var(--color-amber); }
+.btn.pri:hover { filter: brightness(1.06); }
+.btn.sm { padding: 2px 10px; }
+.btn.off, .btn:disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+/* Guide pill (B2 / D2): rounded, Plex Mono, not caps. */
+.btn.guide {
+  border-radius: 20px;
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  padding: 5px 14px;
+}
+
+/* Links: blue, underline offset 3px. */
+.lk { color: var(--color-blue); text-decoration: underline; text-underline-offset: 3px; }
+.lk:hover { text-decoration-thickness: 2px; }
+
+/* Banner (6.13): amber (or neg) 4px left border on board. */
+.ban {
+  border: 1px solid var(--color-line);
+  border-left: 4px solid var(--color-amber);
+  background: var(--color-board);
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--color-ink);
+  display: flex; gap: 12px; align-items: center; justify-content: space-between;
+}
+.ban b { color: var(--color-amber); font-weight: 600; }
+.ban.err { border-left-color: var(--color-neg); }
+.ban.err b { color: var(--color-neg); }
+@media (max-width: 699.98px) { .ban { flex-direction: column; align-items: flex-start; gap: 8px; } }
+
+/* Segmented control (I2 status filter, L6 range). */
+.seg {
+  display: inline-flex; max-width: 100%; overflow-x: auto;
+  border: 1px solid var(--color-line); border-radius: 3px;
+  background: var(--color-cell);
+}
+.seg > button, .seg > a {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 18;
+  font-weight: 700; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-ink-muted);
+  padding: 5px 11px;
+  background: none; border: 0; border-right: 1px solid var(--color-line);
+  cursor: pointer; white-space: nowrap;
+}
+.seg > :last-child { border-right: 0; }
+.seg > button:hover, .seg > a:hover { color: var(--color-ink); }
+.seg > .on, .seg > [aria-pressed="true"], .seg > [aria-checked="true"] {
+  background: var(--color-amber); color: var(--color-on-amber);
+}
+.seg.sm > button, .seg.sm > a { padding: 3px 9px; font-size: 11px; }
+
+/* Tabs (Data page): segmented look with an amber underline on the active tab. */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--color-line); }
+.tabs > button {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 18;
+  font-weight: 700; font-size: 13px; letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--color-ink-muted);
+  padding: 8px 14px; margin-bottom: -1px;
+  background: none; border: 0; border-bottom: 3px solid transparent; cursor: pointer;
+}
+.tabs > button:hover { color: var(--color-ink); }
+.tabs > button[aria-selected="true"] { color: var(--color-ink); border-bottom-color: var(--color-amber); }
+
+/* Popover (comp history, chart tooltip): tip fill, 1px line, 4px radius. */
+.pop {
+  background: var(--color-tip);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.6);
+  color: var(--color-ink);
+  font-size: 12px;
+}
+
+/* Section header for collapsible groups: "▾ PC (5)". */
+.cs {
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 18;
+  font-weight: 700; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-on-page);
+  display: inline-flex; gap: 8px; align-items: center;
+  background: none; border: 0; padding: 0; cursor: pointer;
+}
+.cs .cs-n { color: var(--color-ink-muted); }
+
+/* Mobile list rows inside a board (cards on `cell`). */
+.cellrow {
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  background: var(--color-cell);
+  padding: 10px 12px;
+}
+
+/* Custom checkbox (R4 purchased, P1 repeat only): 18px, amber when checked. */
+.chk {
+  appearance: none; -webkit-appearance: none;
+  width: 18px; height: 18px; flex: none;
+  border: 1px solid var(--color-line); border-radius: 3px;
+  background: var(--color-input);
+  display: inline-grid; place-content: center; cursor: pointer; margin: 0;
+}
+.chk::after {
+  content: ""; width: 10px; height: 6px;
+  border-left: 2px solid var(--color-on-amber); border-bottom: 2px solid var(--color-on-amber);
+  transform: translateY(-1px) rotate(-45deg); opacity: 0;
+}
+.chk:checked { background: var(--color-amber); border-color: var(--color-amber); }
+.chk:checked::after { opacity: 1; }
+.chk:disabled { opacity: 0.5; }
+.chk:focus-visible { outline: 2px solid var(--color-amber); outline-offset: 2px; }
+
+/* Stats strip (I4): segmented mini-tiles on `cell`. */
+.strip {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  border: 1px solid var(--color-line); border-radius: 4px; background: var(--color-cell);
+}
+.strip > div { padding: 10px 14px; border-right: 1px solid var(--color-line); min-width: 0; }
+.strip > div:last-child { border-right: 0; }
+.strip small {
+  display: block; font: 600 10px var(--font-mono); letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--color-ink-muted);
+}
+.strip b {
+  font-family: var(--font-display); font-variation-settings: "opsz" 72;
+  font-weight: 800; font-size: 28px; line-height: 1.1; letter-spacing: 0.02em;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+@media (max-width: 699.98px) {
+  .strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .strip > div { border-bottom: 1px solid var(--color-line); }
+  .strip > div:nth-child(2n) { border-right: 0; }
+  .strip > div:last-child { grid-column: 1 / -1; border-bottom: 0; }
+}
+
+/* Calendar (12.2). */
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid var(--color-line); border-left: 1px solid var(--color-line); }
+.cal > * { min-width: 0; border-right: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); }
+.cal-dh {
+  padding: 7px 4px; text-align: center; background: var(--color-board-2);
+  font: 600 10.5px var(--font-mono); letter-spacing: 0.16em; text-transform: uppercase; color: var(--color-amber);
+}
+.cal-day {
+  position: relative; min-height: 96px; padding: 6px 8px; background: var(--color-cell);
+  text-align: left; width: 100%; cursor: pointer; color: var(--color-ink);
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start;
+}
+.cal-day:hover { background: var(--color-cell-tot); }
+.cal-day.sel { outline: 2px solid var(--color-blue); outline-offset: -2px; background: var(--color-cell-tot); }
+.cal-out { background: transparent; min-height: 96px; }
+.cal-n {
+  font-family: var(--font-display); font-variation-settings: "opsz" 72;
+  font-weight: 700; font-size: 15px; letter-spacing: 0.04em; color: var(--color-ink-muted);
+  display: inline-block; min-width: 24px; line-height: 20px;
+}
+.cal-day.today .cal-n { background: var(--color-amber); color: var(--color-on-amber); text-align: center; border-radius: 12px; padding: 0 6px; }
+.cal-mk { position: absolute; top: 6px; right: 7px; display: flex; gap: 4px; align-items: center; font-size: 11px; line-height: 1; }
+.cal-flag { color: var(--color-blue); }
+.cal-flag.rv { color: var(--color-amber); }
+.cal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-amber); display: inline-block; }
+.cal-strip {
+  position: absolute; left: 0; right: 0; top: 30px; padding: 1px 8px;
+  font: 600 10px var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: color-mix(in srgb, var(--color-blue) 22%, transparent); color: var(--color-ink);
+}
+.cal-strip.rv { background: color-mix(in srgb, var(--color-amber) 22%, transparent); color: var(--color-amber); }
+.cal-bar { position: absolute; left: 0; right: 0; bottom: 26px; height: 34px; }
+.cal-bar::before { content: ""; position: absolute; left: 8px; right: 8px; top: 50%; border-top: 1px dashed var(--color-grid); }
+.cal-bar i { position: absolute; left: 50%; width: 16px; margin-left: -8px; border-radius: 2px; }
+.cal-bar i.up { background: var(--color-pos); bottom: 50%; }
+.cal-bar i.dn { background: var(--color-neg); top: 50%; }
+.cal-amt { position: absolute; bottom: 6px; left: 4px; right: 4px; text-align: center; font: 600 11px var(--font-mono); font-variant-numeric: tabular-nums; }
+.cal-tip {
+  pointer-events: none; position: absolute; left: 50%; top: 100%; z-index: 10; margin-top: 4px;
+  transform: translateX(-50%); white-space: nowrap; padding: 4px 8px; display: none;
+}
+.cal-day:hover .cal-tip, .cal-day:focus-visible .cal-tip { display: block; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 11.5px; color: var(--color-ink-muted); margin-top: 6px; }
+.cal-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 2px; vertical-align: -1px; }
+@media (max-width: 699.98px) {
+  .cal-day, .cal-out { min-height: 64px; padding: 4px; }
+  .cal-day { min-width: 44px; }
+  .cal-strip { top: 26px; padding: 0 3px; font-size: 8.5px; }
+  .cal-bar { bottom: 18px; height: 22px; }
+  .cal-bar::before { left: 3px; right: 3px; }
+  .cal-bar i { width: 10px; margin-left: -5px; }
+  .cal-amt { font-size: 9px; bottom: 3px; left: 1px; right: 1px; letter-spacing: -0.02em; }
+  .cal-mk { top: 4px; right: 3px; }
+  .cal-n { font-size: 13px; min-width: 20px; }
+}
+
+/* Login (G10). */
+.login-logo { border-radius: 50%; border: 3px solid var(--color-amber); box-shadow: 0 0 0 5px var(--color-shadow), 0 0 0 7px var(--color-line); }
+
+/* Visibility helpers for the 700px switch (Tailwind sm: also works). */
+@media (max-width: 699.98px) { .hm { display: none !important; } }
+@media (min-width: 700px) { .sm-only { display: none !important; } }
+@media (min-width: 700px) and (max-width: 1023.98px) { .strip b { font-size: 21px; } }
+/* Three-tile strip (eBay import result, X5): stays 3-up on mobile. */
+.strip.s3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.strip.s3 > div { grid-column: auto; border-bottom: 0; border-right: 1px solid var(--color-line); }
+.strip.s3 > div:last-child { border-right: 0; }
+}

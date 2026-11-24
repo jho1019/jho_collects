@@ -4,7 +4,7 @@ import CashChart, {
 } from "@/components/CashChart";
 import PositionCards from "@/components/PositionCards";
 import RecentLedger from "@/components/RecentLedger";
-import { isoDay, usd } from "@/lib/format";
+import { isoDay, signedUsd, toneClass, usd } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 
 // Position cards, the cash chart, and ledger history — everything Home used
@@ -138,35 +138,47 @@ export default async function LedgerPage({
       (r) => r.tax_year === countYear && r.ending_inventory_missing,
     );
 
+  const windowRows = (windows ?? []) as WindowRow[];
+
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-8 p-4 md:p-6">
+    <main className="pg">
       <header>
-        <h1 className="text-xl font-bold text-on-page">Ledger</h1>
-        <p className="text-sm text-on-page/70">
+        <h1 className="pg-h1">Ledger</h1>
+        <p className="pg-lead">
           Position, cash flow, and the full transaction history.
         </p>
       </header>
 
       {countMissing && (
-        <p className="rounded-lg border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          Year-end inventory count for {countYear} is not recorded. Count the
-          unsold cards, estimate what you <em>paid</em> for them, and add an{" "}
-          <code>inventory_counts</code> row for tax year {countYear}. Until then
-          COGS and net profit for {countYear} are incomplete.
+        <p className="ban" role="note">
+          <span>
+            <b>Year-end inventory count for {countYear} is not recorded.</b>{" "}
+            Count the unsold cards, estimate what you <em>paid</em> for them,
+            and add an <code>inventory_counts</code> row for tax year{" "}
+            {countYear}. Until then COGS and net profit for {countYear} are
+            incomplete.
+          </span>
         </p>
       )}
 
       {missingFees > 0 && (
-        <p className="rounded-lg border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {missingFees} transaction{missingFees === 1 ? "" : "s"} still have
-          estimated fees. The tax figures are not final until an eBay report
-          import fills them in.
+        <p className="ban" role="note">
+          <span>
+            <b>
+              {missingFees} transaction{missingFees === 1 ? "" : "s"} still have
+              estimated fees.
+            </b>{" "}
+            The tax figures are not final until an eBay report import fills
+            them in.
+          </span>
         </p>
       )}
 
       {tErr && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {tErr.message}
+        <p className="ban err" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load transactions.</b> {tErr.message}
+          </span>
         </p>
       )}
 
@@ -176,81 +188,64 @@ export default async function LedgerPage({
 
       <RecentLedger searchParams={ledgerParams} />
 
-      <section className="space-y-2">
-        <h2 className="text-sm font-semibold text-on-page">Rolling windows</h2>
+      <section className="grid gap-2.5">
+        <h2 className="bl">Rolling windows</h2>
 
-        {/* Below md: one card per window — a 6-column table has no room on
-            a phone. md+: the table, unchanged. */}
-        <div className="space-y-2 md:hidden">
-          {((windows ?? []) as WindowRow[]).map((w) => (
-            <div
-              key={w.days}
-              className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
-            >
+        {/* Below 700px: one card per window on `cell` (spec L11). */}
+        <div className="board bd grid gap-2.5 sm:hidden">
+          {windowRows.map((w) => (
+            <div key={w.days} className="cellrow">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-ink">{w.label}</span>
+                <b className="font-semibold text-ink">{w.label}</b>
                 <span className="text-xs text-ink-muted">
                   {w.sale_count} sale{w.sale_count === 1 ? "" : "s"}
                 </span>
               </div>
-              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs text-ink-muted">
+              <div className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1 text-[11.5px] text-ink-muted">
                 <span>
-                  Gross <span className="tabular-nums text-ink">{usd(w.gross_sales)}</span>
+                  Gross <b className="font-medium tabular-nums text-ink">{usd(w.gross_sales)}</b>
                 </span>
                 <span>
                   Fees + shipping{" "}
-                  <span className="tabular-nums text-ink">{usd(w.fees_and_shipping)}</span>
+                  <b className="font-medium tabular-nums text-ink">{usd(w.fees_and_shipping)}</b>
                 </span>
                 <span>
                   Spent on cards{" "}
-                  <span className="tabular-nums text-ink">{usd(w.spent_on_cards)}</span>
+                  <b className="font-medium tabular-nums text-ink">{usd(w.spent_on_cards)}</b>
                 </span>
-                <span className="font-medium">
-                  Net cash <span className="tabular-nums text-ink">{usd(w.net_cash)}</span>
+                <span>
+                  Net cash{" "}
+                  <b className={`font-medium tabular-nums ${toneClass(w.net_cash, "text-ink")}`}>
+                    {signedUsd(w.net_cash)}
+                  </b>
                 </span>
               </div>
             </div>
           ))}
+          {windowRows.length === 0 && <p className="sub">No windows yet.</p>}
         </div>
 
-        <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
-          <table className="w-full text-sm">
-            <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
+        <div className="board hidden overflow-x-auto px-4 py-3 sm:block">
+          <table className="tb">
+            <thead>
               <tr>
-                <th className="px-3 py-2 font-medium">Window</th>
-                <th className="px-3 py-2 text-right font-medium">Sales</th>
-                <th className="px-3 py-2 text-right font-medium">Gross sales</th>
-                <th className="px-3 py-2 text-right font-medium">
-                  Fees + shipping
-                </th>
-                <th className="px-3 py-2 text-right font-medium">
-                  Spent on cards
-                </th>
-                <th className="px-3 py-2 text-right font-medium">Net cash</th>
+                <th>Window</th>
+                <th className="r">Sales</th>
+                <th className="r">Gross sales</th>
+                <th className="r">Fees + shipping</th>
+                <th className="r">Spent on cards</th>
+                <th className="r">Net cash</th>
               </tr>
             </thead>
             <tbody>
-              {((windows ?? []) as WindowRow[]).map((w) => (
-                <tr
-                  key={w.days}
-                  className="border-b border-brand-soft/15 last:border-0"
-                >
-                  <td className="px-3 py-2 text-ink-muted">{w.label}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink-muted">
-                    {w.sale_count}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">
-                    {usd(w.gross_sales)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">
-                    {usd(w.fees_and_shipping)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-ink">
-                    {usd(w.spent_on_cards)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums font-medium text-ink">
-                    {usd(w.net_cash)}
-                  </td>
+              {windowRows.map((w) => (
+                <tr key={w.days}>
+                  <td>{w.label}</td>
+                  <td className="r">{w.sale_count}</td>
+                  <td className="r">{usd(w.gross_sales)}</td>
+                  <td className="r">{usd(w.fees_and_shipping)}</td>
+                  <td className="r">{usd(w.spent_on_cards)}</td>
+                  <td className={`r ${toneClass(w.net_cash)}`}>{signedUsd(w.net_cash)}</td>
                 </tr>
               ))}
             </tbody>

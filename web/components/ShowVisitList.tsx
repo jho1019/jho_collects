@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { usd } from "@/lib/format";
+import { signedUsd, toneClass, usd } from "@/lib/format";
 import DealList, { type Deal, type DealTxn, type DealCard } from "@/components/DealList";
 
 // A show-level expense: admission, parking, table fee. Carries show_id with a
@@ -94,14 +94,12 @@ export default function ShowVisitList({
 
   if (visits.length === 0) {
     return (
-      <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
-        No deals yet.
-      </p>
+      <p className="board bd text-center text-sm text-ink-muted">No deals yet.</p>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="grid gap-[22px]">
       {visits.map((v) => {
         const expanded = open.has(v.key);
         const dealIds = new Set(v.deals.map((d) => d.deal_id));
@@ -118,33 +116,35 @@ export default function ShowVisitList({
         const review = v.deals.filter((d) => d.needs_review).length;
 
         return (
-          <section key={v.key} className="rounded-lg border border-brand-soft/25 bg-surface">
+          <section key={v.key} className="board">
             <button
               type="button"
               onClick={() => toggle(v.key)}
               aria-expanded={expanded}
-              className="flex w-full flex-col gap-1 px-4 py-3 text-left"
+              className="bd flex w-full flex-col gap-1.5 text-left"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="tabular-nums text-xs text-ink-muted">{v.date}</div>
-                  <div className="truncate text-base font-semibold text-ink">
+                  <div className="bl">
+                    <span className="tabular-nums">{v.date}</span>
+                  </div>
+                  <div className="mt-1 text-[15px] font-semibold text-ink">
                     {v.showName ?? "No show"}
                     {review > 0 && (
-                      <span className="ml-2 rounded bg-accent/15 px-1.5 py-0.5 align-middle text-[10px] font-medium text-accent-ink">
+                      <span className="pill pill-rev ml-2">
                         {review} need{review === 1 ? "s" : ""} review
                       </span>
                     )}
                   </div>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 items-center gap-2.5">
                   <span
-                    className={`tabular-nums text-base font-semibold ${net < 0 ? "text-accent-ink" : "text-brand"}`}
+                    className={`num text-[28px] font-extrabold leading-none ${toneClass(net, "text-ink-muted")}`}
                   >
-                    {usd(net)}
+                    {signedUsd(net)}
                   </span>
                   <span
-                    className={`text-ink-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+                    className={`text-ink-muted transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
                     aria-hidden
                   >
                     ▾
@@ -164,21 +164,31 @@ export default function ShowVisitList({
             </button>
 
             {expanded && (
-              <div className="space-y-3 border-t border-brand-soft/15 bg-page/40 p-3">
+              <div className="space-y-4 border-t border-line px-6 pb-5 pt-4 max-sm:px-3.5">
                 {v.deals.length > 0 && (
                   <DealList deals={v.deals} txns={txns} cards={cards} grouped />
                 )}
                 {v.expenses.length > 0 && (
-                  <div className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2">
-                    <div className="mb-1 text-xs uppercase text-ink-muted">Show expenses</div>
-                    <ul className="space-y-1 text-xs text-ink">
-                      {v.expenses.map((e) => (
-                        <li key={e.id} className="flex justify-between gap-2">
-                          <span className="text-ink-muted">{e.description}</span>
-                          <span className="tabular-nums">{usd(e.net_cash)}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <div>
+                    <h3 className="bl bl-mute">Expenses</h3>
+                    <table className="tb mt-1">
+                      <thead>
+                        <tr>
+                          <th>Show expense</th>
+                          <th className="r">Net cash</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {v.expenses.map((e) => (
+                          <tr key={e.id}>
+                            <td className="mute">{e.description}</td>
+                            <td className={`r whitespace-nowrap ${toneClass(e.net_cash)}`}>
+                              {signedUsd(e.net_cash)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>

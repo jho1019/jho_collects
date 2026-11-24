@@ -81,7 +81,7 @@ export default function ReleaseImage({
           onClick={() => inputRef.current?.click()}
           disabled={pending}
           aria-label={`Upload image for ${title}`}
-          className="flex h-16 w-12 items-center justify-center rounded border border-dashed border-brand-soft/40 text-lg text-ink-muted hover:border-brand hover:text-ink"
+          className="flex h-16 w-12 items-center justify-center rounded-[3px] border border-dashed border-line bg-cell text-lg text-ink-muted hover:border-amber hover:text-amber"
         >
           {pending ? "…" : "+"}
         </button>
@@ -94,7 +94,7 @@ export default function ReleaseImage({
           type="button"
           onClick={() => inputRef.current?.click()}
           disabled={pending}
-          className="text-xs text-ink-muted underline hover:text-ink"
+          className="text-[11.5px] text-ink-muted underline underline-offset-[3px] hover:text-amber"
         >
           {pending ? "Uploading…" : "Replace"}
         </button>
@@ -106,7 +106,7 @@ export default function ReleaseImage({
         className="hidden"
         onChange={(e) => onPick(e.target.files?.[0])}
       />
-      {error && <span className="max-w-32 text-xs text-accent-ink">{error}</span>}
+      {error && <span className="max-w-32 text-[11.5px] text-neg">{error}</span>}
     </div>
   );
 }

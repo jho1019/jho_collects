@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { isoDay, usd } from "@/lib/format";
+import { isoDay, signedUsd, toneClass } from "@/lib/format";
 import LedgerPageSizeSelect from "@/components/LedgerPageSizeSelect";
 
 const ALLOWED_ROWS = [5, 10, 50] as const;
@@ -68,80 +68,54 @@ export default async function RecentLedger({
   const hrefFor = (p: number) => `/ledger?rows=${rows}&page=${p}`;
 
   return (
-    <section className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-on-page">Ledger</h2>
+    <section className="board bd">
+      <div className="bl">
+        <h2>Ledger</h2>
         <LedgerPageSizeSelect rows={rows} />
       </div>
 
       {error && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {error.message}
+        <p className="ban err mt-2" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load the ledger.</b> {error.message}
+          </span>
         </p>
       )}
 
-      {/* Below md: one card per row (a 5-column table has no room on a
-          phone). md+: the table, unchanged. */}
-      <div className="space-y-2 md:hidden">
-        {ledger.map((r) => (
-          <div
-            key={r.id}
-            className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-sm"
-          >
-            <div className="flex items-center justify-between gap-2 text-xs text-ink-muted">
-              <span className="tabular-nums">{isoDay(r.occurred_on)}</span>
-              <span>{r.type}</span>
-            </div>
-            <div className="mt-0.5 text-ink">{r.description}</div>
-            <div className="mt-1 flex items-center justify-between gap-2 text-xs text-ink-muted">
-              <span>
-                Net <span className="tabular-nums text-ink">{usd(r.net_cash)}</span>
-              </span>
-              <span>
-                Running <span className="tabular-nums text-ink">{usd(r.running_total)}</span>
-              </span>
-            </div>
-          </div>
-        ))}
-        {ledger.length === 0 && (
-          <p className="rounded-lg border border-brand-soft/25 bg-surface px-3 py-6 text-center text-sm text-ink-muted">
-            No transactions yet.
-          </p>
-        )}
-      </div>
-
-      <div className="hidden overflow-x-auto rounded-lg border border-brand-soft/25 bg-surface md:block">
-        <table className="w-full text-sm">
-          <thead className="border-b border-brand-soft/25 text-left text-xs uppercase tracking-wide text-ink-muted">
+      {/* One table at every width (spec L8). Below 700px Type and Running
+          fold away and Running sits under Net cash in muted 10.5px. */}
+      <div className="mt-2 overflow-x-auto">
+        <table className="tb">
+          <thead>
             <tr>
-              <th className="px-3 py-2 font-medium">Date</th>
-              <th className="px-3 py-2 font-medium">Type</th>
-              <th className="px-3 py-2 font-medium">Description</th>
-              <th className="px-3 py-2 text-right font-medium">Net cash</th>
-              <th className="px-3 py-2 text-right font-medium">Running</th>
+              <th>Date</th>
+              <th className="hm">Type</th>
+              <th>Description</th>
+              <th className="r">Net cash</th>
+              <th className="r hm">Running</th>
             </tr>
           </thead>
           <tbody>
             {ledger.map((r) => (
-              <tr key={r.id} className="border-b border-brand-soft/15 last:border-0">
-                <td className="whitespace-nowrap px-3 py-2 tabular-nums text-ink-muted">
-                  {isoDay(r.occurred_on)}
-                </td>
-                <td className="px-3 py-2 text-ink-muted">{r.type}</td>
-                <td className="max-w-xs truncate px-3 py-2 text-ink">
+              <tr key={r.id}>
+                <td className="whitespace-nowrap tabular-nums">{isoDay(r.occurred_on)}</td>
+                <td className="hm">{r.type}</td>
+                <td className="max-w-[28rem] sm:truncate">
                   {r.description}
+                  <span className="sm-only block text-[10.5px] text-ink-muted">{r.type}</span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">
-                  {usd(r.net_cash)}
+                <td className={`r whitespace-nowrap ${toneClass(r.net_cash)}`}>
+                  {signedUsd(r.net_cash)}
+                  <span className="sm-only block text-[10.5px] font-normal text-ink-muted">
+                    {signedUsd(r.running_total)}
+                  </span>
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums text-ink">
-                  {usd(r.running_total)}
-                </td>
+                <td className="r hm whitespace-nowrap">{signedUsd(r.running_total)}</td>
               </tr>
             ))}
             {ledger.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-3 py-6 text-center text-ink-muted">
+                <td colSpan={5} className="py-6 text-center text-ink-muted">
                   No transactions yet.
                 </td>
               </tr>
@@ -150,32 +124,26 @@ export default async function RecentLedger({
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-on-page/70">
-        <span>
+      <div className="mt-3 flex items-center justify-between gap-2 text-xs text-ink-muted">
+        <span className="tabular-nums">
           {total === 0 ? "0 of 0" : `${rangeStart}–${rangeEnd} of ${total}`}
         </span>
         <div className="flex items-center gap-2">
           {page > 1 ? (
-            <Link
-              href={hrefFor(page - 1)}
-              className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
-            >
+            <Link href={hrefFor(page - 1)} className="btn">
               Previous
             </Link>
           ) : (
-            <span className="rounded border border-on-page/15 px-2 py-1 text-on-page/40">
+            <span className="btn off" aria-disabled="true">
               Previous
             </span>
           )}
           {page < totalPages ? (
-            <Link
-              href={hrefFor(page + 1)}
-              className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
-            >
+            <Link href={hrefFor(page + 1)} className="btn">
               Next
             </Link>
           ) : (
-            <span className="rounded border border-on-page/15 px-2 py-1 text-on-page/40">
+            <span className="btn off" aria-disabled="true">
               Next
             </span>
           )}

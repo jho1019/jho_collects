@@ -1,17 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import {
+  Area,
+  AreaChart,
   CartesianGrid,
-  Line,
-  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import { usd } from "@/lib/format";
+import { axisUsd, signedUsd, toneClass, usd } from "@/lib/format";
+import { niceScale } from "@/lib/dashboard/format";
 import type { EntriesByDay } from "@/lib/ledgerTypes";
 import DayEntryTable from "@/components/DayEntryTable";
 
@@ -19,9 +20,9 @@ export type CashPoint = { day: string; net: number };
 export type { LedgerEntry, EntriesByDay } from "@/lib/ledgerTypes";
 
 const WINDOWS: { label: string; days: number }[] = [
-  { label: "30d", days: 30 },
-  { label: "90d", days: 90 },
-  { label: "1y", days: 365 },
+  { label: "30D", days: 30 },
+  { label: "90D", days: 90 },
+  { label: "1Y", days: 365 },
   { label: "All", days: Number.POSITIVE_INFINITY },
 ];
 
@@ -48,11 +49,13 @@ function ChartTooltip({
   const remaining = entries.length - shown.length;
 
   return (
-    <div className="w-64 rounded-lg border border-brand-soft/25 bg-surface px-3 py-2 text-xs shadow-lg">
+    <div className="pop w-64 px-3 py-2 text-xs">
       <div className="font-medium text-ink">{day}</div>
       <div className="mt-1 flex justify-between gap-4 text-ink-muted">
         <span>Cumulative</span>
-        <span className="tabular-nums text-ink">{usd(cumulative)}</span>
+        <span className={`tabular-nums ${toneClass(cumulative, "text-ink")}`}>
+          {signedUsd(cumulative)}
+        </span>
       </div>
 
       {entries.length === 0 ? (
@@ -63,10 +66,8 @@ function ChartTooltip({
             <span>
               {entries.length} entr{entries.length === 1 ? "y" : "ies"}
             </span>
-            <span
-              className={`tabular-nums ${movement < 0 ? "text-accent-ink" : "text-brand"}`}
-            >
-              {usd(movement)}
+            <span className={`tabular-nums ${toneClass(movement, "text-ink")}`}>
+              {signedUsd(movement)}
             </span>
           </div>
           <ul className="mt-1 space-y-0.5">
@@ -75,7 +76,9 @@ function ChartTooltip({
                 <span className="truncate">
                   {e.type} — {e.description}
                 </span>
-                <span className="shrink-0 tabular-nums">{usd(e.net_cash)}</span>
+                <span className={`shrink-0 tabular-nums ${toneClass(e.net_cash)}`}>
+                  {signedUsd(e.net_cash)}
+                </span>
               </li>
             ))}
           </ul>
@@ -85,7 +88,7 @@ function ChartTooltip({
         </>
       )}
 
-      <div className="mt-1.5 text-[10px] uppercase tracking-wide text-ink-muted">
+      <div className="mt-1.5 text-[10px] uppercase tracking-[0.14em] text-amber">
         Click to pin
       </div>
     </div>
@@ -120,66 +123,128 @@ export default function CashChart({
   const pinnedEntries = pinnedDay ? (entriesByDay[pinnedDay] ?? []) : [];
   const pinnedInView = pinnedDay != null && data.some((d) => d.day === pinnedDay);
 
-  return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-sm font-semibold text-on-page">
-            Cumulative net cash
-          </h2>
-          <select
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="rounded border border-on-page/40 bg-surface px-2 py-0.5 text-xs text-ink-muted"
-          >
-            {WINDOWS.map((w) => (
-              <option key={w.label} value={w.days}>
-                {w.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <span
-          className={`text-lg font-semibold tabular-nums ${
-            current < 0
-              ? "rounded bg-surface px-2 py-0.5 text-accent-ink"
-              : "text-on-page"
-          }`}
-        >
-          {usd(current)}
-        </span>
-      </div>
-      <p className="text-xs text-on-page/70">
-        Cash in and out, not net worth. Dips below zero are normal — inventory
-        bought and not yet sold. Excludes standalone expenses (supplies,
-        subscriptions, mileage…), so this figure sits above the position card.
-      </p>
+  // Nice axis that always contains $0 (spec L6 fix): a flat 30d window no
+  // longer zooms into a meaningless sliver, and the $0 baseline is drawn.
+  const scale = useMemo(() => {
+    const values = data.map((d) => d.net);
+    return niceScale(Math.min(0, ...values), Math.max(0, ...values), 4);
+  }, [data]);
 
-      <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-        <div className="h-80 w-full">
+  const gradId = `nc-${useId().replace(/:/g, "")}`;
+  const segRef = useRef<HTMLDivElement>(null);
+  const activeIdx = WINDOWS.findIndex((w) => w.days === days);
+
+  // Radiogroup arrow-key navigation (spec 8, segmented controls).
+  function onSegKey(e: React.KeyboardEvent) {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    const step = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+    const next = (activeIdx + step + WINDOWS.length) % WINDOWS.length;
+    setDays(WINDOWS[next].days);
+    segRef.current?.querySelectorAll<HTMLButtonElement>("button")[next]?.focus();
+  }
+
+  const label = `Cumulative net cash, ${WINDOWS[activeIdx]?.label ?? ""}, currently ${usd(current).replace("−", "-")}`;
+
+  return (
+    <div className="grid gap-[18px]">
+      <section className="board bd">
+        <div className="bl">
+          <span className="flex flex-wrap items-center gap-3.5">
+            <h2>Cumulative net cash</h2>
+            <div
+              ref={segRef}
+              role="radiogroup"
+              aria-label="Chart range"
+              className="seg sm"
+              onKeyDown={onSegKey}
+            >
+              {WINDOWS.map((w, i) => (
+                <button
+                  key={w.label}
+                  type="button"
+                  role="radio"
+                  aria-checked={i === activeIdx}
+                  tabIndex={i === activeIdx ? 0 : -1}
+                  onClick={() => setDays(w.days)}
+                >
+                  {w.label}
+                </button>
+              ))}
+            </div>
+          </span>
+          <span
+            className={`num whitespace-nowrap rounded-[3px] border px-2.5 text-[20px] font-extrabold tracking-[0.03em] sm:text-[24px] ${
+              current < 0
+                ? "border-neg bg-neg/10 text-neg"
+                : current > 0
+                  ? "border-pos bg-pos/10 text-pos"
+                  : "border-line text-ink-muted"
+            }`}
+          >
+            {signedUsd(current)}
+          </span>
+        </div>
+        <p className="sub mt-2">
+          Cash in and out, not net worth. Dips below zero are normal — inventory
+          bought and not yet sold. Excludes standalone expenses (supplies,
+          subscriptions, mileage…), so this figure sits above the position card.
+        </p>
+
+        <div className="relative mt-2 h-[230px] w-full sm:h-[280px]" role="group" aria-label={label}>
           <ResponsiveContainer>
-            <LineChart
+            <AreaChart
               data={data}
-              margin={{ top: 8, right: 16, bottom: 4, left: 0 }}
+              margin={{ top: 14, right: 16, bottom: 0, left: 0 }}
               onClick={(state) => {
                 if (state?.activeLabel != null) {
                   setPinnedDay(String(state.activeLabel));
                 }
               }}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-brand-soft)" opacity={0.25} />
+              <defs>
+                <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stopColor="var(--color-blue)" stopOpacity={0.02} />
+                  <stop offset="1" stopColor="var(--color-blue)" stopOpacity={0.3} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                vertical={false}
+                strokeDasharray="2 4"
+                stroke="var(--color-grid)"
+              />
               <XAxis
                 dataKey="day"
-                tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }}
+                tick={{ fontSize: 11, fill: "var(--color-ink-muted)", fontFamily: "var(--font-mono)" }}
+                tickLine={false}
+                axisLine={false}
                 minTickGap={48}
-                tickFormatter={(d: string) => d.slice(5)}
+                tickFormatter={(d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`}
               />
               <YAxis
-                tick={{ fontSize: 11, fill: "var(--color-ink-muted)" }}
-                width={64}
-                tickFormatter={(v: number) => usd(v)}
+                domain={[scale.lo, scale.hi]}
+                ticks={scale.ticks}
+                allowDataOverflow={false}
+                tickLine={false}
+                axisLine={false}
+                width={58}
+                tick={(props: { x: number | string; y: number | string; payload: { value: number } }) => (
+                  <text
+                    x={Number(props.x)}
+                    y={Number(props.y)}
+                    dy={3.5}
+                    textAnchor="end"
+                    fontSize={11}
+                    fontFamily="var(--font-mono)"
+                    fontWeight={props.payload.value === 0 ? 600 : 400}
+                    fill={props.payload.value === 0 ? "var(--color-ink)" : "var(--color-ink-muted)"}
+                  >
+                    {axisUsd(props.payload.value)}
+                  </text>
+                )}
               />
               <Tooltip
+                cursor={{ stroke: "var(--color-line)" }}
                 content={(props) => (
                   <ChartTooltip
                     active={props.active}
@@ -189,49 +254,48 @@ export default function CashChart({
                   />
                 )}
               />
-              <ReferenceLine y={0} stroke="var(--color-brand-soft)" />
+              <ReferenceLine y={0} stroke="var(--color-ink-muted)" strokeWidth={1.4} strokeOpacity={0.7} />
               {pinnedInView && (
                 <ReferenceLine
                   x={pinnedDay ?? undefined}
-                  stroke="var(--color-accent-ink)"
+                  stroke="var(--color-amber)"
                   strokeDasharray="4 2"
                 />
               )}
-              <Line
-                type="monotone"
+              <Area
+                type="stepAfter"
                 dataKey="net"
-                stroke="var(--color-brand)"
-                strokeWidth={2}
+                baseValue={0}
+                stroke="var(--color-blue)"
+                strokeWidth={2.4}
+                fill={`url(#${gradId})`}
                 dot={false}
+                activeDot={{ r: 4.5, fill: "var(--color-blue)", stroke: "none" }}
                 isAnimationActive={false}
                 className="cursor-pointer"
               />
-            </LineChart>
+            </AreaChart>
           </ResponsiveContainer>
+          {data.length === 0 && (
+            <p className="absolute inset-0 grid place-items-center text-sm text-ink-muted">
+              No transactions yet.
+            </p>
+          )}
         </div>
-        {data.length === 0 && (
-          <p className="py-8 text-center text-sm text-ink-muted">
-            No transactions yet.
-          </p>
-        )}
-      </div>
+      </section>
 
       {pinnedDay && (
-        <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-ink">{pinnedDay}</h3>
-            <button
-              type="button"
-              onClick={() => setPinnedDay(null)}
-              className="rounded border border-brand-soft/40 px-2 py-0.5 text-xs text-ink-muted hover:bg-brand-soft/10"
-            >
+        <section className="board bd">
+          <div className="bl">
+            <h3>{pinnedDay} · day detail</h3>
+            <button type="button" onClick={() => setPinnedDay(null)} className="btn sm">
               Dismiss
             </button>
           </div>
           <div className="mt-2">
             <DayEntryTable entries={pinnedEntries} />
           </div>
-        </div>
+        </section>
       )}
     </div>
   );
