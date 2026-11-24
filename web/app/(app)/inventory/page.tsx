@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import CardInventory, {
   type Card,
@@ -6,7 +7,16 @@ import CardInventory, {
 
 export const dynamic = "force-dynamic";
 
-export default async function InventoryPage() {
+// ?cost=missing (the dashboard's "Fix N sales" link, spec 7.5) narrows the
+// list to sold cards with no acquisition cost. Without the param the page is
+// unchanged. Sales never linked to a card (bulk lots) have no row here.
+export default async function InventoryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cost?: string | string[] }>;
+}) {
+  const costParam = (await searchParams).cost;
+  const missingCost = (Array.isArray(costParam) ? costParam[0] : costParam) === "missing";
   const supabase = await createClient();
 
   const [{ data: cards, error }, { data: trackedRows }] = await Promise.all([
@@ -40,8 +50,19 @@ export default async function InventoryPage() {
         </p>
       )}
 
+      {missingCost && (
+        <p className="rounded border-l-4 border-amber bg-surface px-3 py-2 text-sm text-ink">
+          Showing sold cards with no cost.{" "}
+          <Link href="/inventory" className="text-brand underline underline-offset-[3px]">
+            Show all cards
+          </Link>
+        </p>
+      )}
+
       <CardInventory
-        cards={(cards ?? []) as Card[]}
+        cards={((cards ?? []) as Card[]).filter(
+          (c) => !missingCost || (c.status === "sold" && c.acquisition_cost == null),
+        )}
         summary={((trackedRows ?? [])[0] ?? null) as TrackedInventory}
       />
     </main>
