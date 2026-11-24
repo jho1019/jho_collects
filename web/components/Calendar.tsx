@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import Link from "next/link";
 import DayEntryTable from "@/components/DayEntryTable";
 import Spinner from "@/components/Spinner";
 import { getDayEntries } from "@/app/(app)/actions";
 import type { LedgerEntry } from "@/lib/ledgerTypes";
+import { signedUsd, signedUsdWhole, toneClass, usd } from "@/lib/format";
 
 export type DailyCashRow = {
   day: string;
@@ -79,12 +80,9 @@ function daysBetween(start: string, end: string): string[] {
   return out;
 }
 
-// Sign always shown, colour applied on top of it — Phase 7's rule that
-// colour is emphasis, never the sole carrier, holds on the calendar too.
-function signedAmount(n: number) {
-  const abs = Math.abs(n).toFixed(2);
-  return n < 0 ? `−${abs}` : `+${abs}`;
-}
+// Sign always shown, colour applied on top of it — colour is emphasis, never
+// the sole carrier. Zero is "$0.00": no sign, no colour (spec 7).
+const signedAmount = (n: number) => signedUsd(n);
 
 function formatPacificTime(iso: string) {
   return new Date(iso).toLocaleTimeString("en-US", {
@@ -101,12 +99,28 @@ function nextMonth(year: number, month: number) {
   return month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 };
 }
 
+// Below sm (700px) the day detail is a bottom sheet (C10, spec 17.1 Q4);
+// from sm up it stays the panel under the grid.
+const MOBILE_QUERY = "(max-width: 699.98px)";
+function subscribeMobile(cb: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+}
+function useIsMobile() {
+  return useSyncExternalStore(
+    subscribeMobile,
+    () => window.matchMedia(MOBILE_QUERY).matches,
+    () => false,
+  );
+}
+
 // Home, as of Phase 9. Opens on the current month; the indicator is the
 // day's net movement (not the running position), and a day with nothing in
 // it gets no indicator at all, never a zero. Clicking a day fetches just
 // that day's entries (see app/(app)/actions.ts) and pins a detail panel
-// below the grid, reusing DayEntryTable from Phase 8 rather than a second
-// row renderer.
+// below the grid (a bottom sheet below 700px, C10), reusing DayEntryTable
+// from Phase 8 rather than a second row renderer.
 export default function Calendar({
   year,
   month,
@@ -127,6 +141,8 @@ export default function Calendar({
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dayEntries, setDayEntries] = useState<LedgerEntry[]>([]);
   const [isPending, startTransition] = useTransition();
+  const isMobile = useIsMobile();
+  const closeDay = useCallback(() => setSelectedDay(null), []);
 
   const netByDay = new Map<string, number>();
   const countByDay = new Map<string, number>();
@@ -177,8 +193,16 @@ export default function Calendar({
   const { year: py, month: pm } = prevMonth(year, month);
   const { year: ny, month: nm } = nextMonth(year, month);
 
-  function selectDay(day: string) {
+  function selectDay(day: string, cell?: HTMLElement) {
     setSelectedDay(day);
+    // Keep the chosen day peekable above the sheet: if it would sit under
+    // the sheet (lower ~55% of the viewport), scroll it up near the top.
+    if (cell && window.matchMedia(MOBILE_QUERY).matches) {
+      const r = cell.getBoundingClientRect();
+      if (r.bottom > window.innerHeight * 0.42) {
+        window.scrollBy({ top: r.top - 72, behavior: "smooth" });
+      }
+    }
     startTransition(async () => {
       setDayEntries(await getDayEntries(day));
     });
@@ -187,58 +211,139 @@ export default function Calendar({
   const selectedReleases = selectedDay ? (releasesByDay.get(selectedDay) ?? []) : [];
   const selectedShows = selectedDay ? (showsByDay.get(selectedDay) ?? []) : [];
 
-  return (
-    <div className="space-y-3">
-      {/* Below sm, three items evenly forced into a third of the width each
-          left no room for "← Prev / Today / Next →" — stack the title above
-          a full-width nav row instead, and drop the logo (decorative). */}
-      <div className="flex flex-col gap-2 sm:grid sm:grid-cols-3 sm:items-center">
-        <h2 className="text-xl font-semibold text-on-page sm:text-2xl">
-          {MONTH_NAMES[month]} {year}
-        </h2>
-        <div className="hidden justify-center sm:flex">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-mark.webp" alt="shotime_cards" className="h-12 w-12 rounded-lg" />
+  const detail = selectedDay && (
+    <>
+      {selectedShows.length > 0 && (
+        <div className="mt-3">
+          <h3 className="bl bl-mute">Shows</h3>
+          <div className="mt-1 space-y-2">
+            {selectedShows.map((s) => {
+              const summary = summaryByShowId.get(s.id);
+              const unresolved = isUnresolvedPastShow(s);
+              return (
+                <div key={s.id} className="text-[13px] text-ink">
+                  <b className="font-semibold">{s.name}</b>{" "}
+                  <span className="text-ink-muted">
+                    {[s.venue, s.city].filter(Boolean).join(", ") || "venue unknown"}
+                    {s.doors_at && <> · doors {formatPacificTime(s.doors_at)}</>}
+                    {s.admission_cost != null && (
+                      <> · admission ${Number(s.admission_cost).toFixed(2)} (expected)</>
+                    )}
+                  </span>
+                  {unresolved && <span className="pill pill-amber ml-2">▲ unresolved</span>}
+                  {s.needs_review && <span className="pill pill-rev ml-2">needs review</span>}
+                  {s.status === "attended" && summary && (
+                    <div className="sub">
+                      {summary.deal_count} {summary.deal_count === 1 ? "deal" : "deals"} · net{" "}
+                      <span className={toneClass(summary.net_cash)}>
+                        {signedAmount(Number(summary.net_cash))}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-2 text-sm sm:justify-end">
-          <Link
-            href={`/?year=${py}&month=${pm + 1}`}
-            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
-          >
-            ← Prev
-          </Link>
-          <Link
-            href="/"
-            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
-          >
-            Today
-          </Link>
-          <Link
-            href={`/?year=${ny}&month=${nm + 1}`}
-            className="rounded border border-on-page/40 px-2 py-1 text-on-page hover:bg-on-page/10"
-          >
-            Next →
-          </Link>
-        </div>
+      )}
+
+      <div className="mt-3">
+        <h3 className="bl bl-mute">Entries</h3>
+        {isPending ? (
+          <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
+            <Spinner />
+            Loading…
+          </div>
+        ) : (
+          <div className="mt-1">
+            <DayEntryTable entries={dayEntries} />
+          </div>
+        )}
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-brand-soft/25 bg-surface">
-        <div className="grid grid-cols-7 border-b border-brand-soft/25 text-center text-xs font-medium uppercase text-ink-muted sm:text-sm">
+      {selectedReleases.length > 0 && (
+        <div className="mt-3">
+          <h3 className="bl bl-mute">Releases</h3>
+          <div className="mt-1 space-y-1.5">
+            {selectedReleases.map((r) => (
+              <div key={r.id} className="text-[13px] text-ink">
+                <b className="font-semibold">{r.title}</b>{" "}
+                <span className="text-ink-muted">
+                  {r.time_unconfirmed || !r.release_at
+                    ? "time unconfirmed"
+                    : formatPacificTime(r.release_at)}
+                  {r.drop_type && (
+                    <>
+                      {" · "}
+                      {r.drop_type}
+                      {r.drop_type_uncertain ? "?" : ""}
+                    </>
+                  )}
+                </span>
+                {r.url && (
+                  <>
+                    {" · "}
+                    <a href={r.url} target="_blank" rel="noreferrer" className="lk">
+                      link
+                    </a>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+
+  return (
+    <div className="grid min-w-0 gap-[18px]">
+      <header className="pg-head">
+        <div className="min-w-0">
+          <h1 className="pg-h1">
+            {MONTH_NAMES[month]} {year}
+          </h1>
+          {/* C9: one-line legend so the marks explain themselves. */}
+          <div className="cal-legend" aria-label="Legend">
+            <span>
+              <i className="bg-pos" aria-hidden />
+              net cash in
+            </span>
+            <span>
+              <i className="bg-neg" aria-hidden />
+              net cash out
+            </span>
+            <span className="text-blue">⚑ show day</span>
+            <span>
+              <i className="rounded-full bg-amber" aria-hidden />
+              release
+            </span>
+            <span className="text-amber">▲ show still planned: needs review</span>
+          </div>
+        </div>
+        <nav aria-label="Month" className="flex items-center gap-2">
+          <Link href={`/?year=${py}&month=${pm + 1}`} className="btn">
+            ← Prev
+          </Link>
+          <Link href="/" className="btn pri">
+            Today
+          </Link>
+          <Link href={`/?year=${ny}&month=${nm + 1}`} className="btn">
+            Next →
+          </Link>
+        </nav>
+      </header>
+
+      <section className="board p-2 sm:p-4">
+        <div className="cal">
           {WEEKDAYS.map((w) => (
-            <div key={w} className="py-2 sm:py-3">
+            <div key={w} className="cal-dh">
               {w}
             </div>
           ))}
-        </div>
-        <div className="grid grid-cols-7">
           {cells.map((day, i) => {
             if (day === null) {
-              return (
-                <div
-                  key={i}
-                  className="min-h-20 border-b border-r border-brand-soft/10 sm:min-h-32"
-                />
-              );
+              return <div key={i} className="cal-out" aria-hidden />;
             }
             const iso = isoOf(year, month, day);
             const net = netByDay.get(iso);
@@ -251,218 +356,191 @@ export default function Calendar({
               (r) => r.time_unconfirmed || r.drop_type_uncertain,
             );
             const hasUnresolvedShow = dayShows.some(isUnresolvedPastShow);
-            // Half of BAR_BOX on either side of the centre baseline.
-            const BAR_BOX = 32;
+            // Bar is at most 16px either side of the dashed centre line,
+            // scaled to the busiest day in the visible month. Direction
+            // carries the sign as well as colour, so it reads in greyscale.
+            const BAR_HALF = 16;
+            const netCents = net === undefined ? 0 : Math.round(net * 100);
             const barPx =
-              net === undefined
+              net === undefined || netCents === 0
                 ? 0
-                : Math.max(3, Math.round((Math.abs(net) / maxAbsNet) * (BAR_BOX / 2)));
+                : Math.max(3, Math.round((Math.abs(net) / maxAbsNet) * BAR_HALF));
+            const stripShow = dayShows.find(isUnresolvedPastShow) ?? dayShows[0];
+
+            const aria = [
+              `${MONTH_NAMES[month]} ${day}`,
+              isToday ? "today" : null,
+              net !== undefined
+                ? `net ${usd(net).replace("−", "-")}, ${count} ${count === 1 ? "entry" : "entries"}`
+                : null,
+              dayShows.length > 0 ? `show: ${dayShows.map((x) => x.name).join(", ")}` : null,
+              hasUnresolvedShow ? "needs review" : null,
+              dayReleases.length > 0
+                ? `${dayReleases.length} ${dayReleases.length === 1 ? "release" : "releases"}`
+                : null,
+            ]
+              .filter(Boolean)
+              .join(", ");
 
             return (
               <button
                 key={i}
                 type="button"
-                onClick={() => selectDay(iso)}
-                className={`group relative flex min-h-20 flex-col border-b border-r border-brand-soft/10 p-1 text-left transition-colors hover:bg-brand-soft/10 sm:min-h-32 sm:p-2 ${
-                  isSelected ? "bg-brand/10" : ""
-                }`}
+                onClick={(e) => selectDay(iso, e.currentTarget)}
+                aria-label={aria}
+                aria-pressed={isSelected}
+                aria-current={isToday ? "date" : undefined}
+                className={`cal-day${isToday ? " today" : ""}${isSelected ? " sel" : ""}`}
               >
-                {/* Buttons centre their content vertically by default in
-                    some browsers' UA stylesheet — the explicit flex-col
-                    above overrides that, so a cell with a bar doesn't push
-                    its date number up relative to an empty one. */}
-                <div className="flex items-center justify-between">
-                  <div
-                    className={`text-sm ${
-                      isToday
-                        ? "inline-flex h-6 w-6 items-center justify-center rounded-full bg-brand font-semibold text-surface"
-                        : "text-ink-muted"
-                    }`}
-                  >
-                    {day}
-                  </div>
-                  {/* Release and show presence are their own indicators,
-                      separate from the cash bar below — neither is a
-                      signed figure, so neither needs a pos/neg colour
-                      convention. Distinguished from each other by shape
-                      (a dot for a release, a flag for a show), never by
-                      inventing a new hue — Phase 7 already spent the
-                      colour budget on cash. Fill/stroke colour carries
-                      urgency (a flagged release, an unresolved past show)
-                      using the same accent/accent-ink pair either way. */}
-                  {(dayReleases.length > 0 || dayShows.length > 0) && (
-                    <div className="flex shrink-0 items-center gap-1">
-                      {dayShows.length > 0 && (
-                        <svg
-                          viewBox="0 0 16 16"
-                          className={`h-3 w-3 ${hasUnresolvedShow ? "text-accent-ink" : "text-accent"}`}
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3.5 14.5V2" />
-                          <path d="M3.5 2.5l8 3-8 3" fill="currentColor" stroke="none" />
-                        </svg>
-                      )}
-                      {dayReleases.length > 0 && (
-                        <span
-                          className={`h-2.5 w-2.5 shrink-0 rounded-full ${
-                            hasFlagged ? "bg-accent-ink" : "bg-accent"
-                          }`}
-                        />
-                      )}
-                    </div>
-                  )}
-                </div>
+                <span className="cal-n">{day}</span>
 
-                {/* The sleek bar: direction (above/below the centre line)
-                    carries the sign, same as colour, so it still reads in
-                    greyscale. Exact figures are hover/click-only. */}
+                {(dayReleases.length > 0 || dayShows.length > 0) && (
+                  <span className="cal-mk" aria-hidden>
+                    {dayShows.length > 0 && (
+                      <span className={`cal-flag${hasUnresolvedShow ? " rv" : ""}`}>⚑</span>
+                    )}
+                    {dayReleases.length > 0 && (
+                      <span
+                        className="cal-dot"
+                        title={hasFlagged ? "Release (time or drop type unconfirmed)" : "Release"}
+                      />
+                    )}
+                  </span>
+                )}
+
+                {stripShow && (
+                  <span
+                    className={`cal-strip${isUnresolvedPastShow(stripShow) ? " rv" : ""}`}
+                    aria-hidden
+                  >
+                    {isUnresolvedPastShow(stripShow)
+                      ? `▲ ${stripShow.name} · review`
+                      : stripShow.name}
+                  </span>
+                )}
+
                 {net !== undefined && (
-                  <div className="relative mx-auto mt-2 h-8 w-full max-w-16">
-                    <div className="absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-brand-soft/30" />
-                    <div
-                      className={`absolute inset-x-1 rounded-sm ${
-                        net < 0 ? "bg-accent-ink" : "bg-brand"
-                      }`}
-                      style={
-                        net < 0
-                          ? { top: "50%", height: `${barPx}px` }
-                          : { bottom: "50%", height: `${barPx}px` }
-                      }
-                    />
-                  </div>
+                  <>
+                    {barPx > 0 && (
+                      <span className="cal-bar" aria-hidden>
+                        <i
+                          className={netCents < 0 ? "dn" : "up"}
+                          style={{ height: `${barPx}px` }}
+                        />
+                      </span>
+                    )}
+                    <span
+                      className={`cal-amt ${toneClass(net, "text-ink-muted")}`}
+                      aria-hidden
+                    >
+                      {signedUsdWhole(net)}
+                    </span>
+                  </>
                 )}
 
                 {(net !== undefined || dayReleases.length > 0 || dayShows.length > 0) && (
-                  <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-1 hidden -translate-x-1/2 whitespace-nowrap rounded bg-ink px-2 py-1 text-xs text-surface shadow-lg group-hover:block">
+                  <span className="cal-tip pop text-xs" aria-hidden>
                     {net !== undefined && (
-                      <div>
+                      <span className="block">
                         {signedAmount(net)} · {count} {count === 1 ? "entry" : "entries"}
-                      </div>
+                      </span>
                     )}
                     {dayShows.length > 0 && (
-                      <div>
-                        {dayShows.map((s) => s.name).join(", ")}
-                      </div>
+                      <span className="block">{dayShows.map((x) => x.name).join(", ")}</span>
                     )}
                     {dayReleases.length > 0 && (
-                      <div>
+                      <span className="block">
                         {dayReleases.length}{" "}
                         {dayReleases.length === 1 ? "release" : "releases"}
-                      </div>
+                      </span>
                     )}
-                  </div>
+                  </span>
                 )}
               </button>
             );
           })}
         </div>
-      </div>
+      </section>
 
-      {selectedDay && (
-        <div className="rounded-lg border border-brand-soft/25 bg-surface p-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium text-ink">{selectedDay}</h3>
-            <button
-              type="button"
-              onClick={() => setSelectedDay(null)}
-              className="rounded border border-brand-soft/40 px-2 py-0.5 text-xs text-ink-muted hover:bg-brand-soft/10"
-            >
+      {selectedDay && !isMobile && (
+        <section className="board bd" aria-live="polite">
+          <div className="bl">
+            <h2>{selectedDay} · day detail</h2>
+            <button type="button" onClick={closeDay} className="btn sm">
               Dismiss
             </button>
           </div>
-
-          {isPending ? (
-            <div className="mt-2 flex items-center gap-2 text-sm text-ink-muted">
-              <Spinner />
-              Loading…
-            </div>
-          ) : (
-            <div className="mt-2">
-              <DayEntryTable entries={dayEntries} />
-            </div>
-          )}
-
-          {selectedShows.length > 0 && (
-            <div className="mt-3 space-y-1.5 border-t border-brand-soft/15 pt-2">
-              <div className="text-xs font-medium uppercase text-ink-muted">
-                Shows
-              </div>
-              {selectedShows.map((s) => {
-                const summary = summaryByShowId.get(s.id);
-                const unresolved = isUnresolvedPastShow(s);
-                return (
-                  <div key={s.id} className="text-sm text-ink">
-                    <span className="font-medium">{s.name}</span>{" "}
-                    <span className="text-ink-muted">
-                      {[s.venue, s.city].filter(Boolean).join(", ") || "venue unknown"}
-                      {s.doors_at && <> · doors {formatPacificTime(s.doors_at)}</>}
-                      {s.admission_cost != null && (
-                        <> · admission ${Number(s.admission_cost).toFixed(2)} (expected)</>
-                      )}
-                    </span>
-                    {unresolved && (
-                      <span className="ml-1 rounded border border-accent-ink px-1 text-xs text-accent-ink">
-                        unresolved
-                      </span>
-                    )}
-                    {s.status === "attended" && summary && (
-                      <div className="text-ink-muted">
-                        {summary.deal_count} {summary.deal_count === 1 ? "deal" : "deals"} ·
-                        net {signedAmount(Number(summary.net_cash))}
-                      </div>
-                    )}
-                    {s.needs_review && (
-                      <div className="text-xs text-accent-ink">needs review</div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {selectedReleases.length > 0 && (
-            <div className="mt-3 space-y-1.5 border-t border-brand-soft/15 pt-2">
-              <div className="text-xs font-medium uppercase text-ink-muted">
-                Releases
-              </div>
-              {selectedReleases.map((r) => (
-                <div key={r.id} className="text-sm text-ink">
-                  <span className="font-medium">{r.title}</span>{" "}
-                  <span className="text-ink-muted">
-                    {r.time_unconfirmed || !r.release_at
-                      ? "time unconfirmed"
-                      : formatPacificTime(r.release_at)}
-                    {r.drop_type && (
-                      <>
-                        {" · "}
-                        {r.drop_type}
-                        {r.drop_type_uncertain ? "?" : ""}
-                      </>
-                    )}
-                  </span>
-                  {r.url && (
-                    <>
-                      {" · "}
-                      <a
-                        href={r.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-brand hover:underline"
-                      >
-                        link
-                      </a>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          {detail}
+        </section>
       )}
+
+      {selectedDay && isMobile && (
+        <DaySheet day={selectedDay} onClose={closeDay}>
+          {detail}
+        </DaySheet>
+      )}
+    </div>
+  );
+}
+
+// C10: mobile day detail as a bottom sheet, the More-sheet pattern from
+// AppShell (scrim, rounded top, 3px amber top border; Escape, Dismiss or a
+// scrim tap closes). Docked above the fixed tab bar so CAL stays visible:
+// the bar is 3px border + 8px top pad + 44px tab + max(14px, safe area).
+// Capped at 55vh so the month grid, and the selected day, still peek out.
+const ABOVE_TABS = "calc(55px + max(14px, env(safe-area-inset-bottom)))";
+
+function DaySheet({
+  day,
+  onClose,
+  children,
+}: {
+  day: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus({ preventScroll: true });
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      opener?.focus?.({ preventScroll: true });
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-x-0 top-0 z-40 sm:hidden" style={{ bottom: ABOVE_TABS }}>
+      <button
+        type="button"
+        aria-label="Close day detail"
+        tabIndex={-1}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/55"
+      />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        aria-live="polite"
+        className="absolute inset-x-0 bottom-0 max-h-[55vh] overflow-y-auto rounded-t-xl border-t-[3px] border-amber bg-board px-4 pt-3.5 pb-5 shadow-[0_-20px_60px_rgb(0_0_0/0.6)] focus:outline-none"
+      >
+        <div className="bl">
+          <h2 id={titleId}>{day} · day detail</h2>
+          <button type="button" onClick={onClose} className="btn sm min-h-11">
+            Dismiss
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

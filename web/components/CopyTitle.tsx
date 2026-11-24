@@ -25,11 +25,11 @@ export default function CopyTitle({
 
   return (
     <span className="group inline-flex flex-wrap items-center gap-2">
-      <span>{children}</span>
+      <span className="text-ink">{children}</span>
       <button
         type="button"
         onClick={copy}
-        className="rounded border border-brand-soft/40 px-1.5 py-0.5 text-xs text-ink-muted opacity-0 transition-opacity hover:bg-brand-soft/10 focus:opacity-100 group-hover:opacity-100"
+        className="rounded-[2px] border border-line bg-chip-bg px-1.5 text-[10.5px] uppercase tracking-[0.06em] text-ink-muted opacity-0 transition-opacity hover:text-ink focus:opacity-100 group-hover:opacity-100"
       >
         {copied ? "Copied" : "Copy"}
       </button>

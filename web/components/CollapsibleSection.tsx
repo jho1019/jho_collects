@@ -17,24 +17,24 @@ export default function CollapsibleSection({
   const [open, setOpen] = useState(true);
 
   return (
-    <section className="space-y-3">
-      <button
-        type="button"
-        onClick={() => setOpen((was) => !was)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-2 text-left"
-      >
-        <span
-          className={`text-on-page transition-transform ${open ? "" : "-rotate-90"}`}
-          aria-hidden
+    <section className="grid min-w-0 gap-2.5">
+      <h2>
+        <button
+          type="button"
+          onClick={() => setOpen((was) => !was)}
+          aria-expanded={open}
+          className="cs"
         >
-          ▾
-        </span>
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-on-page">
+          <span
+            className={`inline-block transition-transform motion-reduce:transition-none ${open ? "" : "-rotate-90"}`}
+            aria-hidden
+          >
+            ▾
+          </span>
           {title}
-          <span className="ml-1 font-normal normal-case text-on-page/60">({count})</span>
-        </h2>
-      </button>
+          <span className="cs-n">({count})</span>
+        </button>
+      </h2>
       {open && children}
     </section>
   );

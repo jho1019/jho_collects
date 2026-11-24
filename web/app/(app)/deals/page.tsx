@@ -52,15 +52,15 @@ export default async function DealsPage() {
   const needsReview = (deals ?? []).filter((d) => d.needs_review).length;
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <main className="pg">
+      <header className="pg-head">
         <div>
-          <h1 className="text-xl font-bold text-on-page">Deals</h1>
-          <p className="text-sm text-on-page/70">
+          <h1 className="pg-h1">Deals</h1>
+          <p className="pg-lead">
             Grouped by show visit — each visit holds its deals, one per
             counterparty.
             {needsReview > 0 && (
-              <span className="ml-2 rounded bg-surface px-1.5 py-0.5 text-xs font-medium text-accent-ink">
+              <span className="pill pill-rev ml-2">
                 {needsReview} need{needsReview === 1 ? "s" : ""} review
               </span>
             )}
@@ -70,8 +70,10 @@ export default async function DealsPage() {
       </header>
 
       {error && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {error.message}
+        <p className="ban err" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load deals.</b> {error.message}
+          </span>
         </p>
       )}
 

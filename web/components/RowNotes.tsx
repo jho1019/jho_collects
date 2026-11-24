@@ -36,7 +36,7 @@ export default function RowNotes({
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="mt-0.5 block max-w-xs truncate text-left text-xs text-ink-muted hover:text-ink"
+        className="mt-1 block max-w-xs truncate text-left text-[11.5px] text-ink-muted hover:text-ink"
       >
         {saved ? saved : "+ note"}
       </button>
@@ -56,9 +56,9 @@ export default function RowNotes({
           save();
           setExpanded(false);
         }}
-        className="w-full max-w-xs resize-y rounded border border-brand-soft/40 bg-surface px-2 py-1 text-xs text-ink placeholder:text-ink-muted"
+        className="field w-full max-w-xs resize-y !text-[12px]"
       />
-      {error && <span className="block text-xs text-accent-ink">{error}</span>}
+      {error && <span className="block text-[11.5px] text-neg">{error}</span>}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
   type EbayPreview,
   type EbayCommit,
 } from "@/app/(app)/data/ebay/actions";
-import { usd } from "@/lib/format";
+import { signedUsd, toneClass, usd } from "@/lib/format";
 
 export default function EbayImport() {
   const [fileName, setFileName] = useState("");
@@ -40,8 +40,9 @@ export default function EbayImport() {
   }
 
   return (
-    <div className="space-y-3">
-      <p className="text-xs text-on-page/70">
+    <section className="board bd space-y-3">
+      <h2 className="bl">eBay report import</h2>
+      <p className="sub">
         The raw Seller Hub <strong>Transaction report</strong> CSV. Payout /
         charge / transfer rows are ignored; sale &amp; refund rows dedupe on
         eBay&apos;s transaction id, so re-importing an overlapping range is safe.
@@ -51,29 +52,30 @@ export default function EbayImport() {
         type="file"
         accept=".csv,text/csv"
         onChange={onFile}
-        className="block text-sm text-on-page/80 file:mr-3 file:rounded file:border file:border-brand-soft/50 file:bg-surface file:px-3 file:py-1.5 file:text-sm file:text-ink"
+        aria-label="eBay transaction report CSV"
+        className="field-file block"
       />
 
-      {busy && <p className="text-sm text-on-page/70">working…</p>}
+      {busy && <p className="sub" role="status">working…</p>}
 
       {preview && !preview.ok && (
-        <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700">
-          {preview.error}
+        <p className="ban err" role="alert">
+          <span>{preview.error}</span>
         </p>
       )}
 
       {preview && preview.ok && (
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-on-page">
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-ink">
             <span>
               <strong>{preview.rowCount}</strong> rows in {fileName}
             </span>
-            <span className="font-medium text-on-page">{preview.newCount} new</span>
-            <span className="text-on-page/70">
+            <span className="font-medium text-pos">{preview.newCount} new</span>
+            <span className="text-ink-muted">
               {preview.dupCount} already imported
             </span>
             {Object.keys(preview.ignored).length > 0 && (
-              <span className="text-on-page/60">
+              <span className="text-ink-muted">
                 ignored{" "}
                 {Object.entries(preview.ignored)
                   .map(([k, v]) => `${v} ${k}`)
@@ -82,8 +84,8 @@ export default function EbayImport() {
             )}
           </div>
 
-          <div className="rounded border border-brand-soft/25 bg-brand-soft/10 px-3 py-2 text-xs">
-            <div className="mb-1 font-medium text-ink-muted">
+          <div className="cellrow text-xs">
+            <div className="mb-1.5 font-semibold uppercase tracking-[0.14em] text-[10.5px] text-amber">
               Cross-check against eBay&apos;s own figures
             </div>
             <div className="grid grid-cols-2 gap-x-6 tabular-nums text-ink sm:grid-cols-3">
@@ -91,7 +93,12 @@ export default function EbayImport() {
               <span>order proceeds ex-tax {usd(preview.totals.orderProceedsExTax)}</span>
               <span>eBay fees {usd(preview.totals.fees)}</span>
               <span>shipping labels {usd(preview.totals.labels)}</span>
-              <span>net cash {usd(preview.totals.netCash)}</span>
+              <span>
+                net cash{" "}
+                <span className={toneClass(preview.totals.netCash)}>
+                  {signedUsd(preview.totals.netCash)}
+                </span>
+              </span>
             </div>
           </div>
 
@@ -102,44 +109,34 @@ export default function EbayImport() {
             </p>
           )}
           {preview.orphansUnresolvable.length > 0 && (
-            <p className="text-xs text-amber-700">
+            <p className="text-xs text-amber">
               {preview.orphansUnresolvable.length} orphan label(s) have no
               matching order in the ledger and will be skipped:{" "}
               {preview.orphansUnresolvable.join(", ")}
             </p>
           )}
 
-          <div className="max-h-64 overflow-auto rounded border border-brand-soft/25">
-            <table className="w-full text-xs">
-              <thead className="bg-brand-soft/10 text-left text-ink-muted">
+          <div className="max-h-64 overflow-auto rounded-[4px] border border-line bg-cell">
+            <table className="tb !text-[12px]">
+              <thead>
                 <tr>
-                  <th className="px-2 py-1 font-medium">Date</th>
-                  <th className="px-2 py-1 font-medium">Type</th>
-                  <th className="px-2 py-1 font-medium">Buyer</th>
-                  <th className="px-2 py-1 text-right font-medium">Item</th>
-                  <th className="px-2 py-1 text-right font-medium">Fee</th>
-                  <th className="px-2 py-1 text-right font-medium">Label</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Buyer</th>
+                  <th className="r">Item</th>
+                  <th className="r">Fee</th>
+                  <th className="r">Label</th>
                 </tr>
               </thead>
               <tbody>
                 {preview.sample.map((r, i) => (
-                  <tr key={i} className="border-t border-brand-soft/15">
-                    <td className="px-2 py-1 tabular-nums text-ink-muted">
-                      {r.occurred_on}
-                    </td>
-                    <td className="px-2 py-1 text-ink-muted">{r.type}</td>
-                    <td className="px-2 py-1 text-ink">
-                      {r.buyer_username ?? "—"}
-                    </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-ink">
-                      {usd(r.item_amount)}
-                    </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-ink">
-                      {usd(r.platform_fees)}
-                    </td>
-                    <td className="px-2 py-1 text-right tabular-nums text-ink">
-                      {usd(r.shipping_cost)}
-                    </td>
+                  <tr key={i}>
+                    <td className="mute whitespace-nowrap tabular-nums">{r.occurred_on}</td>
+                    <td className="mute">{r.type}</td>
+                    <td>{r.buyer_username ?? "—"}</td>
+                    <td className="r">{usd(r.item_amount)}</td>
+                    <td className="r">{usd(r.platform_fees)}</td>
+                    <td className="r">{usd(r.shipping_cost)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -154,7 +151,7 @@ export default function EbayImport() {
           <button
             onClick={onCommit}
             disabled={busy}
-            className="rounded bg-brand px-3 py-1.5 text-sm font-medium text-surface hover:opacity-90 disabled:opacity-50"
+            className="btn pri"
           >
             Import {preview.newCount} new row{preview.newCount === 1 ? "" : "s"}
           </button>
@@ -163,12 +160,30 @@ export default function EbayImport() {
 
       {result && (
         <div
-          className={`rounded px-3 py-2 text-sm ${
-            result.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-700"
-          }`}
+          className={result.ok ? "space-y-2" : "ban err"}
+          role={result.ok ? "status" : "alert"}
         >
           {result.ok ? (
             <>
+              {/* X5: result summary (rows added / duplicates / skipped). */}
+              <h3 className="bl">Import result</h3>
+              <div className="strip s3">
+                <div>
+                  <small>Added</small>
+                  <b className={result.inserted > 0 ? "text-pos" : undefined}>{result.inserted}</b>
+                </div>
+                <div>
+                  <small>Duplicates</small>
+                  <b>{result.alreadyPresent}</b>
+                </div>
+                <div>
+                  <small>Skipped labels</small>
+                  <b className={result.orphansUnresolved.length > 0 ? "text-amber" : undefined}>
+                    {result.orphansUnresolved.length}
+                  </b>
+                </div>
+              </div>
+              <p className="sub">
               Imported {result.inserted} transaction
               {result.inserted === 1 ? "" : "s"}
               {result.alreadyPresent > 0 &&
@@ -181,12 +196,13 @@ export default function EbayImport() {
               {result.orphansUnresolved.length > 0 &&
                 `, unresolved orphan labels: ${result.orphansUnresolved.join(", ")}`}
               .
+              </p>
             </>
           ) : (
-            result.error
+            <span>{result.error}</span>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 }

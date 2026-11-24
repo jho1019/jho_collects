@@ -89,28 +89,30 @@ export default async function BuyingPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <main className="pg">
+      <header className="pg-head">
         <div>
-          <h1 className="text-xl font-bold text-on-page">Buying list</h1>
-          <p className="text-sm text-on-page/70">
+          <h1 className="pg-h1">Buying list</h1>
+          <p className="pg-lead">
             Targets are all-in — price plus shipping plus sales tax.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <GuideLink guide="calendar" />
           <AddCardModal />
         </div>
       </header>
 
       {error && (
-        <p className="rounded border-l-4 border-accent bg-surface px-3 py-2 text-sm text-accent-ink">
-          {error.message}
+        <p className="ban err" role="alert">
+          <span>
+            <b>Couldn&rsquo;t load the buying list.</b> {error.message}
+          </span>
         </p>
       )}
 
       {(targets ?? []).length === 0 && !error && (
-        <p className="rounded bg-surface px-3 py-4 text-sm text-ink-muted">
+        <p className="board bd text-sm text-ink-muted">
           Nothing on the buying list yet. Tell Claude what you&rsquo;re hunting
           for and it will add it.
         </p>
@@ -121,15 +123,16 @@ export default async function BuyingPage() {
         return (
           <CollapsibleSection key={purpose} title={purposeLabel(purpose)} count={rows.length}>
             {rows.length === 0 ? (
-              <p className="rounded bg-surface px-3 py-4 text-sm text-ink-muted">
-                Nothing here yet.
-              </p>
+              <p className="board bd text-sm text-ink-muted">Nothing here yet.</p>
             ) : (
             <>
-            {/* Below md: image + title only, rest behind "See more" — a
+            {/* Below 700px: image + title only, rest behind "See more" — a
                 five-column table is unreadable at phone width, and at a show
                 the only question is "is this the card I'm hunting". */}
-            <div className="space-y-2 md:hidden">
+            {/* grid-cols-1 = minmax(0, 1fr): an implicit `auto` track
+                grows to the nowrap title's max-content and pushed rows past
+                the board at 390 (spec 17.3 #2). */}
+            <div className="board bd grid min-w-0 grid-cols-1 gap-2.5 sm:hidden">
               {rows.map((t) => {
                 const url = safeUrl(t.search_url) ?? ebaySearchUrl(t.title);
                 const img = t.image_path ? imageUrls.get(t.image_path) : undefined;
@@ -152,17 +155,15 @@ export default async function BuyingPage() {
                 );
               })}
             </div>
-            <div className="hidden overflow-x-auto rounded bg-surface md:block">
-              <table className="w-full text-sm">
+            <div className="board bd-tight hidden overflow-x-auto sm:block">
+              <table className="tb">
                 <thead>
-                  <tr className="text-left text-xs text-ink-muted">
-                    <th className="px-3 py-1.5 font-medium tracking-wide">Card</th>
-                    <th className="px-3 py-1.5 text-right font-medium tracking-wide">Comp</th>
-                    <th className="px-3 py-1.5 text-right font-medium tracking-wide">
-                      Target price
-                    </th>
-                    <th className="px-3 py-1.5 font-medium tracking-wide">Recent sales</th>
-                    <th className="px-3 py-1.5 font-medium tracking-wide">Listings</th>
+                  <tr>
+                    <th>Card</th>
+                    <th className="r">Comp</th>
+                    <th className="r">Target price</th>
+                    <th>Recent sales</th>
+                    <th>Listings</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -170,20 +171,21 @@ export default async function BuyingPage() {
                     const url = safeUrl(t.search_url) ?? ebaySearchUrl(t.title);
                     const img = t.image_path ? imageUrls.get(t.image_path) : undefined;
                     return (
-                      <tr key={t.id} className="border-t border-brand-soft/15">
-                        <td className="px-3 py-2 text-ink">
-                          <div className="flex items-center gap-3">
-                            {img && <CardImageLightbox src={img} alt={t.title} />}
-                            <div>
+                      <tr key={t.id}>
+                        <td>
+                          <div className="flex items-center gap-3.5">
+                            {img && <CardImageLightbox src={img} alt={t.title} size="sm" />}
+                            <div className="min-w-0">
                               <CopyTitle title={t.title}>{t.title}</CopyTitle>
                               <RowNotes itemId={t.id} initialNotes={t.notes} />
                             </div>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-ink">
+                        <td className="r">
                           <CompInput
                             itemId={t.id}
                             current={t.latest_comp == null ? null : Number(t.latest_comp)}
+                            stale={t.is_stale}
                             ageLabel={
                               <>
                                 {t.comp_age_days === 0 ? "today" : `${t.comp_age_days}d old`}
@@ -192,37 +194,37 @@ export default async function BuyingPage() {
                             }
                           />
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-ink">
+                        <td className="r whitespace-nowrap">
                           {t.max_all_in == null ? "—" : usd(t.max_all_in)}
                           {t.is_manual && (
-                            <span className="block text-xs text-ink-muted">manual</span>
+                            <span className="block text-[11.5px] text-ink-muted">manual</span>
                           )}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="whitespace-nowrap">
                           <a
                             href={ebaySoldUrl(t.title)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-brand underline"
+                            className="lk"
                           >
-                            Ebay
+                            eBay
                           </a>
                           <span className="text-ink-muted"> · </span>
                           <a
                             href={POINT130_URL}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-brand underline"
+                            className="lk"
                           >
                             130point
                           </a>
                         </td>
-                        <td className="px-3 py-2">
+                        <td>
                           <a
                             href={url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-brand underline"
+                            className="lk"
                           >
                             eBay
                           </a>
