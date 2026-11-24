@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { bodyFont } from "@/lib/fonts";
+import { fontVariables } from "@/lib/fonts";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
@@ -14,7 +14,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     // before React hydrates (see lib/theme.ts).
     <html
       lang="en"
-      className={`${bodyFont.variable} h-full antialiased`}
+      className={`${fontVariables} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

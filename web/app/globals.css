@@ -1,129 +1,280 @@
 @import "tailwindcss";
 
 /*
- * Tokens live here, not in a tailwind.config.js — Tailwind v4 is CSS-first
- * and has no config file. Each --color-* below generates matching utilities
- * (bg-page, text-ink, border-brand-soft, ...) automatically.
+ * Midnight Scoreboard tokens (SPEC_E_SCOREBOARD.md section 4). Tailwind v4 is
+ * CSS-first: each --color-* / --font-* / --breakpoint-* below generates the
+ * matching utilities (bg-board, text-pos, font-display, md:...) and there is
+ * no tailwind.config.js.
  *
- * --color-page IS --color-brand. The app background is brand blue, so
- * --color-brand can no longer be used as foreground TEXT sitting directly on
- * the page — it would be invisible on its own background. It still works
- * fine as text/fills inside a --color-surface (light grey) card, table, or
- * badge, since those aren't blue.
+ * `@theme static` emits every variable even if no utility uses it yet, because
+ * Recharts (CashChart) and the raw CSS below read them as var(--color-*).
  *
- * --color-surface is a light grey (#e9edf3), not pure white — flat white
- * cards read as too stark against the brand blue page. It is still light
- * enough that every contrast figure below barely moves off the numbers
- * measured against true white.
+ * Dark = Midnight and is the @theme default. Light = the light Midnight
+ * variant, same names and roles, applied by data-theme="light" on <html> or by
+ * the device preference when no attribute is set (see the blocks below).
  *
- * Contrast, measured against --color-surface — the ground for
- * anything inside a card, table, or badge:
+ * Profit and loss: green and red, decided by Johnny on Nov 22, 2026.
+ * --color-pos is profit/gains, --color-neg is loss/refunds/cash out. Colour is
+ * never the only signal: every money figure keeps its explicit + / − sign
+ * (U+2212 in display), and hero/chips add ▲ / ▼. That is the mitigation for
+ * red/green colour blindness, so do not strip signs from any figure.
  *
- *   --color-ink          13.7   body text
- *   --color-ink-muted      6.7   labels, secondary text
- *   --color-brand           4.9   text, buttons, links, positive figures
- *   --color-accent-ink      5.3   negative figures, as TEXT
- *   --color-accent          2.8   fills only — never text
- *   --color-brand-soft      2.3   borders/dividers/inactive icons only — never text
+ * Contrast (WCAG 2.x, measured by Daisy; spec 4.3):
+ *   dark, on board:  ink 15.8, ink-muted 6.5, amber 9.9, pos 11.1, neg 6.7,
+ *                    blue 5.7; on-amber on amber 10.1
+ *   light, on #fff:  ink 17.6, ink-muted 6.1, amber 5.9, pos 5.4, neg 5.5,
+ *                    blue 5.7; ink-muted on light page 5.2
+ * --color-line, --color-grid and --color-brand-soft are borders/dividers only,
+ * never text.
  *
- * --color-accent and --color-brand-soft fail AA for text on white, and fail
- * harder on the blue page. They are shapes, not words, anywhere.
- *
- * For anything sitting directly on --color-page (headers, page titles,
- * pagers — outside any card), ink/ink-muted don't apply: they're tuned for
- * a card. Use --color-on-page (text-on-page, border-on-page/40,
- * hover:bg-on-page/10) and reduced opacity for the muted variant
- * (text-on-page/70). In light mode it equals --color-surface; it exists as
- * its own token because in dark mode the page and surface are both dark,
- * and on-page text has to flip light while card backgrounds stay dark.
- *
- * text-surface is for text on a filled brand/accent/ink shape (buttons,
- * badges, the today dot) — those fills are light in dark mode, so the dark
- * surface colour is exactly the right text colour there.
- *
- * There is no green in this palette. Positive figures use --color-brand
- * (inside a card; --color-surface directly on the page), negative use
- * --color-accent-ink — blue against rose stays distinguishable under
- * deuteranopia, where red against green does not. Because blue alone
- * doesn't *read* as positive, every figure carries an explicit sign or arrow;
- * colour is emphasis here, never the only carrier of meaning.
+ * Legacy aliases (spec 4.2) keep un-migrated pages working with no markup
+ * change: surface = board, brand = blue, accent / accent-ink = neg,
+ * brand-soft = a muted navy border colour. In Midnight the page is near-black
+ * (dark) or pale (light), so blue `text-brand` is legal directly on the page,
+ * but page titles keep using text-on-page. `text-surface` on a brand/accent
+ * fill (buttons, badges) still reads in both themes.
  */
-@theme {
-  --color-page:        #3b67b7;
-  --color-surface:     #e9edf3;
-  --color-brand:       #3b67b7;
-  --color-brand-soft:  #8ba1ca;
-  --color-accent:      #d7728d;
-  --color-accent-ink:  #a83e5c;
-  --color-ink:         #1c2436;
-  --color-ink-muted:   #4a5568;
-  --color-on-page:     #e9edf3;
+@theme static {
+  /* surfaces */
+  --color-page:       #04060a;  /* body */
+  --color-page-2:     #070b12;  /* stripe */
+  --color-bar:        #070b12;  /* top bar, bottom tab bar */
+  --color-board:      #0d1424;  /* card top (gradient to board-2) */
+  --color-board-2:    #090e1a;  /* card bottom */
+  --color-cell:       #04060b;  /* line-score cells, input wells */
+  --color-cell-tot:   #142549;  /* TOT column cells, selected theme icon */
+  --color-input:      #060a13;
+  --color-chip-bg:    #0b111c;  /* nav pills at rest */
+  --color-light-off:  #111a2e;  /* unlit sell-through light */
+  --color-skel:       #17213a;
+  --color-skel-2:     #25345a;
+  --color-shadow:     #000000;  /* board ring + bar bottom border */
 
-  /* Bound to the next/font CSS variable set on <html> in app/layout.tsx —
-   * registers Tailwind's own font-sans utility against the loaded font,
-   * rather than only setting it on the body element below. */
-  --font-sans: var(--font-body);
+  /* lines */
+  --color-line:       #232f4b;  /* borders, dividers */
+  --color-grid:       #1a2338;  /* chart gridlines */
+
+  /* text */
+  --color-ink:        #e9eef8;
+  --color-ink-muted:  #8f9ab3;
+  --color-on-page:    #e9eef8;
+  --color-on-amber:   #171003;
+
+  /* accents */
+  --color-amber:      #f0b429;  /* labels, active nav, focus, goal ring */
+  --color-blue:       #4c8dff;  /* eBay series, links, net-cash line */
+  --color-pos:        #5ce0a1;  /* profit, gains */
+  --color-neg:        #ff6b78;  /* loss, refunds, cash out */
+
+  /* chart series */
+  --color-series-1:   #4c8dff;  /* eBay / card costs */
+  --color-series-2:   #f0b429;  /* shows */
+  --color-series-3:   #ff6b78;  /* eBay fees (cost bar) */
+  --color-series-4:   #9db4e6;  /* table fees (cost bar) */
+  --color-tip:        #121c33;  /* tooltip bg */
+
+  /* "back of the card" panel: same in both themes */
+  --color-paper:       #efe3c2;
+  --color-paper-ink:   #1b140b;
+  --color-paper-line:  #7a5a2c;
+  --color-paper-pos:   #0d6a3b;
+  --color-paper-label: #a8281f;
+  --color-paper-muted: #5a4623;
+
+  /* legacy aliases so un-migrated components recolor (spec 4.2) */
+  --color-surface:    var(--color-board);
+  --color-brand:      var(--color-blue);
+  --color-brand-soft: #3d4f7c;
+  --color-accent:     var(--color-neg);
+  --color-accent-ink: var(--color-neg);
+
+  /* type: CSS variables come from next/font in lib/fonts.ts, set on <html> */
+  --font-display:  var(--font-big-shoulders), "Arial Narrow", sans-serif;
+  --font-mono:     var(--font-plex-mono), ui-monospace, Menlo, monospace;
+  --font-wordmark: var(--font-rye), serif;
+  --font-sans:     var(--font-plex-mono), ui-monospace, monospace; /* body default */
+
+  /* breakpoints (spec 2): sm = mobile/desktop switch, md = nav pills
+   * collapse, lg = page layout grids, xl = design width. nav is shell-only:
+   * the top bar's full right cluster (theme / Data / Sign out) and 13px pills
+   * start there; below it they fold into the account menu (spec 16.1a). */
+  --breakpoint-sm: 700px;
+  --breakpoint-md: 900px;
+  --breakpoint-lg: 1180px;
+  --breakpoint-nav: 1280px;
+  --breakpoint-xl: 1440px;
 }
 
 /*
- * Dark mode follows the device (prefers-color-scheme), for night use.
- * Same roles, same blue-gain / rose-loss pairing, no green. Contrast against
- * the dark --color-surface (#182032):
+ * Theme selection. The toggle (components/ThemeToggle.tsx) sets
+ * data-theme="light" | "dark" on <html>; the pre-paint script in
+ * app/layout.tsx applies a saved choice before first paint. No attribute =
+ * System, which follows prefers-color-scheme.
  *
- *   --color-ink          13.2   --color-brand        6.6
- *   --color-ink-muted     6.6   --color-accent-ink   7.0
- *   --color-accent        3.6   fills only
- *   --color-brand-soft    2.4   borders/inactive icons only (light: 2.3)
- *
- * Off-white rather than pure white text, and navy rather than black, to cut
- * glare. text-surface on a brand fill (buttons) is 6.6; on accent-ink 7.0.
+ * Dark is the @theme default above, so forced dark and system-dark need no
+ * overrides. Light values appear twice (forced + system-light); keep the two
+ * blocks in sync. The .hero blocks further down copy the dark values back.
  */
-/*
- * The header toggle can override the device: it sets data-theme="light" or
- * "dark" on <html> (an inline script in app/layout.tsx applies the saved
- * choice before first paint). No attribute means "system" — the media query
- * below keeps following the device. The dark token values appear twice
- * (forced + system); keep the two blocks in sync.
- */
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
+:root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-page:        #0f1420;
-  --color-surface:     #182032;
-  --color-brand:       #7ea6e8;
-  --color-brand-soft:  #4a5b7d;
-  --color-accent:      #b8566f;
-  --color-accent-ink:  #f08ca5;
-  --color-ink:         #e3e8f0;
-  --color-ink-muted:   #9aa6ba;
-  --color-on-page:     #e3e8f0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --color-page:        #0f1420;
-    --color-surface:     #182032;
-    --color-brand:       #7ea6e8;
-    --color-brand-soft:  #4a5b7d;
-    --color-accent:      #b8566f;
-    --color-accent-ink:  #f08ca5;
-    --color-ink:         #e3e8f0;
-    --color-ink-muted:   #9aa6ba;
-    --color-on-page:     #e3e8f0;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --color-page: #e9edf5;      --color-page-2: #e3e8f1;   --color-bar: #f6f8fc;
+  --color-board: #ffffff;     --color-board-2: #f4f7fc;  --color-cell: #eef2fa;
+  --color-cell-tot: #dfe8fb;  --color-input: #f4f7fc;    --color-chip-bg: #ffffff;
+  --color-light-off: #e3e9f5; --color-skel: #e1e7f3;     --color-skel-2: #f3f6fc;
+  --color-shadow: #c6cfe2;    --color-line: #c3cde3;     --color-grid: #dde4f2;
+  --color-ink: #0f1830;       --color-ink-muted: #56627e;
+  --color-on-page: #0f1830;   --color-on-amber: #ffffff;
+  --color-amber: #8a5a00;     --color-blue: #1f5fd6;
+  --color-pos: #0b7a4b;       --color-neg: #c42d3d;
+  --color-series-1: #1f5fd6;  --color-series-2: #b57a00;
+  --color-series-3: #c42d3d;  --color-series-4: #6f86bd;
+  --color-tip: #ffffff;       --color-brand-soft: #9fb1d6;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) {
+    color-scheme: light;
+    --color-page: #e9edf5;      --color-page-2: #e3e8f1;   --color-bar: #f6f8fc;
+    --color-board: #ffffff;     --color-board-2: #f4f7fc;  --color-cell: #eef2fa;
+    --color-cell-tot: #dfe8fb;  --color-input: #f4f7fc;    --color-chip-bg: #ffffff;
+    --color-light-off: #e3e9f5; --color-skel: #e1e7f3;     --color-skel-2: #f3f6fc;
+    --color-shadow: #c6cfe2;    --color-line: #c3cde3;     --color-grid: #dde4f2;
+    --color-ink: #0f1830;       --color-ink-muted: #56627e;
+    --color-on-page: #0f1830;   --color-on-amber: #ffffff;
+    --color-amber: #8a5a00;     --color-blue: #1f5fd6;
+    --color-pos: #0b7a4b;       --color-neg: #c42d3d;
+    --color-series-1: #1f5fd6;  --color-series-2: #b57a00;
+    --color-series-3: #c42d3d;  --color-series-4: #6f86bd;
+    --color-tip: #ffffff;       --color-brand-soft: #9fb1d6;
   }
 }
 
-body {
-  background: var(--color-page);
+/*
+ * The hero scoreboard stays on DARK Midnight in Light mode: it is "the
+ * scoreboard". Any element with class="hero" gets the dark values back.
+ * Aliases (surface, brand, accent...) are redeclared too: a var() alias
+ * resolves where it is declared (:root), so inside .hero it would otherwise
+ * keep pointing at the light colours. Shadow is a lighter slate so the ring
+ * still reads against the light page. Keep both blocks in sync with @theme.
+ */
+:root[data-theme="light"] .hero {
+  color-scheme: dark;
+  --color-board: #0d1424;     --color-board-2: #090e1a;  --color-cell: #04060b;
+  --color-cell-tot: #142549;  --color-input: #060a13;    --color-chip-bg: #0b111c;
+  --color-light-off: #111a2e; --color-skel: #17213a;     --color-skel-2: #25345a;
+  --color-shadow: #9aa7c4;    --color-line: #232f4b;     --color-grid: #1a2338;
+  --color-ink: #e9eef8;       --color-ink-muted: #8f9ab3;
+  --color-on-page: #e9eef8;   --color-on-amber: #171003;
+  --color-amber: #f0b429;     --color-blue: #4c8dff;
+  --color-pos: #5ce0a1;       --color-neg: #ff6b78;
+  --color-series-1: #4c8dff;  --color-series-2: #f0b429;
+  --color-series-3: #ff6b78;  --color-series-4: #9db4e6;
+  --color-tip: #121c33;       --color-brand-soft: #3d4f7c;
+  --color-surface: #0d1424;   --color-brand: #4c8dff;
+  --color-accent: #ff6b78;    --color-accent-ink: #ff6b78;
   color: var(--color-ink);
-  font-family:
-    var(--font-body), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]):not([data-theme="light"]) .hero {
+    color-scheme: dark;
+    --color-board: #0d1424;     --color-board-2: #090e1a;  --color-cell: #04060b;
+    --color-cell-tot: #142549;  --color-input: #060a13;    --color-chip-bg: #0b111c;
+    --color-light-off: #111a2e; --color-skel: #17213a;     --color-skel-2: #25345a;
+    --color-shadow: #9aa7c4;    --color-line: #232f4b;     --color-grid: #1a2338;
+    --color-ink: #e9eef8;       --color-ink-muted: #8f9ab3;
+    --color-on-page: #e9eef8;   --color-on-amber: #171003;
+    --color-amber: #f0b429;     --color-blue: #4c8dff;
+    --color-pos: #5ce0a1;       --color-neg: #ff6b78;
+    --color-series-1: #4c8dff;  --color-series-2: #f0b429;
+    --color-series-3: #ff6b78;  --color-series-4: #9db4e6;
+    --color-tip: #121c33;       --color-brand-soft: #3d4f7c;
+    --color-surface: #0d1424;   --color-brand: #4c8dff;
+    --color-accent: #ff6b78;    --color-accent-ink: #ff6b78;
+    color: var(--color-ink);
+  }
+}
+
+/*
+ * Page background: the "mowed outfield", 112px repeating vertical stripes of
+ * page / page-2 (56px each; ~3 lightness points apart, so it stays subtle).
+ * html gets the flat colour so overscroll never flashes white.
+ */
+html {
+  background: var(--color-page);
+}
+
+body {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--color-page) 0 56px,
+    var(--color-page-2) 56px 112px
+  );
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   line-height: 1.5;
+}
+
+/* Big Shoulders is one variable family now; pin the optical size to its
+ * Display cut wherever the display face is used (see lib/fonts.ts). */
+.font-display {
+  font-variation-settings: "opsz" 72;
+}
+
+/* 12-13px chrome labels (pills, Menu, text links, sheet cells, segmented
+ * theme) use the text optical size so they read slightly fatter; headings and
+ * numerals keep 72 (SPEC_E_SCOREBOARD.md section 15, decision 5). */
+.font-display.opsz-chrome {
+  font-variation-settings: "opsz" 18;
+}
+
+/* Spec 8: visible 2px amber ring, 2px offset, on every interactive element.
+ * Never remove an outline without a replacement. */
+:focus-visible {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+/* Skeleton shimmer (spec 6.14): skel -> skel-2, 100deg, 1.4s linear loop.
+ * Static gradient under prefers-reduced-motion. */
+.skel {
+  background: linear-gradient(
+    100deg,
+    var(--color-skel) 30%,
+    var(--color-skel-2) 48%,
+    var(--color-skel) 66%
+  );
+  background-size: 220% 100%;
+  background-position: 30% 0;
+  border-radius: 3px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skel {
+    animation: skel-shimmer 1.4s linear infinite;
+  }
+}
+@keyframes skel-shimmer {
+  to {
+    background-position: -190% 0;
+  }
+}
+
+/* Board chrome (spec 2): 2px line border, 6px radius, double outer ring and
+ * drop shadow. Used by the shell's placeholder and skeleton today; the full
+ * Board primitive arrives with the dashboard PR. */
+.board {
+  background: linear-gradient(180deg, var(--color-board), var(--color-board-2));
+  border: 2px solid var(--color-line);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 5px var(--color-shadow),
+    0 0 0 7px var(--color-line),
+    0 14px 26px rgb(0 0 0 / 0.28);
 }
 
 /* Table rows are governed by cell padding, not line-height, but the browser
