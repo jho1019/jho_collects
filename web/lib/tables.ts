@@ -6,7 +6,8 @@ export type TableName =
   | "transactions"
   | "buyers"
   | "cards"
-  | "inventory_counts";
+  | "inventory_counts"
+  | "sealed_products";
 
 export const TABLES: Record<
   TableName,
@@ -54,6 +55,18 @@ export const TABLES: Record<
     ],
     generated: [],
     conflictTarget: "user_id,tax_year",
+  },
+  sealed_products: {
+    columns: [
+      "id", "user_id", "lot_id", "sku", "product_name", "year", "manufacturer",
+      "sport", "product_type", "category", "intent", "status",
+      "acquisition_cost", "acquired_on", "acquisition_transaction_id",
+      "est_value", "est_value_source", "est_valued_on", "location", "notes",
+      "list_channel", "list_price", "listed_on", "sale_transaction_id",
+      "exited_on", "opened_on", "created_at", "updated_at", "search_text",
+    ],
+    generated: ["search_text"],
+    conflictTarget: "id",
   },
 };
 

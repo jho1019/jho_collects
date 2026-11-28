@@ -814,3 +814,30 @@ is keyed instead on title + set + number among cards with no `cdp_sku`, so a
 replay inserts nothing. Batch 2's 13 bulk
 cards stay additive to the lowend hand count (no zero override), giving boxes
 of 27 / 17 / 6 / 7 after all four files.
+
+## Sealed product is one row per unit, in its own table
+
+`schema/028` adds `sealed_products`. Each row is one physical box or pack;
+there is no `qty` column. Status belongs to one box, so of four blasters one
+can be held, one listed, one sold and one opened without splitting a row or
+leaving it half sold and half opened. Each unit has one cost and one sale,
+the same as a card, so there is no average cost and no overselling. Units
+bought together share a `lot_id` (a uuid the writer supplies), and
+`sell_sealed_lot()` sells N of them as one sale row with `qty = N`.
+
+There is no events table. A sale is a `transactions` row, written by
+`sell_sealed_product()` / `sell_sealed_lot()` the way `sell_card()` does it.
+Opening is a status change (`opened`, `opened_on`). It writes no cash, and
+the cost stays on the unit. Spreading that cost onto pulled cards is deferred.
+
+Not in `cards`: sealed stock is not a card and does not need player, grade or
+aliases. `cards.category = 'sealed'` (025) is left in the enum, unused.
+`sealed_products.category` is its own `business` / `pc` check, not
+`card_category`. The PC guard matches cards: a PC unit can never be listed
+or sold (SQLSTATE `23514`), but it can be opened.
+
+Deferred, as with bulk lots: `tracked_inventory` and the tax views do not
+read `sealed_products`. `sealed_inventory` is the integration point. Sale
+profit (`sale_profit` in 026, `web/lib/dashboard/profit.ts`) does not yet
+subtract sealed cost, so a sealed sale reads as missing cost until it does.
+See `docs/sealed-products.md`.
