@@ -1,5 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Bucket } from "@/lib/inventory-import/overrides";
+import type { BoardBulkLot, BoardCard } from "./inventoryBoard";
 import type { InventorySummary } from "./model";
 import type { Card, Txn } from "./profit";
 
@@ -15,16 +17,22 @@ export function toCents(v: unknown): number {
   return Math.round(Number(v) * 100);
 }
 
+/** Cents, or null when the column is null — for values where "none" must
+ * never become $0 (est_value, acquisition_cost on the inventory board). */
+export function toCentsOrNull(v: unknown): number | null {
+  return v == null || v === "" ? null : toCents(v);
+}
+
 async function selectAll<T>(
   supabase: SupabaseClient,
   table: string,
   columns: string,
+  where?: { column: string; in: readonly string[] },
 ): Promise<T[]> {
   const out: T[] = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from(table)
-      .select(columns)
+    const base = supabase.from(table).select(columns);
+    const { data, error } = await (where ? base.in(where.column, [...where.in]) : base)
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
     if (error) throw new Error(`${table}: ${error.message}`);
@@ -106,4 +114,45 @@ export async function loadScoreboardData(supabase: SupabaseClient): Promise<{
         }
       : null,
   };
+}
+
+// ------------------------------------------------------- inventory board
+// Today's on-hand cards and the bulk boxes, for the Inventory + PC board
+// (lib/dashboard/inventoryBoard.ts). Paged like everything else so a
+// collection past 1000 cards is not silently cut off.
+
+type RawBoardCard = Record<keyof BoardCard, unknown>;
+type RawBulkLot = Record<"bucket" | "card_count" | "total_value", unknown>;
+
+export function normalizeBoardCard(r: RawBoardCard): BoardCard {
+  return {
+    id: Number(r.id),
+    status: String(r.status),
+    category: r.category == null ? null : String(r.category),
+    intent: r.intent == null ? null : String(r.intent),
+    acquisition_cost: toCentsOrNull(r.acquisition_cost),
+    est_value: toCentsOrNull(r.est_value),
+  };
+}
+
+export function normalizeBulkLot(r: RawBulkLot): BoardBulkLot {
+  return {
+    bucket: String(r.bucket) as Bucket,
+    card_count: Number(r.card_count ?? 0),
+    total_value: toCents(r.total_value),
+  };
+}
+
+export async function loadInventoryBoard(supabase: SupabaseClient): Promise<{
+  cards: BoardCard[];
+  bulkLots: BoardBulkLot[];
+}> {
+  const [cardRows, bulkRows] = await Promise.all([
+    selectAll<RawBoardCard>(supabase, "cards", "id, status, category, intent, acquisition_cost, est_value", {
+      column: "status",
+      in: ["held", "listed"],
+    }),
+    selectAll<RawBulkLot>(supabase, "bulk_lots", "bucket, card_count, total_value"),
+  ]);
+  return { cards: cardRows.map(normalizeBoardCard), bulkLots: bulkRows.map(normalizeBulkLot) };
 }

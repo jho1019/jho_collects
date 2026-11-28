@@ -71,13 +71,17 @@
 .sb-btn.sb-pri { background: var(--color-amber); color: var(--color-on-amber); border-color: var(--color-amber); }
 
 /* ------------------------------------------------------------------ hero */
-.sb-hero {
+/* Top row (spec 18): profit hero + Inventory board, equal width and equal
+   height (stretch). The line score has its own full-width board below. */
+.sb-herorow {
   display: grid;
-  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.3fr);
-  gap: 40px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
   align-items: stretch;
 }
-.sb-hero > * { min-width: 0; }
+.sb-herorow > * { min-width: 0; }
+.sb-hero { display: flex; flex-direction: column; }
+.sb-hero > * { min-width: 0; flex: 1; }
 .sb-hv {
   font: 900 clamp(84px, 8.1vw, 116px) / 0.9 var(--font-display);
   font-variation-settings: "opsz" 72;
@@ -104,6 +108,66 @@ a.sb-chip:hover { background: color-mix(in srgb, currentColor 12%, transparent);
 .sb-nt b { color: var(--color-ink); font-weight: 600; }
 .sb-nt b.sb-warn { color: var(--color-amber); }
 .sb-heroSpark { flex: 1; min-height: 84px; margin-top: 16px; position: relative; }
+
+/* ------------------------------------------- inventory + PC (spec 18) */
+.sb-invb { display: flex; flex-direction: column; }
+.sb-invb .sb-hv { color: var(--color-ink); text-shadow: none; margin: 14px 0 8px; }
+.sb-invb .sb-nt { margin-top: 4px; }
+.sb-invb .sb-nt b.sb-up { color: var(--color-pos); }
+.sb-invb .sb-nt b.sb-dn { color: var(--color-neg); }
+.sb-invbar {
+  display: flex; height: 32px; margin-top: 18px; overflow: hidden;
+  border: 1px solid var(--color-line); border-radius: 3px; background: var(--color-cell);
+}
+.sb-invbar > * { display: block; height: 100%; min-width: 6px; border: 0; padding: 0; cursor: pointer; }
+.sb-invbar > * + * { box-shadow: inset 1px 0 0 var(--color-board); }
+.sb-invbar.sb-nobar {
+  display: grid; place-items: center; cursor: default;
+  font: 600 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+.sb-invsegs { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.sb-invseg {
+  display: block; text-align: left; min-width: 0; min-height: 44px;
+  background: none; border: 0; padding: 4px 6px; margin: -4px -6px; border-radius: 3px;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.sb-invseg:hover { background: color-mix(in srgb, var(--color-ink) 6%, transparent); }
+.sb-invseg[aria-expanded="true"] { background: color-mix(in srgb, var(--color-blue) 14%, transparent); }
+.sb-invseg small {
+  display: block; font: 600 10px var(--font-mono); letter-spacing: 0.14em;
+  color: var(--color-ink-muted); text-transform: uppercase;
+}
+.sb-invseg small i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 6px; vertical-align: 0; }
+.sb-invseg b {
+  display: block; font: 800 26px/1.05 var(--font-display); font-variation-settings: "opsz" 72;
+  letter-spacing: 0.02em; margin: 3px 0 1px; color: var(--color-ink); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.sb-invseg b.sb-nil { color: var(--color-ink-muted); }
+.sb-invseg span { display: block; font-size: 12px; color: var(--color-ink-muted); }
+.sb-invseg em { display: block; font-style: normal; font-size: 11px; color: var(--color-ink-muted); }
+.sb-invhint { font: 600 11px var(--font-mono); color: var(--color-ink-muted); margin-top: 8px; letter-spacing: 0.04em; }
+.sb-invfoot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-top: 12px; border-top: 1px solid var(--color-line);
+  font-size: 12px; color: var(--color-ink-muted); line-height: 1.5;
+}
+.sb-invfoot b { color: var(--color-ink); font-weight: 600; }
+.sb-invgrow { flex: 1; min-height: 18px; }
+/* Selling breakdown (popover and sheet share it) */
+table.sb-bdt { width: 100%; border-collapse: collapse; font: 500 12.5px var(--font-mono); }
+.sb-bdt th {
+  font: 600 10px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--color-ink-muted); text-align: right; padding: 0 0 4px;
+}
+.sb-bdt th:first-child { text-align: left; }
+.sb-bdt td { padding: 4px 0; border-top: 1px dotted var(--color-line); color: var(--color-ink); }
+.sb-bdt td + td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
+.sb-bdt tr.sb-z td { color: var(--color-ink-muted); }
+.sb-bdt tr.sb-gap td { border-top: 1px solid var(--color-line); }
+.sb-bdt tr.sb-tot td { border-top: 2px solid var(--color-line); font-weight: 700; color: var(--color-ink); }
+.sb-bdt tr.sb-miss td { color: var(--color-amber); }
 
 /* ------------------------------------------------------- range control */
 .sb-seg {
@@ -259,7 +323,10 @@ table.sb-ls { width: 100%; border-collapse: separate; border-spacing: 3px; }
 @media (max-width: 699.98px) {
   .sb-page { padding: 16px 14px 32px; gap: 14px; }
   .sb-board { padding: 16px 14px; }
-  .sb-hero { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .sb-herorow { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .sb-invbar { height: 44px; }
+  .sb-invsegs { gap: 8px; }
+  .sb-invseg b { font-size: 22px; }
   .sb-hv { font-size: 84px; }
   .sb-ls td { font-size: 18px; padding: 6px 2px; min-width: 50px; letter-spacing: 0; }
   .sb-ls.sb-dense td { font-size: 17px; min-width: 48px; }
@@ -286,9 +353,9 @@ table.sb-ls { width: 100%; border-collapse: separate; border-spacing: 3px; }
   .sb-row3 > :nth-child(-n + 2) { grid-column: 1 / -1; }
   .sb-k .sb-v { font-size: 38px; }
   .sb-bigd { font-size: 56px; }
-  .sb-hero .sb-bl { flex-wrap: wrap; row-gap: 8px; }
-  .sb-hero .sb-seg { display: flex; width: 100%; }
-  .sb-hero .sb-seg button { flex: 1; text-align: center; padding: 12px 0; }
+  .sb-hero .sb-bl, .sb-lsb .sb-bl, .sb-invb .sb-bl { flex-wrap: wrap; row-gap: 8px; }
+  .sb-lsb .sb-seg { display: flex; width: 100%; }
+  .sb-lsb .sb-seg button { flex: 1; text-align: center; padding: 12px 0; }
   .sb-heroSpark { flex: none; height: 64px; min-height: 0; }
   .sb-ban { flex-direction: column; align-items: flex-start; gap: 8px; }
 }

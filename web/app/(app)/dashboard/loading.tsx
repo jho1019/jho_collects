@@ -15,14 +15,29 @@ export default function DashboardLoading() {
     <main className="sb-page" aria-busy="true">
       <p role="status" className="sr-only">Loading your scoreboard…</p>
       <div aria-hidden="true" style={{ display: "contents" }}>
-        <section className="board sb-board hero sb-hero">
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div className="sb-bl"><span>Net profit</span><Sk w="84px" h="10px" /></div>
-            <div style={{ margin: "16px 0 14px" }}><Sk w="min(100%,420px)" h="104px" style={{ borderRadius: 6 }} /></div>
-            <div className="sb-chips"><Sk w="110px" h="24px" /><Sk w="190px" h="24px" /><Sk w="140px" h="24px" /></div>
-            <div style={{ display: "grid", gap: 7, marginTop: 14 }}><Sk w="96%" h="10px" /><Sk w="78%" h="10px" /></div>
-            <div className="sb-heroSpark" style={{ display: "flex", alignItems: "end" }}><Sk w="100%" h="70px" style={{ opacity: 0.6 }} /></div>
-          </div>
+        <div className="sb-herorow">
+          <section className="board sb-board hero sb-hero">
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              <div className="sb-bl"><span>Net profit</span><Sk w="84px" h="10px" /></div>
+              <div style={{ margin: "16px 0 14px" }}><Sk w="min(100%,420px)" h="104px" style={{ borderRadius: 6 }} /></div>
+              <div className="sb-chips"><Sk w="110px" h="24px" /><Sk w="190px" h="24px" /><Sk w="140px" h="24px" /></div>
+              <div style={{ display: "grid", gap: 7, marginTop: 14 }}><Sk w="96%" h="10px" /><Sk w="78%" h="10px" /></div>
+              <div className="sb-heroSpark" style={{ display: "flex", alignItems: "end" }}><Sk w="100%" h="70px" style={{ opacity: 0.6 }} /></div>
+            </div>
+          </section>
+          <section className="board sb-board hero sb-invb">
+            <div className="sb-bl"><span>Inventory + PC value · Today</span></div>
+            <div style={{ margin: "16px 0 10px" }}><Sk w="min(100%,340px)" h="104px" style={{ borderRadius: 6 }} /></div>
+            <div style={{ display: "grid", gap: 7 }}><Sk w="70%" h="10px" /><Sk w="55%" h="10px" /></div>
+            <Sk w="100%" h="32px" style={{ marginTop: 18 }} />
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3,minmax(0,1fr))", gap: 12, marginTop: 12 }}>
+              {[0, 1, 2].map((i) => <Sk key={i} w="80%" h="44px" />)}
+            </div>
+            <div className="sb-invgrow" />
+            <Sk w="100%" h="10px" style={{ marginTop: 14 }} />
+          </section>
+        </div>
+        <section className="board sb-board hero sb-lsb">
           <div>
             <div className="sb-bl"><span>Line score</span><Sk w="180px" h="26px" /></div>
             <div style={{ display: "grid", gridTemplateColumns: "62px repeat(5,minmax(0,1fr))", gap: 6, marginTop: 14, alignItems: "center" }}>

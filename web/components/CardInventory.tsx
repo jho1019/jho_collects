@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usd } from "@/lib/format";
-import { inventoryStats, isFiltered } from "@/lib/inventoryStats";
+import { inventoryStats, isFiltered, shownStats } from "@/lib/inventoryStats";
 
 export type Card = {
   id: number;
@@ -17,8 +17,12 @@ export type Card = {
   status: "held" | "listed" | "sold" | "traded";
   /** pc | business | riftbound | sealed (025); pc is not business inventory. */
   category?: string | null;
+  /** hold | sell | null (027); null = undecided, counts as Selling. */
+  intent?: string | null;
   sku: string | null;
   acquisition_cost: string | number | null;
+  /** Estimated market value (027, mostly CDP). Null = no price, never $0. */
+  est_value?: string | number | null;
   acquired_on: string | null;
   exited_on: string | null;
   is_opening_stock: boolean;
@@ -48,11 +52,14 @@ export default function CardInventory({
   cards,
   summary,
   missingCost = false,
+  groupView = false,
 }: {
   cards: Card[];
   summary: TrackedInventory;
   /** ?cost=missing is active (spec I6); the chip links in and out of it. */
   missingCost?: boolean;
+  /** ?group= / ?price=missing (spec 18): every row is on hand, PC included. */
+  groupView?: boolean;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
@@ -70,16 +77,22 @@ export default function CardInventory({
 
   // Spec 17.3 #3: the strip follows the filters so it matches the table.
   // Unfiltered it is the tracked_inventory view, unchanged.
-  const filtered = isFiltered(filter, q, missingCost);
-  const stats = filtered
-    ? inventoryStats(rows, filter, missingCost)
-    : summary && { label: "On hand", ...summary };
+  // A ?group= / ?price=missing view counts the shown rows themselves (PC
+  // included), so ?group=pc never shows zeros next to a full table.
+  const filtered = groupView || isFiltered(filter, q, missingCost);
+  const stats = groupView
+    ? shownStats(rows)
+    : filtered
+      ? inventoryStats(rows, filter, missingCost)
+      : summary && { label: "On hand", ...summary };
 
   const emptyText =
     cards.length === 0
       ? missingCost
         ? "No sold cards are missing a cost."
-        : "No tracked cards yet — bulk lots stay as cash rows."
+        : groupView
+          ? "No cards in this view."
+          : "No tracked cards yet — bulk lots stay as cash rows."
       : "No matches.";
 
   return (

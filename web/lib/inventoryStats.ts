@@ -78,6 +78,39 @@ export function inventoryStats(
   };
 }
 
+/**
+ * Strip for the dashboard board's ?group= / ?price=missing views (spec 18).
+ * Those rows are already narrowed server-side to on-hand cards with the
+ * board's group predicate, PC included, so the strip counts exactly the rows
+ * shown. inventoryStats would drop PC (tracked_inventory excludes it) and put
+ * a row of zeros next to a full ?group=pc table.
+ */
+export function shownStats(rows: StatsCard[]): InventoryStats {
+  let opening = 0;
+  let without = 0;
+  let openingBasis = 0;
+  let acquiredBasis = 0;
+  for (const c of rows) {
+    if (c.is_opening_stock) opening++;
+    if (c.acquisition_cost == null) {
+      without++;
+      continue;
+    }
+    if (c.is_opening_stock) openingBasis += cents(c.acquisition_cost);
+    else acquiredBasis += cents(c.acquisition_cost);
+  }
+  return {
+    label: "On hand",
+    cards_on_hand: rows.length,
+    opening_stock_cards: opening,
+    acquired_since_start: rows.length - opening,
+    cards_without_cost: without,
+    known_cost_basis: (openingBasis + acquiredBasis) / 100,
+    opening_cost_basis: openingBasis / 100,
+    acquired_cost_basis: acquiredBasis / 100,
+  };
+}
+
 /** True when any strip-affecting filter is on. */
 export function isFiltered(status: StatusFilter, q: string, missingCost: boolean) {
   return status !== "all" || q.trim() !== "" || missingCost;

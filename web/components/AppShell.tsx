@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
+import BottomSheet from "@/components/BottomSheet";
 import ThemeToggle from "@/components/ThemeToggle";
 
 // Midnight Scoreboard shell (SPEC_E_SCOREBOARD.md sections 0.2, 2, 6.1, 12.1).
@@ -252,8 +253,9 @@ export default function AppShell({
   );
 }
 
-// Bottom sheet with scrim. Escape and scrim tap close it (carried over from
-// the old drawer). Hidden from md up, where the bar carries everything.
+// More / Menu sheet contents inside the shared BottomSheet chrome (scrim,
+// Escape, focus; carried over from the old drawer). Hidden from md up, where
+// the bar carries everything.
 function Sheet({
   title,
   items,
@@ -269,22 +271,6 @@ function Sheet({
   logout: () => Promise<void>;
   onClose: () => void;
 }) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const titleId = useId();
-
-  useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      opener?.focus?.();
-    };
-  }, [onClose]);
-
   const cell =
     "flex min-h-11 items-center justify-between rounded-[3px] border px-3 py-2.5 font-display opsz-chrome text-[13px] font-bold uppercase tracking-[0.12em]";
   const cellIdle = "border-line bg-chip-bg text-ink";
@@ -292,81 +278,49 @@ function Sheet({
   const cellOn = "border-amber bg-amber text-on-amber";
 
   return (
-    <div className="fixed inset-0 z-40 md:hidden">
-      <button
-        type="button"
-        aria-label={`Close ${title.toLowerCase()}`}
-        tabIndex={-1}
-        onClick={onClose}
-        className="absolute inset-0 bg-black/55"
-      />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-y-auto rounded-t-xl border-t-[3px] border-amber bg-board px-[18px] pt-3.5 pb-[max(22px,env(safe-area-inset-bottom))] shadow-[0_-20px_60px_rgb(0_0_0/0.6)] focus:outline-none"
-      >
-        <div className="mb-2.5 flex items-center justify-between gap-2.5">
-          <h2
-            id={titleId}
-            className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber"
-          >
-            {title}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="min-h-11 px-1 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-muted hover:text-ink"
-          >
-            <span aria-hidden="true">✕ </span>Close
-          </button>
-        </div>
+    <BottomSheet title={title} onClose={onClose}>
+      <nav aria-label={title}>
+        <ul className="grid grid-cols-2 gap-2">
+          {items.map((d) => {
+            const active = isActive(d.href);
+            return (
+              <li key={d.href} className="min-w-0">
+                <Link
+                  href={d.href}
+                  onClick={onClose}
+                  aria-current={active ? "page" : undefined}
+                  className={`${cell} ${active ? cellOn : cellIdle}`}
+                >
+                  <span className="truncate">{d.label}</span>
+                  {d.href === "/deals" && dealsNeedingReview > 0 && (
+                    <span
+                      className={`font-mono text-[13px] tracking-normal ${
+                        active ? "text-on-amber" : "text-neg"
+                      }`}
+                    >
+                      {dealsNeedingReview}
+                      <span className="sr-only"> need review</span>
+                    </span>
+                  )}
+                </Link>
+              </li>
+            );
+          })}
+          <li className="min-w-0">
+            <form action={logout}>
+              <button type="submit" className={`${cell} ${cellIdle} w-full text-left`}>
+                Sign out
+              </button>
+            </form>
+          </li>
+        </ul>
+      </nav>
 
-        <nav aria-label={title}>
-          <ul className="grid grid-cols-2 gap-2">
-            {items.map((d) => {
-              const active = isActive(d.href);
-              return (
-                <li key={d.href} className="min-w-0">
-                  <Link
-                    href={d.href}
-                    onClick={onClose}
-                    aria-current={active ? "page" : undefined}
-                    className={`${cell} ${active ? cellOn : cellIdle}`}
-                  >
-                    <span className="truncate">{d.label}</span>
-                    {d.href === "/deals" && dealsNeedingReview > 0 && (
-                      <span
-                        className={`font-mono text-[13px] tracking-normal ${
-                          active ? "text-on-amber" : "text-neg"
-                        }`}
-                      >
-                        {dealsNeedingReview}
-                        <span className="sr-only"> need review</span>
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-            <li className="min-w-0">
-              <form action={logout}>
-                <button type="submit" className={`${cell} ${cellIdle} w-full text-left`}>
-                  Sign out
-                </button>
-              </form>
-            </li>
-          </ul>
-        </nav>
-
-        <h3 className="mt-3.5 mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
-          Theme
-        </h3>
-        <ThemeToggle variant="segmented" />
-      </div>
-    </div>
+      <h3 className="mt-3.5 mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
+        Theme
+      </h3>
+      <ThemeToggle variant="segmented" />
+    </BottomSheet>
   );
 }
 
