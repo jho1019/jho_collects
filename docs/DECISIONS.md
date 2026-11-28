@@ -695,3 +695,122 @@ Repo file numbers have never matched applied history (applied
 `022_database_timezone` is repo `023`; 024 and 025 were run by hand and never
 recorded). `docs/schema-migrations.md` maps them, has the snippet that records
 024/025, and from 027 on the `apply_migration` name matches the file name.
+
+## The CDP inventory import is a pure library plus a CLI that emits reviewable SQL
+
+`web/lib/inventory-import/` parses, classifies and plans with no I/O; the CLI
+(`web/scripts/cdp-inventory-import.ts`) reads a CDP export and a JSON snapshot
+of existing cards, writes a dry-run report, and with `--commit` writes one
+idempotent `begin; … commit;` script. Nobody's machine connects to the
+database, and no service-role key or database URL is needed for it: Bowser Jr.
+and Toad load data through the Supabase connector with SQL, so the natural
+hand-off is a script they can read and apply as one call. No API route — it
+would need the service-role key in a new place for no gain. The script writes
+the owner's `user_id` explicitly (under the connector `auth.uid()` is null),
+re-matches cards by `cdp_sku` / grader+cert at apply time, and never touches
+`transactions`. Usage: `docs/inventory-import.md`.
+
+## Bulk-mode card rows leave `intent` null
+
+In a `bulk` batch, a card over $20 or graded becomes a cards row with
+`intent = null` (undecided), not `'sell'`. A scan says what a card is worth,
+not what Johnny means to do with it; `'sell'` would put it in the to-list
+queue by default. `holds` batches set `'hold'` because the batch itself is
+that decision. An override (`intent`, or an asking price) sets it per card.
+
+## Import updates fill gaps; they never overwrite a hand-set value
+
+An exact match (`cdp_sku`, then grader + cert) fills only null fields.
+`acquisition_cost`, `list_price` and `category` are never overwritten, and
+`status` is never touched. `est_value` is refreshed only when it is empty or
+was itself CDP's (`est_value_source = 'cdp'`): a comp or a hand estimate is
+better information than CDP's scan-time market price, so a rescan must not
+replace it. An override can still set `category`, `intent` or `list_price`
+explicitly.
+
+## Fuzzy title matches flag; they never merge
+
+A trigram match against an existing card is a `possible_duplicate` that blocks
+the row until Johnny says merge, insert or skip. Merging on a similarity score
+would silently fold two different cards into one — the same reason
+`find_cards` never picks the top score on its own. Default threshold 0.55
+(pg_trgm `similarity` on `search_text`), chosen on the real Nov 27 files:
+it catches the rescanned 1996-97 Topps Kobe PSA 7 (0.711) and the 1996-97
+SkyBox Jordan vs the $25 "1996 Skybox Premium Michael Jordan" (0.565). A
+candidate whose year, card number, grader/grade or raw-vs-graded state
+contradicts the scan is reported but not flagged: the raw 2025 Chrome Sasaki
+(0.603 against the PSA 9 Sasaki) and the 1998-99 SkyBox Kobe (0.588 against
+the 1996 one) are different cards.
+
+## Bulk increments are guarded by a batch marker, not a count check
+
+Each bulk-lot increment writes a `bulk_lot_events` row whose `notes` is
+`cdp-import:<batch>:<bucket>:<location>`, and is skipped if that marker
+exists. A rerun of the same batch therefore adds nothing, while a genuinely
+new scan of more cards (a new batch id) still adds. The batch id defaults to
+CDP's own batch number (title row or image URLs), so the same export always
+maps to the same id. Hand counts in the overrides replace the batch's CDP
+count (they are the increment, not an absolute recount; a recount is a
+`recount` event).
+
+## The 2008-09 Topps Kobe Orange matches PC even when CDP reads it raw
+
+The spec names the PSA 2.5 as PC and notes that CDP reads that slab as raw.
+A raw-read 2008-09 Topps Kobe Orange therefore matches the PC rule, with a
+note on the card and in the report; a slab of it at another grade does not.
+Misclassifying it as business would let a PC card reach eBay; the reverse
+only keeps a card out of tracked inventory until someone looks. The grader
+and grade are not filled in from the rule — the scan did not say them.
+
+## One PC rule list, shared by the inventory import and the eBay listing import
+
+`web/lib/inventory-import/pc-rules.ts` is the only place PC is defined for
+imports. The inventory importer makes a matching row a `pc` card; the CDP
+listing import (`/api/ebay/import-cdp`) skips it before building or sending
+anything (`skipped_personal_collection`, reason `personal_collection`), and
+also skips any row whose SKU is a `pc` card in the database (by `cdp_sku`,
+including the numeric prefix of an FX label like `203-19tvfa`, or by eBay
+`sku`). Rules are data — one ordered array, first match wins, a test per rule.
+
+## Bulk buckets round down
+
+Supersedes the first importer's round-up thresholds (`<= 1.00` → `$1`,
+`<= 3.00` → `$3`, `<= 5.00` → `$5`), which put a $1.25 card in the $3 box and
+a $5.50 card in the $6–20 box. Johnny's rule (11/27): a box's price must never
+overprice what is in it at a show, so a raw card goes in the highest box whose
+floor its market price reaches — `< 2.00` → `1`, `2.00–3.99` → `3`,
+`4.00–5.99` → `5`, `6.00–20.00` → `6_20`, over $20 (or graded) → a cards row.
+The $20 ceiling and the unit prices (1.00 / 3.00 / 5.00, `6_20` = weighted
+average market price) are unchanged. A buyer at the $3 box gets cards worth
+$2–3.99, never a $1.25 card at $3. The numbers live in one constant,
+`BUCKET_THRESHOLDS` in `web/lib/inventory-import/plan.ts`; Bowser Jr.'s
+updated lowend sheet already uses the same rule (0 disagreements).
+
+## Hand counts stay increments; there is no absolute "set" mode
+
+A `bulk_counts` entry replaces a batch's scanned count but is still an
+increment, applied once under the batch marker. An absolute "set this box to
+N" mode was considered for Johnny's 11/27 box counts and not built: on an
+empty `bulk_lots` (the first file applied) add and set give the same result,
+and anywhere else "set" is order-dependent — applied after a later batch it
+would silently erase that batch's cards, and the marker guard only protects a
+replay, not a different apply order or a new batch id. Absolute counts are the
+`recount` event's job (`bulk_lot_events.reason = 'recount'`), written
+deliberately, not as a side effect of an import. If a later batch's bulk cards
+were already in a hand count, give that batch `bulk_counts` of 0.
+
+## The Kobe Orange PSA 2.5 goes in as a manual add; the raw-read scan stays skipped
+
+Johnny 11/27. CDP scanned the 2008-09 Topps #24 Kobe Orange PSA 2.5 PC slab as a
+raw card at $600 (batch4, `cdp_sku` 343, no grader, no cert). That scan row is
+skipped by override, so it is never inserted as a raw card. The slab itself
+goes in as its own `pc` card through `manual_adds[]` in the batch4 overrides
+file: grader PSA, grade 2.5, `est_value` 600.00 with `est_value_source` `cdp`,
+cert, cost and acquired date null (the scan had none; nothing is invented).
+The manual add deliberately carries no `cdp_sku`: 343 identifies a wrong
+(raw) reading of the slab, and tying the card to it would let any later
+import of sku 343 that lacks the skip update the slab from that raw scan. It
+is keyed instead on title + set + number among cards with no `cdp_sku`, so a
+replay inserts nothing. Batch 2's 13 bulk
+cards stay additive to the lowend hand count (no zero override), giving boxes
+of 27 / 17 / 6 / 7 after all four files.

@@ -10,6 +10,8 @@ import { supabaseConfigStore, supabaseListingStore } from "@/lib/ebay-api/store"
 //   body: multipart/form-data with a `file` field, OR a raw text/csv body
 //   dry_run   default TRUE — only dry_run=false sends anything to eBay
 //   publish   default false — create inventory items + offers; true also publishes
+//   Personal-collection rows (PC rules, or a pc card's sku) are always skipped:
+//             status skipped_personal_collection, reason personal_collection
 //   fulfillment_policy_id / payment_policy_id / return_policy_id / merchant_location_key
 //             optional per-request overrides (query string or form fields)
 export const maxDuration = 60;
@@ -55,6 +57,7 @@ export const POST = apiRoute(async (req: NextRequest) => {
 
   const ctx = ebayContext();
   const config = await supabaseConfigStore(ctx.db).getAll(ctx.config.environment);
+  const store = supabaseListingStore(ctx.db, ctx.env);
   return importCdp(csv, { dryRun, publish, overrides }, {
     environment: ctx.config.environment,
     marketplaceId: ctx.config.marketplaceId,
@@ -62,6 +65,8 @@ export const POST = apiRoute(async (req: NextRequest) => {
     config,
     rest: ctx.userRest,
     lookup: accountLookup(ctx.userRest, ctx.config.environment),
-    links: supabaseListingStore(ctx.db, ctx.env),
+    links: store,
+    // personal-collection cards are skipped before anything reaches eBay
+    pcCards: store,
   });
 });

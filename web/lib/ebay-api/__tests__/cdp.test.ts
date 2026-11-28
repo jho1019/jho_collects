@@ -27,16 +27,18 @@ function syntheticCsv(rows: Record<string, string>[]): string {
   return lines.join("\n");
 }
 
+// A business (non-PC) slab. Ohtani / Sasaki / Yamamoto rows are personal
+// collection and are skipped before payloads are built (lib/inventory-import/pc-rules.ts).
 function gradedRow(over: Record<string, string> = {}): Record<string, string> {
   return {
     [HEADERS[0]]: "Add",
     CustomLabel: "G-1",
     "*Category": "261328",
-    "*Title": "2018 Topps Update Shohei Ohtani #US1 PSA 10",
+    "*Title": "2018 Topps Update Ronald Acuna Jr. #US250 PSA 10",
     "*ConditionID": "2750",
     "*C:Graded": "Yes",
     "*C:Sport": "Baseball",
-    "*C:Player/Athlete": "Shohei Ohtani",
+    "*C:Player/Athlete": "Ronald Acuna Jr.",
     "CD:Professional Grader - (ID: 27501)": "PSA",
     "CD:Grade - (ID: 27502)": "10",
     "CDA:Certification Number - (ID: 27503)": "12345678",

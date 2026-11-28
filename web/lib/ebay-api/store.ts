@@ -2,7 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { EbayEnvironment, Env } from "./config";
 import { ApiError, ConfigError } from "./errors";
-import type { ListingLink, ListingLinkStore } from "./cdp/import";
+import type { ListingLink, ListingLinkStore, PersonalCollectionLookup } from "./cdp/import";
 import type { ConfigStore } from "./policies";
 import type { AuditStore, ListingStateStore } from "./price";
 import type { StoredUserToken, TokenStore } from "./tokens";
@@ -154,8 +154,24 @@ export async function resolveOwnerUserId(db: SupabaseClient, env: Env = process.
 
 // ------------------------------------------------------------------ ebay_listings
 
-export function supabaseListingStore(db: SupabaseClient, env: Env = process.env): ListingLinkStore & ListingStateStore {
+export function supabaseListingStore(db: SupabaseClient, env: Env = process.env): ListingLinkStore & ListingStateStore & PersonalCollectionLookup {
   return {
+    // CDP import: which of these SKUs are personal-collection cards, by the
+    // Card Dealer Pro sku or the eBay sku (owner scoped). Errors throw, so a
+    // failed lookup stops the import rather than letting a pc card through.
+    async personalCollectionSkus(skus) {
+      const out = new Set<string>();
+      if (!skus.length) return out;
+      const owner = await resolveOwnerUserId(db, env).catch(() => null);
+      if (!owner) return out;
+      for (const col of ["cdp_sku", "sku"] as const) {
+        const { data, error } = await db.from("cards").select(col)
+          .eq("user_id", owner).eq("category", "pc").in(col, skus);
+        if (error) throw dbError("look up pc cards by sku", error);
+        for (const r of (data ?? []) as Record<string, string | null>[]) if (r[col]) out.add(r[col]!);
+      }
+      return out;
+    },
     async upsert(environment, links: ListingLink[]) {
       const owner = await resolveOwnerUserId(db, env).catch(() => null);
       const cards = new Map<string, number>();

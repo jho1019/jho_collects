@@ -461,6 +461,15 @@ Body: `multipart/form-data` with a `file` field, or the raw CSV as
 | `publish` | false | false = inventory items + unpublished offers; true = also publish |
 | `fulfillment_policy_id`, `payment_policy_id`, `return_policy_id`, `merchant_location_key` | — | per-request overrides |
 
+Personal-collection rows are always skipped before anything is built or sent:
+rows matching the shared PC rules (`web/lib/inventory-import/pc-rules.ts` —
+Ohtani, Roki Sasaki, Yamamoto, 2025 Topps Heritage, the 2008-09 Topps Kobe
+Orange PSA 2.5) and rows whose SKU is a `category = 'pc'` card (matched on
+`cards.cdp_sku`, including the numeric prefix of a label like `203-19tvfa`, or
+`cards.sku`). They report `status: "skipped_personal_collection"`,
+`reason: "personal_collection"` and `pc_match` (`rule:<id>` or
+`pc_card_sku:<sku>`), and are counted in `summary.skipped_personal_collection`.
+
 ```bash
 # dry run: parse, map, validate, show the exact payloads; no eBay calls, no DB writes
 curl -X POST -H "x-api-key: $KEY" -F file=@cdp_export.csv $B/import-cdp
@@ -471,7 +480,7 @@ curl -X POST -H "x-api-key: $KEY" -F file=@cdp_export.csv \
 ```
 ```json
 { "dry_run": true, "publish": false,
-  "summary": { "rows": 8, "ready": 7, "invalid": 0, "skipped_zero_quantity": 1, "inventory_failed": 0,
+  "summary": { "rows": 8, "ready": 7, "invalid": 0, "skipped_zero_quantity": 1, "skipped_personal_collection": 0, "inventory_failed": 0,
                "offer_failed": 0, "offer_created": 0, "publish_failed": 0, "published": 0 },
   "columns": { "mapped": { "action": "*Action(SiteID=US|…)", "sku": "CustomLabel", "title": "*Title", "price": "*StartPrice", "…": "…" },
                "aspects": ["Graded", "Sport", "Player/Athlete", "…"],
