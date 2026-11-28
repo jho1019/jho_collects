@@ -111,8 +111,10 @@ export const MIN_SEGMENT_PCT = 3;
 export type Tier = Bucket | "20_plus";
 export const TIERS: readonly Tier[] = [...BUCKETS, "20_plus"];
 export const TIER_LABEL: Record<Tier, string> = { ...BUCKET_LABEL, "20_plus": "$20+" };
-export const TIER_CAPTION =
-  "Tiers round down: $1 under $2, $3 $2–3.99, $5 $4–5.99, $6–20 $6–20, $20+ over $20";
+// User-facing copy (Daisy, PR #46) no longer says "round down", but the
+// buckets still round down via BUCKET_THRESHOLDS; behaviour is unchanged.
+// The board appends " Missing price is counted, never valued at $0."
+export const TIER_CAPTION = "Tiers: $1 under $2 · $3 $2–3.99 · $5 $4–5.99 · $6–20 · $20+.";
 
 export function tierFor(cents: number): Tier {
   return bucketFor(cents) ?? "20_plus";

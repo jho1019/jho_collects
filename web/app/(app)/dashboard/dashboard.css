@@ -170,6 +170,9 @@ table.sb-bdt { width: 100%; border-collapse: collapse; font: 500 12.5px var(--fo
 .sb-bdt th:first-child { text-align: left; }
 .sb-bdt td { padding: 4px 0; border-top: 1px dotted var(--color-line); color: var(--color-ink); }
 .sb-bdt td + td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; padding-left: 12px; }
+/* Zero rows: dimmed, still visible. Total never gets sb-z; a missing row with
+   count > 0 gets sb-miss (amber) instead. */
+.sb-bdt tr.sb-z { opacity: 0.5; }
 .sb-bdt tr.sb-z td { color: var(--color-ink-muted); }
 .sb-bdt tr.sb-gap td { border-top: 1px solid var(--color-line); }
 .sb-bdt tr.sb-tot td { border-top: 2px solid var(--color-line); font-weight: 700; color: var(--color-ink); }

@@ -225,9 +225,20 @@ function Board({ model: m, label }: { model: InventoryBoardModel; label: React.R
               aria-label="Selling breakdown"
               className="absolute top-full left-0 z-40 mt-2 hidden w-[300px] max-w-full rounded-[6px] border border-line bg-board px-3 pt-2.5 pb-3 shadow-[0_12px_30px_rgb(0_0_0/0.6)] md:block"
             >
-              <p className="mb-2 font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
-                Selling breakdown
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.2em] text-amber">
+                  Selling breakdown
+                </p>
+                {/* Compact twin of the sheet's Close; returns focus to Selling. */}
+                <button
+                  type="button"
+                  aria-label="Close"
+                  onClick={() => close(true)}
+                  className="-mr-1 px-1 font-mono text-[13px] leading-none text-ink-muted hover:text-ink"
+                >
+                  <span aria-hidden="true">✕</span>
+                </button>
+              </div>
               {content}
             </div>
           )}
@@ -307,7 +318,7 @@ function SellingBreakdown({ model: m, onNavigate }: { model: InventoryBoardModel
         </tbody>
       </table>
       <p className="sb-sub" style={{ marginTop: 8, fontSize: 11 }}>
-        {m.selling.caption}. Missing price is counted, never valued at $0.
+        {m.selling.caption} Missing price is counted, never valued at $0.
       </p>
       <p className="sb-sub" style={{ marginTop: 8 }}>
         <Link href="/inventory?group=selling" onClick={onNavigate} className="text-blue underline underline-offset-2">

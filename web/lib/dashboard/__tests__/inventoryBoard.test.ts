@@ -221,7 +221,7 @@ describe("tiers (round down, importer thresholds)", () => {
   it("caption matches the importer's thresholds", () => {
     expect(BUCKET_THRESHOLDS.floors).toEqual([["6_20", 600], ["5", 400], ["3", 200]]);
     expect(BUCKET_THRESHOLDS.maxCents).toBe(2000);
-    expect(TIER_CAPTION).toBe("Tiers round down: $1 under $2, $3 $2–3.99, $5 $4–5.99, $6–20 $6–20, $20+ over $20");
+    expect(TIER_CAPTION).toBe("Tiers: $1 under $2 · $3 $2–3.99 · $5 $4–5.99 · $6–20 · $20+.");
   });
 });
 
