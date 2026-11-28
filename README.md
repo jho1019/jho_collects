@@ -14,10 +14,12 @@ CLAUDE.md              project instructions for Claude Code — read first
 docs/
   DECISIONS.md         architecture + rationale — read before changing the data model
   ebay-api.md          eBay API service: setup, endpoints, CDP mapping, sync
+  schema-migrations.md repo-vs-applied migration numbering, how to apply new ones
   PHASES.md            six-phase build plan, each with an exit check
   HANDOFF.md           original handoff notes
   reference/           real-world findings (eBay report quirks, known-good figures)
 schema/                *.sql migrations, applied in order (Phase 1, 3.5)
+                       file numbers != applied names: see docs/schema-migrations.md
 importers/             parse_ebay.py — transaction report parser (tested)
 .claude/skills/card-entry/   natural-language entry routing skill (auto-loaded)
 web/                   Next.js dashboard + eBay API routes (app/api/ebay/*)

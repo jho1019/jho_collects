@@ -160,8 +160,10 @@ export function supabaseListingStore(db: SupabaseClient, env: Env = process.env)
       const owner = await resolveOwnerUserId(db, env).catch(() => null);
       const cards = new Map<string, number>();
       if (owner) {
+        // Personal-collection cards are never linked to an eBay listing
+        // (schema/027): a pc card is excluded from every eBay tool.
         const { data, error } = await db.from("cards").select("id, sku")
-          .eq("user_id", owner).in("sku", links.map((l) => l.sku));
+          .eq("user_id", owner).neq("category", "pc").in("sku", links.map((l) => l.sku));
         if (error) throw dbError("look up cards by sku", error);
         for (const c of data ?? []) cards.set(c.sku, c.id);
       }
@@ -177,6 +179,30 @@ export function supabaseListingStore(db: SupabaseClient, env: Env = process.env)
       const { error } = await db.from("ebay_listings").update({ price, updated_at: new Date().toISOString() })
         .eq("environment", environment).eq("offer_id", offerId);
       if (error) throw dbError("update listing price", error);
+    },
+    // Is this offer a personal-collection card? By the card's eBay sku (owner
+    // scoped), then by the ebay_listings link. Errors fail closed (throw), so
+    // a lookup failure blocks the reprice rather than letting a pc card through.
+    async isPersonalCollection(environment, ref) {
+      const owner = await resolveOwnerUserId(db, env).catch(() => null);
+      if (owner && ref.sku) {
+        const { data, error } = await db.from("cards").select("id")
+          .eq("user_id", owner).eq("sku", ref.sku).eq("category", "pc").limit(1);
+        if (error) throw dbError("check pc card by sku", error);
+        if (data?.length) return true;
+      }
+      if (ref.offerId) {
+        const { data: link, error } = await db.from("ebay_listings").select("card_id")
+          .eq("environment", environment).eq("offer_id", ref.offerId).maybeSingle();
+        if (error) throw dbError("check pc card by listing", error);
+        if (link?.card_id) {
+          const { data, error: e2 } = await db.from("cards").select("id")
+            .eq("id", link.card_id).eq("category", "pc").limit(1);
+          if (e2) throw dbError("check pc card by listing", e2);
+          if (data?.length) return true;
+        }
+      }
+      return false;
     },
     async markEnded(environment, offerId) {
       const { error } = await db.from("ebay_listings").update({ status: "ended", updated_at: new Date().toISOString() })

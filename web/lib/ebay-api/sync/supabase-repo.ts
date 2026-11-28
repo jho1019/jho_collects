@@ -12,6 +12,11 @@ import type { CardRef, FuzzyCandidate, LedgerSale, MatchType, SyncedLine, SyncSt
 // ebay_synced_orders / ebay_sync_state and, through ebay_close_card_for_sale,
 // to cards + card_aliases. There is deliberately no method here that writes
 // to `transactions`.
+//
+// Personal-collection cards (category 'pc') are invisible to the sync: every
+// card read below excludes them, so a pc card is never matched or closed
+// (schema/027's trigger would refuse the close anyway). A sold line that only
+// a pc card would match lands in needs_review as no_card_match.
 
 function dbError(op: string, err: { message?: string } | null): ApiError {
   console.error(`[ebay-api] sync ${op} failed:`, err?.message);
@@ -115,7 +120,7 @@ export function supabaseSyncRepo(db: SupabaseClient, env: Env = process.env): Sy
       const out: CardRef[] = [];
       for (const part of chunks(skus)) {
         const { data, error } = await db.from("cards").select("id, sku, title, status, sale_transaction_id")
-          .eq("user_id", user).in("sku", part);
+          .eq("user_id", user).neq("category", "pc").in("sku", part);
         if (error) throw dbError("read cards by sku", error);
         out.push(...((data ?? []) as CardRow[]).map(toCard));
       }
@@ -128,7 +133,7 @@ export function supabaseSyncRepo(db: SupabaseClient, env: Env = process.env): Sy
       const out: CardRef[] = [];
       for (const part of chunks(ids)) {
         const { data, error } = await db.from("cards").select("id, sku, title, status, sale_transaction_id")
-          .eq("user_id", user).in("id", part);
+          .eq("user_id", user).neq("category", "pc").in("id", part);
         if (error) throw dbError("read cards by id", error);
         out.push(...((data ?? []) as CardRow[]).map(toCard));
       }
@@ -158,7 +163,17 @@ export function supabaseSyncRepo(db: SupabaseClient, env: Env = process.env): Sy
     async findCards(title): Promise<FuzzyCandidate[]> {
       const { data, error } = await db.rpc("ebay_find_cards", { p_user_id: await owner(), q: title });
       if (error) throw dbError("find_cards", error);
-      return ((data ?? []) as { id: number; sku: string | null; title: string; match_type: string; score: number }[])
+      const rows = (data ?? []) as { id: number; sku: string | null; title: string; match_type: string; score: number }[];
+      // find_cards does not return category; drop pc candidates here so the
+      // sync never matches (and so never tries to close) a pc card.
+      const pc = new Set<number>();
+      if (rows.length) {
+        const { data: pcRows, error: e2 } = await db.from("cards").select("id")
+          .in("id", rows.map((r) => r.id)).eq("category", "pc");
+        if (e2) throw dbError("filter pc candidates", e2);
+        for (const r of pcRows ?? []) pc.add(r.id);
+      }
+      return rows.filter((r) => !pc.has(r.id))
         .map((r) => ({ id: r.id, sku: r.sku, title: r.title, matchType: r.match_type === "alias" ? "alias" : "fuzzy", score: r.score }));
     },
 
