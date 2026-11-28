@@ -15,10 +15,10 @@ function plan(rows: Cells[], o: Partial<Omit<PlanInput, "parsed">> & { mode?: Mo
 }
 const ov = (d: unknown) => parseOverrides(d);
 
-describe("bucket thresholds", () => {
+describe("bucket thresholds (round down)", () => {
   it.each([
-    ["0.50", "1"], ["1.00", "1"], ["1.01", "3"], ["3.00", "3"], ["3.01", "5"], ["5.00", "5"],
-    ["5.01", "6_20"], ["20.00", "6_20"], ["20.01", null],
+    ["0.01", "1"], ["1.00", "1"], ["1.99", "1"], ["2.00", "3"], ["3.00", "3"], ["3.99", "3"],
+    ["4.00", "5"], ["5.00", "5"], ["5.99", "5"], ["6.00", "6_20"], ["20.00", "6_20"], ["20.01", null],
   ])("$%s -> %s", (price, bucket) => {
     expect(bucketFor(Math.round(Number(price) * 100))).toBe(bucket);
   });
@@ -37,6 +37,13 @@ describe("bucket thresholds", () => {
       ["6_20", 3, "9.87", "29.61"], // (8.59 + 15.00 + 6.02) / 3 = 9.87
     ]);
     expect(p.lots[1].batch_sum).toBe("29.61");
+  });
+
+  it("round down at the plan level: $1.99 -> $1 box at 1.00, $2.00 -> $3 box at 3.00, $5.99 -> $5 box", () => {
+    const p = plan([row({ market_price: "1.99" }), row({ market_price: "2.00" }), row({ market_price: "3.99" }), row({ market_price: "5.99" }), row({ market_price: "6.00" })]);
+    expect(p.lots.map((l) => [l.bucket, l.delta, l.unit_price])).toEqual([
+      ["1", 1, "1.00"], ["3", 2, "3.00"], ["5", 1, "5.00"], ["6_20", 1, "6.00"],
+    ]);
   });
 
   it("6_20 weighted average with the existing lot", () => {
@@ -75,6 +82,16 @@ describe("PC in bulk mode", () => {
     expect(p.rows[1]).toMatchObject({ outcome: "bulk", bucket: "3" });
     expect(p.rows[1].bowser).toMatchObject({ bucket: "PC", ours: "$3", agrees_bucket: false, agrees_pc: false });
     expect(p.totals.bowser_disagreements).toBe(1);
+  });
+
+  it("Heritage PC is decided by year alone, never by Bowser's pc_flag", () => {
+    const heritage = (year: string, pc_flag: string, sku: string) =>
+      row({ title: `${year} Topps Heritage #1 Someone`, player: "Someone", year, set: `${year} Topps Heritage`, market_price: "2.22", pc_flag, sku });
+    const p = plan([heritage("2026", "No", "218"), heritage("2026", "Yes", "219"), heritage("2025", "No", "344")]);
+    expect(p.rows.map((r) => [r.cdp_sku, r.outcome, r.card?.category ?? null, r.bucket])).toEqual([
+      ["218", "bulk", null, "3"], ["219", "bulk", null, "3"], ["344", "insert", "pc", null],
+    ]);
+    expect(p.rows[2].pc).toMatchObject({ kind: "pc", ruleId: "set_2025_topps_heritage" });
   });
 
   it("review_kobe excludes the row until an override settles it", () => {
@@ -242,6 +259,14 @@ describe("overrides win", () => {
       ["6_20", null, 2, 4, true, "8.00"],
     ]);
     expect(p.lots[2].batch_sum).toBe("32");
+  });
+
+  it("a hand count of 0 adds nothing to that box (its cards were in an earlier count)", () => {
+    const p = plan([row({ market_price: "2.50" }), row({ market_price: "8" })],
+      { overrides: ov({ bulk_counts: [{ bucket: "3", count: 0 }, { bucket: "6_20", count: 0 }] }) });
+    expect(p.lots).toEqual([]);
+    expect(p.totals.bulk_cards_added).toBe(0);
+    expect(p.warnings.filter((w) => /hand count 0/.test(w))).toHaveLength(2);
   });
 
   it("manual adds", () => {

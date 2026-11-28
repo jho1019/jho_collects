@@ -771,3 +771,30 @@ anything (`skipped_personal_collection`, reason `personal_collection`), and
 also skips any row whose SKU is a `pc` card in the database (by `cdp_sku`,
 including the numeric prefix of an FX label like `203-19tvfa`, or by eBay
 `sku`). Rules are data — one ordered array, first match wins, a test per rule.
+
+## Bulk buckets round down
+
+Supersedes the first importer's round-up thresholds (`<= 1.00` → `$1`,
+`<= 3.00` → `$3`, `<= 5.00` → `$5`), which put a $1.25 card in the $3 box and
+a $5.50 card in the $6–20 box. Johnny's rule (11/27): a box's price must never
+overprice what is in it at a show, so a raw card goes in the highest box whose
+floor its market price reaches — `< 2.00` → `1`, `2.00–3.99` → `3`,
+`4.00–5.99` → `5`, `6.00–20.00` → `6_20`, over $20 (or graded) → a cards row.
+The $20 ceiling and the unit prices (1.00 / 3.00 / 5.00, `6_20` = weighted
+average market price) are unchanged. A buyer at the $3 box gets cards worth
+$2–3.99, never a $1.25 card at $3. The numbers live in one constant,
+`BUCKET_THRESHOLDS` in `web/lib/inventory-import/plan.ts`; Bowser Jr.'s
+updated lowend sheet already uses the same rule (0 disagreements).
+
+## Hand counts stay increments; there is no absolute "set" mode
+
+A `bulk_counts` entry replaces a batch's scanned count but is still an
+increment, applied once under the batch marker. An absolute "set this box to
+N" mode was considered for Johnny's 11/27 box counts and not built: on an
+empty `bulk_lots` (the first file applied) add and set give the same result,
+and anywhere else "set" is order-dependent — applied after a later batch it
+would silently erase that batch's cards, and the marker guard only protects a
+replay, not a different apply order or a new batch id. Absolute counts are the
+`recount` event's job (`bulk_lot_events.reason = 'recount'`), written
+deliberately, not as a side effect of an import. If a later batch's bulk cards
+were already in a hand count, give that batch `bulk_counts` of 0.

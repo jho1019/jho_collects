@@ -124,11 +124,22 @@ null) and stops at the top if that user does not exist.
    - `bulk`: graded, or `market_price > 20` → cards row, `intent = null`;
      `<= 20` raw → bulk lot; no `market_price` → flag `missing_value`.
 
-Buckets: `<= 1.00` → `1`, `<= 3.00` → `3`, `<= 5.00` → `5`, `<= 20.00` →
-`6_20`. Unit price is 1.00 / 3.00 / 5.00; for `6_20` it is the average market
-price, recomputed as a weighted average with what the lot already holds:
-`(count × unit + Σ added) / (count + added)`, rounded to cents. One lot per
-bucket per location.
+Buckets **round down** (docs/DECISIONS.md, "Bulk buckets round down"): a
+box's price must never overprice what is in it.
+
+| market price | bucket | unit price |
+|---|---|---|
+| `< 2.00` | `1` | 1.00 |
+| `2.00` – `3.99` | `3` | 3.00 |
+| `4.00` – `5.99` | `5` | 5.00 |
+| `6.00` – `20.00` | `6_20` | weighted average (below) |
+| `> 20.00`, or graded | cards row | — |
+
+The thresholds live in one constant, `BUCKET_THRESHOLDS` in
+`web/lib/inventory-import/plan.ts`. For `6_20` the unit price is the average
+market price, recomputed as a weighted average with what the lot already
+holds: `(count × unit + Σ added) / (count + added)`, rounded to cents. One lot
+per bucket per location.
 
 ### PC rules
 
@@ -214,6 +225,12 @@ Keep the default (the CDP batch number) unless you mean to.
 
 JSON. Every key is optional. Overrides win over everything.
 
+Overrides files hold Johnny's decisions about real inventory and cost — tax
+data — so they live **outside the repo**, next to the CDP exports and
+snapshots, named after the export: e.g.
+`<workdir>/inventory-import/overrides/cdp_batch4_2026-11-27.overrides.json`.
+Never commit one.
+
 ```json
 {
   "comment": "batch4 decisions, Johnny 11/27",
@@ -240,8 +257,14 @@ JSON. Every key is optional. Overrides win over everything.
 - `bulk_counts`: cards this batch **adds** to a (bucket, location), as Johnny
   counted them. Replaces the CDP count for that lot. For `6_20` the unit price
   input is the scanned cards' average × his count; `unit_price` is required
-  only when the batch scanned no `6_20` cards there. (An absolute box recount
-  is a separate `recount` event, not this.)
+  only when the batch scanned no `6_20` cards there (if given while 6_20 cards
+  were scanned, the scanned average wins). `count: 0` means "this batch adds
+  nothing to that box" (its cards were already in an earlier count). When the
+  lot is empty — the first file into a fresh `bulk_lots` — the increment *is*
+  the box total. There is deliberately no absolute "set" mode: a hand count
+  is always an increment guarded by the batch marker (docs/DECISIONS.md,
+  "Hand counts stay increments"). An absolute box recount is a separate
+  `recount` event, not this.
 - `rows[]`: select by exactly one of `cdp_sku`, `cert_number` (+ optional
   `grader`), or `line` (physical line in the file). Decisions: `action`
   (`card` / `bulk` / `skip` / `merge`), `bucket` (with `bulk`), `card_id`

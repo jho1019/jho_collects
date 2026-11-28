@@ -231,12 +231,23 @@ export interface PlanInput {
 
 // ------------------------------------------------------------------ helpers
 
+/**
+ * Bulk buckets ROUND DOWN (docs/DECISIONS.md, "Bulk buckets round down"): a raw
+ * card goes in the highest box whose floor its market price reaches, so a box's
+ * sticker never overprices what is in it. Cents. The only place these numbers live.
+ *   < 2.00 -> 1 · 2.00–3.99 -> 3 · 4.00–5.99 -> 5 · 6.00–20.00 -> 6_20 · > 20.00 -> cards row
+ */
+export const BUCKET_THRESHOLDS = {
+  /** Floors, highest first. Below the lowest floor -> bucket "1". */
+  floors: [["6_20", 600], ["5", 400], ["3", 200]] as ReadonlyArray<readonly [Bucket, number]>,
+  /** Inclusive ceiling for bulk; above it a raw card becomes a cards row. */
+  maxCents: 2000,
+} as const;
+
 export function bucketFor(cents: number): Bucket | null {
-  if (cents <= 100) return "1";
-  if (cents <= 300) return "3";
-  if (cents <= 500) return "5";
-  if (cents <= 2000) return "6_20";
-  return null;
+  if (cents > BUCKET_THRESHOLDS.maxCents) return null;
+  for (const [bucket, floor] of BUCKET_THRESHOLDS.floors) if (cents >= floor) return bucket;
+  return "1";
 }
 const FIXED_UNIT: Record<Exclude<Bucket, "6_20">, number> = { "1": 100, "3": 300, "5": 500 };
 
