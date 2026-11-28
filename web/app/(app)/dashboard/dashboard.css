@@ -80,6 +80,10 @@
   align-items: stretch;
 }
 .sb-herorow > * { min-width: 0; }
+/* Half-width boards (700-899px especially): the label wraps as whole
+   phrases ("NET PROFIT · NOVEMBER" / "MTD · 28 DAYS"), never mid-phrase. */
+.sb-herorow .sb-bl { flex-wrap: wrap; row-gap: 6px; }
+.sb-herorow .sb-bl > * { white-space: nowrap; }
 .sb-hero { display: flex; flex-direction: column; }
 .sb-hero > * { min-width: 0; flex: 1; }
 .sb-hv {
@@ -126,7 +130,7 @@ a.sb-chip:hover { background: color-mix(in srgb, currentColor 12%, transparent);
   font: 600 11px var(--font-mono); letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--color-ink-muted);
 }
-.sb-invsegs { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
+.sb-invsegs { position: relative; container-type: inline-size; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 10px; }
 .sb-invseg {
   display: block; text-align: left; min-width: 0; min-height: 44px;
   background: none; border: 0; padding: 4px 6px; margin: -4px -6px; border-radius: 3px;
@@ -139,8 +143,10 @@ a.sb-chip:hover { background: color-mix(in srgb, currentColor 12%, transparent);
   color: var(--color-ink-muted); text-transform: uppercase;
 }
 .sb-invseg small i { display: inline-block; width: 8px; height: 8px; border-radius: 1px; margin-right: 6px; vertical-align: 0; }
+/* Sized to a third of the row (container units), so "$1,636.83" fits its
+   cell at every width: it overflowed by up to 20px at 700-800px and 320px. */
 .sb-invseg b {
-  display: block; font: 800 26px/1.05 var(--font-display); font-variation-settings: "opsz" 72;
+  display: block; font: 800 clamp(17px, calc((100cqi - 24px) / 3 / 4.3), 26px)/1.05 var(--font-display); font-variation-settings: "opsz" 72;
   letter-spacing: 0.02em; margin: 3px 0 1px; color: var(--color-ink); white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
@@ -326,7 +332,7 @@ table.sb-ls { width: 100%; border-collapse: separate; border-spacing: 3px; }
   .sb-herorow { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .sb-invbar { height: 44px; }
   .sb-invsegs { gap: 8px; }
-  .sb-invseg b { font-size: 22px; }
+  .sb-invseg b { font-size: clamp(17px, calc((100cqi - 16px) / 3 / 4.3), 22px); }
   .sb-hv { font-size: 84px; }
   .sb-ls td { font-size: 18px; padding: 6px 2px; min-width: 50px; letter-spacing: 0; }
   .sb-ls.sb-dense td { font-size: 17px; min-width: 48px; }

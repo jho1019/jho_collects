@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { Fragment, useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { createPortal } from "react-dom";
 import BottomSheet from "@/components/BottomSheet";
 import type { InventoryBoardModel } from "@/lib/dashboard/inventoryBoard";
@@ -62,7 +62,15 @@ function Board({ model: m, label }: { model: InventoryBoardModel; label: React.R
   const wide = useSyncExternalStore(subscribeMd, () => window.matchMedia(MD_QUERY).matches, () => true);
   const wrapRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
+
+  // The popover is ~480px tall and opens below the segments, so on a short
+  // desktop viewport (e.g. 1440x900) its foot lands below the fold. Bring
+  // the whole panel into view, scrolling only as far as needed.
+  useEffect(() => {
+    if (open && wide) popRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open, wide]);
 
   const close = useCallback((refocus: boolean) => {
     setOpen(false);
@@ -120,7 +128,15 @@ function Board({ model: m, label }: { model: InventoryBoardModel; label: React.R
     <>No card has both a cost and a value yet</>
   ) : null;
 
-  const bulkParts = m.bulk.buckets.map((b) => `${b.label} × ${b.count}`).join(" · ");
+  // Each "$6–20 × 7" stays on one line; the row wraps between parts.
+  const bulkParts = m.bulk.buckets.map((b) => (
+    <Fragment key={b.label}>
+      {" · "}
+      <span className="whitespace-nowrap">
+        {b.label} × {b.count}
+      </span>
+    </Fragment>
+  ));
 
   const content = <SellingBreakdown model={m} onNavigate={closeSheet} />;
 
@@ -203,6 +219,7 @@ function Board({ model: m, label }: { model: InventoryBoardModel; label: React.R
 
           {open && wide && (
             <div
+              ref={popRef}
               id={panelId}
               role="dialog"
               aria-label="Selling breakdown"
@@ -224,7 +241,7 @@ function Board({ model: m, label }: { model: InventoryBoardModel; label: React.R
         <span>
           {m.bulk.cards > 0 ? (
             <>
-              Bulk boxes · {bulkParts} · <b>{unsigned(m.bulk.valueCents)}</b> (included in Selling)
+              Bulk boxes{bulkParts} · <b>{unsigned(m.bulk.valueCents)}</b> (included in Selling)
             </>
           ) : (
             <>No bulk boxes counted yet</>
