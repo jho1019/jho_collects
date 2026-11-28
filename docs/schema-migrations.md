@@ -21,8 +21,9 @@ Source: read-only dump of the live project on 2026-11-27
 | `023_database_timezone.sql` | **`022_database_timezone`** (20261009082817) | Off by one. Last recorded migration. |
 | `024_ebay_api.sql` | **not recorded** | Applied by hand in the SQL editor; objects are live. |
 | `025_card_inventory_fields.sql` | **not recorded** | Applied by hand in the SQL editor; objects are live. |
-| `026_profit_views.sql` | not applied | Separate work; untouched. |
-| `027_inventory.sql` | not applied yet | Needs Johnny's go-ahead. |
+| `026_profit_views.sql` | not applied | Separate work; still unapplied and untouched. |
+| `027_inventory.sql` | applied | Applied in prod after the 2026-11-27 dump; its version is not copied here. |
+| `028_sealed_products.sql` | not applied yet | Next file. Needs Johnny's go-ahead after its PR is reviewed. |
 
 `schema_migrations` had 37 rows on 2026-11-27.
 
@@ -66,6 +67,8 @@ order by version desc limit 3;
 
 ## Applying 027
 
+Done: 027 is applied in prod. The steps stay as the record.
+
 Order matters only for the history's readability; 027 itself is idempotent
 and does not depend on the 024/025 rows existing.
 
@@ -86,6 +89,23 @@ and does not depend on the 024/025 rows existing.
 
 Do not re-apply 024 or 025 through `apply_migration`: they are live, and
 recording them is the whole fix.
+
+## Applying 028
+
+Not applied. Waits for Johnny's go-ahead after the PR is reviewed.
+
+1. Apply `schema/028_sealed_products.sql` with `apply_migration`, name
+   **`028_sealed_products`**, query = the file's contents verbatim. It is
+   idempotent and needs only 027 and the earlier files. 026 is not required.
+2. Verify:
+   ```sql
+   select relrowsecurity from pg_class where relname = 'sealed_products';  -- true
+   select policyname, roles from pg_policies
+    where tablename = 'sealed_products';               -- own_sealed_products, {authenticated}
+   select tgname from pg_trigger
+    where tgname in ('sealed_products_pc_guard', 'sealed_products_set_updated_at');  -- 2 rows
+   select * from sealed_inventory;                     -- one row, zeroes, estimated_value null
+   ```
 
 ## New migrations from here
 

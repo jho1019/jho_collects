@@ -47,6 +47,8 @@ PLAN = [
     ("transactions", ["id"], True),
     ("cards", ["id"], True),
     ("card_aliases", ["id"], True),
+    # sealed_products references transactions.
+    ("sealed_products", ["id"], True),
     # buying_list references cards; comps references buying_list.
     ("buying_list", ["id"], True),
     ("comps", ["id"], True),
