@@ -798,3 +798,19 @@ replay, not a different apply order or a new batch id. Absolute counts are the
 `recount` event's job (`bulk_lot_events.reason = 'recount'`), written
 deliberately, not as a side effect of an import. If a later batch's bulk cards
 were already in a hand count, give that batch `bulk_counts` of 0.
+
+## The Kobe Orange PSA 2.5 goes in as a manual add; the raw-read scan stays skipped
+
+Johnny 11/27. CDP scanned the 2008-09 Topps #24 Kobe Orange PSA 2.5 PC slab as a
+raw card at $600 (batch4, `cdp_sku` 343, no grader, no cert). That scan row is
+skipped by override, so it is never inserted as a raw card. The slab itself
+goes in as its own `pc` card through `manual_adds[]` in the batch4 overrides
+file: grader PSA, grade 2.5, `est_value` 600.00 with `est_value_source` `cdp`,
+cert, cost and acquired date null (the scan had none; nothing is invented).
+The manual add deliberately carries no `cdp_sku`: 343 identifies a wrong
+(raw) reading of the slab, and tying the card to it would let any later
+import of sku 343 that lacks the skip update the slab from that raw scan. It
+is keyed instead on title + set + number among cards with no `cdp_sku`, so a
+replay inserts nothing. Batch 2's 13 bulk
+cards stay additive to the lowend hand count (no zero override), giving boxes
+of 27 / 17 / 6 / 7 after all four files.

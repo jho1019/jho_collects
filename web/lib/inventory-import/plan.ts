@@ -89,7 +89,8 @@ export interface CardDraft {
   intent: Intent | null;
   list_price: string | null;
   est_value: string | null;
-  est_value_source: "cdp" | null;
+  /** "cdp" for scanned rows; a manual add may name its own source. */
+  est_value_source: string | null;
   est_valued_on: string | null;
   acquisition_cost: string | null;
   acquired_on: string | null;
@@ -342,7 +343,7 @@ function draftFromManual(m: ManualAdd, valuedOn: string): CardDraft {
     intent: category === "pc" ? null : m.intent ?? null,
     list_price: m.list_price ?? null,
     est_value: m.est_value ?? null,
-    est_value_source: null,
+    est_value_source: m.est_value ? m.est_value_source ?? null : null,
     est_valued_on: m.est_value ? valuedOn : null,
     acquisition_cost: m.acquisition_cost ?? null,
     acquired_on: m.acquired_on ?? null,

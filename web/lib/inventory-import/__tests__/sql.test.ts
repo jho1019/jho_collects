@@ -81,6 +81,14 @@ describe("commit SQL", () => {
     expect(s).not.toMatch(/insert into cards/);
   });
 
+  it("a manual add with no sku/cert inserts once, keyed on title + set + number among non-CDP cards", () => {
+    const m = { manual_adds: [{ title: "Kobe Orange PSA 2.5", set_name: "2008-09 Topps", card_number: "24",
+      grader: "PSA", grade: "2.5", category: "pc", est_value: "600.00", est_value_source: "cdp" }] };
+    const { sql: s } = sqlFor([], undefined, m);
+    expect(s).toContain(`where not exists (select 1 from cards where user_id = '${OWNER}' and cdp_sku is null and title = 'Kobe Orange PSA 2.5' and coalesce(set_name, '') = '2008-09 Topps' and coalesce(card_number, '') = '24')\non conflict do nothing;`);
+    expect(s).toMatch(/'pc'::card_category, NULL, NULL, 600\.00, 'cdp'/i);
+  });
+
   it("rejects a non-UUID owner and NUL bytes", () => {
     const { plan } = sqlFor([row()]);
     expect(() => planToSql(plan, { userId: "me" })).toThrow(SqlEmitError);

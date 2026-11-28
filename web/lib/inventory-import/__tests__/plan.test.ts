@@ -274,6 +274,18 @@ describe("overrides win", () => {
     expect(p.rows[0]).toMatchObject({ source: "manual", outcome: "insert", card: { title: "Acuna HRK Auto Purple", intent: "sell", list_price: "199.99", category: "business" } });
   });
 
+  it("a manual add can name its est_value_source (grader/grade carried; source needs a value)", () => {
+    const p = plan([], { overrides: ov({ manual_adds: [{
+      title: "2008-09 Topps #24 Kobe Bryant Orange PSA 2.5", set_name: "2008-09 Topps", card_number: "24",
+      grader: "PSA", grade: "2.5", category: "pc", intent: null, est_value: "600.00", est_value_source: "cdp",
+    }] }) });
+    expect(p.rows[0]).toMatchObject({ source: "manual", outcome: "insert", cdp_sku: null,
+      card: { category: "pc", intent: null, grader: "PSA", grade: "2.5", cert_number: null, est_value: "600.00", est_value_source: "cdp" } });
+    const bare = plan([], { overrides: ov({ manual_adds: [{ title: "x", est_value: "5" }] }) });
+    expect(bare.rows[0].card?.est_value_source).toBeNull();
+    expect(() => ov({ manual_adds: [{ title: "x", est_value_source: "cdp" }] })).toThrow(/est_value_source needs est_value/);
+  });
+
   it("an override that matches nothing is reported", () => {
     const p = plan([row()], { overrides: ov({ rows: [{ cdp_sku: "nope", action: "skip" }] }) });
     expect(p.warnings[0]).toMatch(/matched no row/);

@@ -77,7 +77,7 @@ function updateSet(r: PlanRow): string[] {
     // Refresh only a CDP-sourced or empty estimate; a hand/comp estimate is kept.
     const refresh = "est_value is null or est_value_source = 'cdp'";
     set.push(`est_value = case when ${refresh} then ${num(c.est_value)} else est_value end`);
-    set.push(`est_value_source = case when ${refresh} then 'cdp' else est_value_source end`);
+    set.push(`est_value_source = case when ${refresh} then ${lit(c.est_value_source ?? "cdp")} else est_value_source end`);
     set.push(`est_valued_on = case when ${refresh} then ${date(c.est_valued_on)} else est_valued_on end`);
   }
   if (c.location !== null) set.push(`location = ${lit(c.location)}`);

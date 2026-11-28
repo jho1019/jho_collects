@@ -59,6 +59,8 @@ export interface ManualAdd {
   intent?: Intent | null;
   list_price?: string | null;
   est_value?: string | null;
+  /** Where est_value came from (e.g. "cdp", "comp"). Requires est_value. Null when omitted. */
+  est_value_source?: string | null;
   acquisition_cost?: string | null;
   acquired_on?: string | null;
   notes?: string | null;
@@ -173,7 +175,7 @@ export function parseOverrides(doc: unknown): Overrides {
     if (typeof m.title !== "string" || !m.title.trim()) problems.push(`${at}.title is required`);
     const out: ManualAdd = { title: String(m.title ?? "").trim() };
     const textKeys = ["player", "year", "set_name", "card_number", "parallel", "grader", "grade", "cert_number", "sport",
-      "serial_number", "cdp_sku", "location", "acquired_on", "notes"] as const;
+      "serial_number", "cdp_sku", "location", "acquired_on", "notes", "est_value_source"] as const;
     for (const k of textKeys) if (m[k] !== undefined && m[k] !== null) out[k] = str(m[k]) || null;
     for (const k of ["list_price", "est_value", "acquisition_cost"] as const) {
       if (m[k] === undefined || m[k] === null) continue;
@@ -192,6 +194,7 @@ export function parseOverrides(doc: unknown): Overrides {
     if (out.category === "pc" && out.intent) problems.push(`${at}: a pc card cannot have an intent`);
     if (out.acquired_on && !/^\d{4}-\d{2}-\d{2}$/.test(out.acquired_on)) problems.push(`${at}.acquired_on must be YYYY-MM-DD`);
     if (out.cert_number && !out.grader) problems.push(`${at}: cert_number needs grader (certs are unique per grader)`);
+    if (out.est_value_source && !out.est_value) problems.push(`${at}: est_value_source needs est_value`);
     for (const k of Object.keys(m)) {
       if (![...textKeys, "title", "list_price", "est_value", "acquisition_cost", "category", "intent"].includes(k as never)) {
         problems.push(`${at}: unknown key "${k}"`);

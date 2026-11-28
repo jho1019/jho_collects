@@ -271,7 +271,10 @@ Never commit one.
   (with `merge`), `category`, `intent` (`hold` / `sell` / `null`),
   `list_price`, `location`, `note`. A `pc` card cannot have an intent.
 - `manual_adds[]`: cards not in CDP. `title` required; any cards field from
-  the mapping table. Matched by `cdp_sku` / cert if given, else by exact
+  the mapping table, plus `est_value_source` (only with `est_value`; null if
+  omitted). Leave `cdp_sku` off a manual add whose CDP scan is skipped as a
+  misread — the sku belongs to the wrong reading, not the card (e.g. the Kobe Orange PSA 2.5,
+  added by hand while its raw-read scan, sku 343, stays skipped). Matched by `cdp_sku` / cert if given, else by exact
   title + set + number among non-CDP cards, so re-running does not duplicate.
 
 An override that matches no row is listed in the report's warnings.
