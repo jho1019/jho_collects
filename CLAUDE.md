@@ -93,6 +93,14 @@ Cards owned before Aug 1 2026 go in via `add_opening_stock()`. It writes **no
 transaction** — that money predates the ledger and its cost lives in
 `inventory_counts`. Never create a purchase row for them; it double-counts.
 
+### Card Dealer Pro inventory batches
+
+A CDP inventory export goes through `web/scripts/cdp-inventory-import.ts`
+(docs/inventory-import.md): dry run, overrides, then a reviewed commit SQL. Do
+not hand-write inserts for a CDP batch — the importer applies the PC rules,
+bulk buckets, dedupe and the idempotency guards. PC is defined only in
+`web/lib/inventory-import/pc-rules.ts`.
+
 ### Creating cards
 
 Opt-in. Create a card row for anything worth finding by name later: graded

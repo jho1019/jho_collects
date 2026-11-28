@@ -23,6 +23,8 @@ schema/                *.sql migrations, applied in order (Phase 1, 3.5)
 importers/             parse_ebay.py — transaction report parser (tested)
 .claude/skills/card-entry/   natural-language entry routing skill (auto-loaded)
 web/                   Next.js dashboard + eBay API routes (app/api/ebay/*)
+  scripts/cdp-inventory-import.ts  Card Dealer Pro inventory import -> reviewable SQL
+                       (docs/inventory-import.md)
 scripts/
   check_connection.py  Phase 0 connectivity check
   backup.py            dated CSV dump of every table -> ./backups (gitignored)

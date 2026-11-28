@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:live": "EBAY_LIVE=1 vitest run live --silent=false",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "inventory:import": "tsx scripts/cdp-inventory-import.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
@@ -28,6 +29,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.1"
   },
