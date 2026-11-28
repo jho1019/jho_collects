@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inventoryStats, isFiltered, type StatsCard } from "../inventoryStats";
+import { inventoryStats, isFiltered, shownStats, type StatsCard } from "../inventoryStats";
 
 // Spec 17.3 #3: the strip follows status / text / ?cost=missing.
 const card = (o: Partial<StatsCard>): StatsCard => ({
@@ -69,6 +69,39 @@ describe("inventoryStats", () => {
 
   it("a text filter that matches nothing on hand gives zeros, not the full set", () => {
     expect(inventoryStats([], "all", false).cards_on_hand).toBe(0);
+  });
+});
+
+describe("shownStats (?group= / ?price=missing views, spec 18)", () => {
+  it("?group=pc counts the PC rows shown, not a row of zeros", () => {
+    const pc = [
+      card({ category: "pc", acquisition_cost: "99.00" }),
+      card({ category: "pc", status: "listed", acquisition_cost: null, is_opening_stock: true }),
+    ];
+    // inventoryStats excludes pc (tracked_inventory rule): the old mismatch.
+    expect(inventoryStats(pc, "all", false).cards_on_hand).toBe(0);
+    expect(shownStats(pc)).toEqual({
+      label: "On hand",
+      cards_on_hand: 2,
+      opening_stock_cards: 1,
+      acquired_since_start: 1,
+      cards_without_cost: 1,
+      known_cost_basis: 99,
+      opening_cost_basis: 0,
+      acquired_cost_basis: 99,
+    });
+  });
+
+  it("matches the table length for a mixed price=missing view, summing in cents", () => {
+    const rows = [
+      card({ acquisition_cost: "0.10" }),
+      card({ category: "pc", acquisition_cost: "0.20" }),
+      card({ category: "riftbound" }),
+    ];
+    const s = shownStats(rows);
+    expect(s.cards_on_hand).toBe(rows.length);
+    expect(s.known_cost_basis).toBe(0.3);
+    expect(s.cards_without_cost).toBe(1);
   });
 });
 

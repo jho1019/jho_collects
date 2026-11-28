@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useOptimistic, useSyncExternalStore, useTransition } from "react";
+import type { InventoryBoardModel } from "@/lib/dashboard/inventoryBoard";
 import type { Scoreboard as Model } from "@/lib/dashboard/model";
 import { RANGE_LABEL, type RangeKey } from "@/lib/dashboard/range";
 import { money, moneyAria, pct, tone } from "@/lib/dashboard/format";
@@ -11,6 +12,7 @@ import { goalValue, informativeDelta } from "@/lib/dashboard/kpi";
 import BackOfCard from "./BackOfCard";
 import CumulativeChart from "./CumulativeChart";
 import GoalRing from "./GoalRing";
+import InventoryBoard from "./InventoryBoard";
 import LineScore from "./LineScore";
 import ProfitBars from "./ProfitBars";
 import RangeControl from "./RangeControl";
@@ -39,10 +41,15 @@ export default function Scoreboard({
   model,
   range,
   failed,
+  inventory = null,
+  inventoryFailed = false,
 }: {
   model: Model | null;
   range: RangeKey;
   failed: boolean;
+  /** Inventory + PC board (spec 18); loaded separately, null on failure. */
+  inventory?: InventoryBoardModel | null;
+  inventoryFailed?: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -89,8 +96,16 @@ export default function Scoreboard({
     </div>
   );
 
+  // Today's inventory snapshot, independent of the scoreboard load.
+  const invBoard = <InventoryBoard model={inventory} failed={inventoryFailed || !inventory} />;
+
   if (!m) {
-    return <main className="sb-page">{errorBanner}</main>;
+    return (
+      <main className="sb-page">
+        {errorBanner}
+        {inventory && <div className="sb-herorow">{invBoard}</div>}
+      </main>
+    );
   }
 
   const isStale = !model && !!stale;
@@ -223,37 +238,43 @@ export default function Scoreboard({
         </div>
       )}
 
-      {/* ------------------------------------------------------------ hero */}
-      <section className="board sb-board hero sb-hero" aria-label="Net profit this month">
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          <div className="sb-bl">
-            <span>Net profit · {h.monthName}</span>
-            <span className="sb-mute">MTD · {h.dayOfMonth} DAY{h.dayOfMonth === 1 ? "" : "S"}</span>
-          </div>
-          <div
-            className={`sb-hv ${heroTone === "neg" ? "sb-neg" : heroTone === "zero" ? "sb-zero" : ""}`}
-            aria-label={`Net profit this month ${noSales || quietMonth ? "$0.00" : moneyAria(h.mtd)}`}
-          >
-            {heroValue}
-          </div>
-          <div className="sb-chips">{chips}</div>
-          <p className="sb-nt">{note}</p>
-          {noSales && (
-            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              <Link href="/data" className="sb-btn sb-pri">Import eBay report</Link>
-              <Link href="/deals" className="sb-btn">Log a deal</Link>
+      {/* ------------------------- hero row: profit + inventory (spec 18) */}
+      <div className="sb-herorow">
+        <section className="board sb-board hero sb-hero" aria-label="Net profit this month">
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div className="sb-bl">
+              <span>Net profit · {h.monthName}</span>
+              <span className="sb-mute">MTD · {h.dayOfMonth} DAY{h.dayOfMonth === 1 ? "" : "S"}</span>
             </div>
-          )}
-          <Spark
-            values={h.spark}
-            color={h.mtd < 0 ? "var(--color-neg)" : "var(--color-pos)"}
-            className="sb-heroSpark"
-          />
-          <div className="sb-bl" style={{ marginTop: 4, opacity: 0.75 }}>
-            <span>Daily profit · last 30 days</span>
+            <div
+              className={`sb-hv ${heroTone === "neg" ? "sb-neg" : heroTone === "zero" ? "sb-zero" : ""}`}
+              aria-label={`Net profit this month ${noSales || quietMonth ? "$0.00" : moneyAria(h.mtd)}`}
+            >
+              {heroValue}
+            </div>
+            <div className="sb-chips">{chips}</div>
+            <p className="sb-nt">{note}</p>
+            {noSales && (
+              <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                <Link href="/data" className="sb-btn sb-pri">Import eBay report</Link>
+                <Link href="/deals" className="sb-btn">Log a deal</Link>
+              </div>
+            )}
+            <Spark
+              values={h.spark}
+              color={h.mtd < 0 ? "var(--color-neg)" : "var(--color-pos)"}
+              className="sb-heroSpark"
+            />
+            <div className="sb-bl" style={{ marginTop: 4, opacity: 0.75 }}>
+              <span>Daily profit · last 30 days</span>
+            </div>
           </div>
-        </div>
+        </section>
+        {invBoard}
+      </div>
 
+      {/* ------------------------------------------- line score (own board) */}
+      <section className="board sb-board hero sb-lsb" aria-label={`Line score, profit by ${unit}`}>
         <div>
           <div className="sb-bl">
             <span>Line score · profit by {unit}</span>
