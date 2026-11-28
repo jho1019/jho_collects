@@ -630,3 +630,68 @@ separate from this one.
 column cannot be altered, so it is dropped and re-added with its trigram
 index). That is safe because `find_cards` also scores with `word_similarity`
 (`008`), so a longer haystack does not push short phrases under the threshold.
+
+## A `pc` card can never be listed or sold; a trigger blocks it outright
+
+`schema/027` adds `cards_pc_guard`, a `BEFORE INSERT OR UPDATE` trigger that
+rejects `category = 'pc'` with `status` `listed` or `sold` (SQLSTATE `23514`,
+`check_violation`). There is no owner override: to sell a PC card, change its
+category first. That makes "this is now stock" an explicit, visible edit, and
+the same edit moves the card into `tracked_inventory`.
+
+A trigger rather than a CHECK only so the error can say what to do; the rule
+is row-local either way. Being in the database, it covers every writer:
+`sell_card()` and `ebay_close_card_for_sale()` fail on a PC card (atomically —
+`sell_card` leaves no orphan sale row), as does the dashboard's report import.
+`traded` stays allowed: a PC card can leave in a trade. On top of the trigger,
+the eBay code skips PC cards (sync lookups, CDP listing links, the report
+import's close-by-SKU) and refuses to reprice an offer tied to one (409
+`personal_collection`), so they fail early and legibly instead of hitting the
+trigger.
+
+## `cards.intent` separates investment holds from cards waiting to be listed
+
+`held` covered both. `intent` (`hold` / `sell`, nullable = undecided) records
+the plan without adding a status — status stays where the card *is*. It is
+null whenever `category = 'pc'` (CHECK `cards_intent_null_for_pc`), because a
+PC card is never for sale; putting an `intent = 'sell'` card into PC is
+rejected rather than silently clearing it.
+
+## `cdp_sku` is separate from `sku`
+
+`sku` is the eBay Custom label, the join key for the report import, the sync
+and `ebay_listings`. Card Dealer Pro assigns its own SKU at scan time. Reusing
+one column for both would let a CDP scan overwrite the key the importer
+matches on. `cdp_sku` is unique per owner when set; the two may hold the same
+value for a CDP-listed card, but neither is derived from the other. CDP's
+market price needs no column: it goes in `est_value` with
+`est_value_source = 'cdp'` — a rough value, never a cost.
+
+## Bulk lots are counts; their money stays on `transactions`
+
+The $1 / $3 / $5 / $6–20 boxes live in `bulk_lots`, one row per (owner,
+bucket, location), with `card_count`, `unit_price` and a generated
+`total_value`. Not card rows (cards stay opt-in) and not `inventory_counts`
+(that is the year-end tax count). Changes are logged in `bulk_lot_events`
+(`scan_add` / `show_sale` / `recount`), which hold **counts only**: a box sale
+at a show is an ordinary sale row in `transactions`, linked from the event by
+`transaction_id`. `bulk_lot_events.amount` is context, never summed. The event
+table references its lot by `(lot_id, user_id)` so an event can never point
+at another owner's lot. No trigger applies `delta` to `card_count`; the writer
+does it, so a recount can set the absolute figure.
+
+Deferred: whether bulk-lot cost basis (`total_cost`) rolls into ending
+inventory. Until decided, `bulk_lots` feeds no view, and `tracked_inventory`
+and the tax views are unchanged.
+
+Both new tables use policies `TO authenticated` (not `TO public`), revoke
+everything from `anon` and `TRUNCATE` from `authenticated` — the tidy-up the
+older tables are due, applied from the start here.
+
+## The inventory migration is `027`, not `026`
+
+`026_profit_views.sql` was already in the repo, unapplied, and stays as is.
+Repo file numbers have never matched applied history (applied
+`022_database_timezone` is repo `023`; 024 and 025 were run by hand and never
+recorded). `docs/schema-migrations.md` maps them, has the snippet that records
+024/025, and from 027 on the `apply_migration` name matches the file name.

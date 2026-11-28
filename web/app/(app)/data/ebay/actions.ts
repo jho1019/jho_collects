@@ -279,6 +279,10 @@ export async function commitEbay(fd: FormData): Promise<EbayCommit> {
         // A traded card has already left inventory. Closing it as sold here
         // would invent a receipt for cards that were swapped, not sold.
         .not("status", "in", "(sold,traded)")
+        // A personal-collection card is never sold (schema/027's
+        // cards_pc_guard trigger would reject it anyway); skip it here so
+        // the import neither errors nor counts it.
+        .neq("category", "pc")
         .select("id");
       cardsClosed += closed?.length ?? 0;
     }

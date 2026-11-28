@@ -57,6 +57,12 @@ export interface AuditStore {
 export interface ListingStateStore {
   setPrice(environment: EbayEnvironment, offerId: string, price: string): Promise<void>;
   markEnded(environment: EbayEnvironment, offerId: string): Promise<void>;
+  /**
+   * True when the offer belongs to a personal-collection card (cards.category
+   * = 'pc'). updatePrice refuses those (schema/027: pc is excluded from every
+   * pricing/eBay tool). Not best effort: a thrown error aborts the reprice.
+   */
+  isPersonalCollection?(environment: EbayEnvironment, ref: { offerId: string; sku: string | null }): Promise<boolean>;
 }
 
 export interface ChangeDeps {
@@ -115,6 +121,10 @@ export async function updatePrice(
     offer = await resolveOffer(deps.rest, id, input.by);
     if (offer.price?.currency && offer.price.currency !== "USD") {
       throw new ApiError(409, "unsupported_currency", `offer is priced in ${offer.price.currency}; only USD is supported`);
+    }
+    if (await deps.listings?.isPersonalCollection?.(deps.environment, { offerId: offer.offerId, sku: offer.sku ?? null })) {
+      throw new ApiError(409, "personal_collection",
+        "this listing is a personal-collection (pc) card; pc cards are never repriced — change the card's category first");
     }
     await updateOfferPrice(deps.rest, offer, price);
   } catch (err) {
